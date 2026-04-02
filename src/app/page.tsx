@@ -1,3 +1,88 @@
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Monitor, LayoutDashboard, ShieldCheck, Zap } from 'lucide-react';
+import Image from 'next/image';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+
 export default function Home() {
-  return <></>;
+  const heroImg = PlaceHolderImages.find(img => img.id === 'hero-signage');
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="px-6 py-4 flex items-center justify-between border-b bg-white">
+        <div className="flex items-center gap-2">
+          <Monitor className="text-primary h-8 w-8" />
+          <h1 className="text-2xl font-bold text-primary">ScreenSense</h1>
+        </div>
+        <nav className="flex gap-4">
+          <Link href="/admin">
+            <Button variant="ghost">Admin Login</Button>
+          </Link>
+          <Link href="/display">
+            <Button className="bg-primary hover:bg-primary/90">View Signage</Button>
+          </Link>
+        </nav>
+      </header>
+
+      <main className="flex-1 flex flex-col md:flex-row items-center justify-center p-6 gap-12 max-w-7xl mx-auto">
+        <div className="flex-1 space-y-6">
+          <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-primary">
+            Next-Gen Intelligence for Your <span className="text-accent">Digital Displays</span>
+          </h2>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and utilize AI to generate engaging science and math facts for your audience.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/admin">
+              <Button size="lg" className="h-14 px-8 text-lg gap-2">
+                <LayoutDashboard className="w-5 h-5" />
+                Go to Dashboard
+              </Button>
+            </Link>
+            <Link href="/display">
+              <Button variant="outline" size="lg" className="h-14 px-8 text-lg gap-2">
+                <Monitor className="w-5 h-5" />
+                Launch Signage Client
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-6 pt-8">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-6 h-6 text-accent mt-1" />
+              <div>
+                <h3 className="font-semibold">Secure Admin</h3>
+                <p className="text-sm text-muted-foreground">PIN protected access and encrypted communication.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Zap className="w-6 h-6 text-accent mt-1" />
+              <div>
+                <h3 className="font-semibold">AI Powered</h3>
+                <p className="text-sm text-muted-foreground">Automated content generation and smart scheduling.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 w-full max-w-md md:max-w-none">
+          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
+            <Image
+              src={heroImg?.imageUrl || 'https://picsum.photos/seed/screensense1/1920/1080'}
+              alt="ScreenSense Dashboard Preview"
+              fill
+              className="object-cover"
+              data-ai-hint="digital signage"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
+          </div>
+        </div>
+      </main>
+
+      <footer className="p-8 border-t bg-white/50 text-center text-sm text-muted-foreground">
+        &copy; {new Date().getFullYear()} ScreenSense Systems. Built for clarity and intelligence.
+      </footer>
+    </div>
+  );
 }

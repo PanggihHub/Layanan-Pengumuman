@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-signage",
+      "description": "Digital signage displaying educational content",
+      "imageUrl": "https://picsum.photos/seed/screensense1/1920/1080",
+      "imageHint": "digital signage"
+    },
+    {
+      "id": "science-fact",
+      "description": "Scientific laboratory background",
+      "imageUrl": "https://picsum.photos/seed/science/800/600",
+      "imageHint": "science laboratory"
+    },
+    {
+      "id": "campus-life",
+      "description": "Busy university campus hallway",
+      "imageUrl": "https://picsum.photos/seed/campus/1200/800",
+      "imageHint": "university campus"
+    },
+    {
+      "id": "weather-bg",
+      "description": "Cloudy blue sky",
+      "imageUrl": "https://picsum.photos/seed/sky/1920/1080",
+      "imageHint": "blue sky"
+    }
+  ]
+}
