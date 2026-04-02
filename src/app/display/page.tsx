@@ -1,48 +1,63 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { Cloud, Clock, MapPin, Info, TriangleAlert } from "lucide-react";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { Cloud, MapPin, Info, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Mock Playlist Content
-const playlist = [
-  { id: 1, type: "image", src: "https://picsum.photos/seed/screensense1/1920/1080", duration: 8000, title: "Welcome to Campus" },
-  { id: 2, type: "image", src: "https://picsum.photos/seed/science/1920/1080", duration: 8000, title: "Science Fact: Photosynthesis" },
-  { id: 3, type: "image", src: "https://picsum.photos/seed/campus/1920/1080", duration: 8000, title: "Upcoming Events" },
-];
+import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS } from "@/lib/mock-data";
 
 export default function DisplayClient() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [time, setTime] = useState(new Date());
-  const [showEmergency, setShowEmergency] = useState(false);
+
+  // Derive the active playlist items from our mock store
+  const activePlaylist = useMemo(() => {
+    const playlistDef = PLAYLISTS.find(p => p.id === SCREEN_SETTINGS.activePlaylistId);
+    if (!playlistDef) return [];
+    
+    return playlistDef.items.map(itemId => {
+      const media = INITIAL_MEDIA.find(m => m.id === itemId);
+      return {
+        id: itemId,
+        src: media?.url || 'https://picsum.photos/seed/placeholder/1920/1080',
+        title: media?.name.replace(/_/g, ' ').replace(/\.[^/.]+$/, "") || 'Campus News',
+        duration: 8000
+      };
+    });
+  }, []);
 
   useEffect(() => {
     // Time update loop
     const timer = setInterval(() => setTime(new Date()), 1000);
     
+    if (activePlaylist.length === 0) return () => clearInterval(timer);
+
     // Playlist loop
     const rotate = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % playlist.length);
-    }, playlist[currentIndex].duration);
+      setCurrentIndex((prev) => (prev + 1) % activePlaylist.length);
+    }, activePlaylist[currentIndex]?.duration || 8000);
 
     return () => {
       clearInterval(timer);
       clearInterval(rotate);
     };
-  }, [currentIndex]);
+  }, [currentIndex, activePlaylist]);
 
-  const currentItem = playlist[currentIndex];
+  if (activePlaylist.length === 0) {
+    return (
+      <div className="signage-full bg-black flex items-center justify-center text-white">
+        <p className="text-2xl animate-pulse">Waiting for content sync...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="signage-full bg-black">
       {/* Main Content Area */}
       <div className="flex-1 relative overflow-hidden">
-        {playlist.map((item, idx) => (
+        {activePlaylist.map((item, idx) => (
           <div
-            key={item.id}
+            key={`${item.id}-${idx}`}
             className={cn(
               "absolute inset-0 transition-opacity duration-1000",
               idx === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
@@ -56,12 +71,12 @@ export default function DisplayClient() {
               className="object-cover"
             />
             {/* Overlay Info Card */}
-            <div className="absolute bottom-24 left-12 p-8 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white max-w-xl shadow-2xl">
+            <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl">
               <div className="flex items-center gap-3 mb-2">
                 <Info className="text-accent w-6 h-6" />
-                <span className="text-accent font-bold tracking-widest uppercase text-sm">Feature Story</span>
+                <span className="text-accent font-bold tracking-widest uppercase text-xs">Featured Content</span>
               </div>
-              <h2 className="text-4xl font-extrabold leading-tight">
+              <h2 className="text-4xl font-extrabold leading-tight drop-shadow-lg">
                 {item.title}
               </h2>
             </div>
@@ -70,10 +85,10 @@ export default function DisplayClient() {
 
         {/* Dynamic Modules Overlay */}
         <div className="absolute top-12 right-12 z-20 flex flex-col items-end gap-6">
-          <div className="bg-black/50 backdrop-blur-xl border border-white/20 p-6 rounded-3xl text-white flex flex-col items-end min-w-[280px] shadow-2xl">
+          <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-6 rounded-3xl text-white flex flex-col items-end min-w-[280px] shadow-2xl">
             <div className="flex items-center gap-2 text-accent mb-1 font-bold">
               <MapPin className="w-4 h-4" />
-              <span>Main Campus Hall</span>
+              <span>{SCREEN_SETTINGS.locationName}</span>
             </div>
             <div className="text-7xl font-bold tracking-tighter">
               {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -87,31 +102,33 @@ export default function DisplayClient() {
                 <Cloud className="text-blue-300 w-8 h-8" />
                 <div>
                   <div className="text-2xl font-bold">28°C</div>
-                  <div className="text-xs uppercase tracking-widest opacity-60 font-bold">Partly Cloudy</div>
+                  <div className="text-[10px] uppercase tracking-widest opacity-60 font-bold">Partly Cloudy</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs opacity-60 font-bold uppercase">AQI Index</div>
+                <div className="text-[10px] opacity-60 font-bold uppercase">AQI Index</div>
                 <div className="text-green-400 font-bold">42 (Good)</div>
               </div>
             </div>
           </div>
           
           {/* Interactive QR Code Widget */}
-          <div className="bg-white p-4 rounded-2xl shadow-xl flex items-center gap-4">
-            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20">
-               <span className="text-[8px] font-bold text-primary text-center leading-none">SCAN TO LEARN MORE</span>
+          <div className="bg-white/95 backdrop-blur p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white">
+            <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20 relative">
+               <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                  <span className="text-[6px] font-black text-primary text-center leading-none">SCAN<br/>FOR<br/>DETAILS</span>
+               </div>
             </div>
             <div className="text-primary pr-2">
-              <p className="font-bold text-sm">Mobile Companion</p>
-              <p className="text-xs text-muted-foreground">Scan for full article</p>
+              <p className="font-bold text-sm tracking-tight">Interactive Hub</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Mobile Companion</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Emergency Broadcast System Mock (Triggerable via state) */}
-      {showEmergency && (
+      {/* Emergency Broadcast System Mock */}
+      {SCREEN_SETTINGS.emergencyAlert && (
         <div className="fixed inset-0 z-[100] bg-red-600 flex flex-col items-center justify-center p-12 text-white animate-pulse">
           <TriangleAlert className="w-48 h-48 mb-8" />
           <h1 className="text-8xl font-black uppercase mb-4 tracking-tighter">Emergency Alert</h1>
@@ -120,18 +137,12 @@ export default function DisplayClient() {
       )}
 
       {/* Ticker System */}
-      <div className="ticker-wrap border-t border-white/20 shadow-[0_-4px_10px_rgba(0,0,0,0.3)]">
+      <div className="ticker-wrap border-t border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] bg-primary/90 backdrop-blur-md">
         <div className="ticker-content flex gap-24 items-center">
-          <span className="font-bold">CAMPUS NEWS:</span>
-          <span>Faculty meeting at 4 PM in Conference Room B</span>
-          <span className="text-accent">•</span>
-          <span>New cafeteria menu launched today - Try the Indonesian Rendang!</span>
-          <span className="text-accent">•</span>
-          <span>Registration for Spring Semester opens next Monday</span>
-          <span className="text-accent">•</span>
-          <span>Library hours extended during examination week (Open 24/7)</span>
-          <span className="text-accent">•</span>
-          <span>AI Research Lab wins Global Innovation Award</span>
+          <span className="font-black bg-white text-primary px-3 py-1 rounded text-xs">LIVE UPDATES</span>
+          <span className="text-lg font-medium">{SCREEN_SETTINGS.tickerMessage}</span>
+          <span className="text-accent text-2xl">•</span>
+          <span className="text-lg font-medium">Welcome to the semester - Stay inspired, stay curious!</span>
         </div>
       </div>
     </div>

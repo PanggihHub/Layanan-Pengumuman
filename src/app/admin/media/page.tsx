@@ -1,10 +1,8 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Plus, 
   Search, 
@@ -16,7 +14,8 @@ import {
   MoreVertical,
   PlayCircle,
   FileImage,
-  ExternalLink
+  ExternalLink,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -26,18 +25,25 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-
-const mockMedia = [
-  { id: 1, name: "Orientation_Hero.jpg", type: "image", size: "2.4 MB", date: "2023-10-12", url: "https://picsum.photos/seed/screensense1/400/300" },
-  { id: 2, name: "Science_Fact_Photosynthesis.mp4", type: "video", size: "45.1 MB", date: "2023-10-14", url: "https://picsum.photos/seed/science/400/300" },
-  { id: 3, name: "Campus_Map_Vertical.png", type: "image", size: "1.8 MB", date: "2023-10-15", url: "https://picsum.photos/seed/campus/400/300" },
-  { id: 4, name: "Welcome_Slide_V2.jpg", type: "image", size: "3.2 MB", date: "2023-10-16", url: "https://picsum.photos/seed/display/400/300" },
-  { id: 5, name: "Graduation_Promo.mov", type: "video", size: "128.4 MB", date: "2023-10-18", url: "https://picsum.photos/seed/grad/400/300" },
-  { id: 6, name: "Cafeteria_Menu.pdf", type: "document", size: "0.5 MB", date: "2023-10-20", url: "https://picsum.photos/seed/food/400/300" },
-];
+import { INITIAL_MEDIA, MediaItem } from "@/lib/mock-data";
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>(INITIAL_MEDIA);
+
+  const filteredMedia = useMemo(() => {
+    return mediaItems.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType = !filterType || item.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [mediaItems, searchQuery, filterType]);
+
+  const handleDelete = (id: string) => {
+    setMediaItems(prev => prev.filter(item => item.id !== id));
+  };
 
   return (
     <div className="space-y-6">
@@ -61,13 +67,36 @@ export default function MediaLibrary() {
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 w-full md:w-96">
               <Search className="w-4 h-4 text-muted-foreground" />
-              <input type="text" placeholder="Search by filename..." className="bg-transparent border-none outline-none text-sm w-full" />
+              <input 
+                type="text" 
+                placeholder="Search by filename..." 
+                className="bg-transparent border-none outline-none text-sm w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")}>
+                  <X className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                </button>
+              )}
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon">
-                <Filter className="w-4 h-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="w-4 h-4" />
+                    {filterType ? `Filter: ${filterType}` : "All Types"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setFilterType(null)}>All Types</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("image")}>Images</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("video")}>Videos</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("document")}>Documents</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <div className="border rounded-lg flex p-1 bg-white">
                 <Button 
                   variant={view === "grid" ? "secondary" : "ghost"} 
@@ -91,9 +120,15 @@ export default function MediaLibrary() {
         </CardContent>
       </Card>
 
-      {view === "grid" ? (
+      {filteredMedia.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-white/50 rounded-xl border-2 border-dashed">
+          <Search className="w-12 h-12 mb-4 opacity-20" />
+          <p className="text-lg font-medium">No results found for your search.</p>
+          <Button variant="link" onClick={() => {setSearchQuery(""); setFilterType(null);}}>Clear all filters</Button>
+        </div>
+      ) : view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {mockMedia.map((media) => (
+          {filteredMedia.map((media) => (
             <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all">
               <div className="relative aspect-video">
                 <Image src={media.url} alt={media.name} fill className="object-cover" />
@@ -107,7 +142,7 @@ export default function MediaLibrary() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem><Edit3 className="w-4 h-4 mr-2" /> Rename</DropdownMenuItem>
                       <DropdownMenuItem><PlayCircle className="w-4 h-4 mr-2" /> Preview</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -119,11 +154,11 @@ export default function MediaLibrary() {
               </div>
               <CardContent className="p-4">
                 <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <h3 className="font-semibold text-sm truncate max-w-[150px]">{media.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm truncate">{media.name}</h3>
                     <p className="text-xs text-muted-foreground">{media.size} • {media.date}</p>
                   </div>
-                  <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0">
+                  <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0 shrink-0">
                     {media.type}
                   </Badge>
                 </div>
@@ -150,7 +185,7 @@ export default function MediaLibrary() {
                 </tr>
               </thead>
               <tbody>
-                {mockMedia.map((media) => (
+                {filteredMedia.map((media) => (
                   <tr key={media.id} className="border-b hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-3">
                       <div className="w-12 h-8 rounded relative overflow-hidden bg-muted">
@@ -167,7 +202,14 @@ export default function MediaLibrary() {
                     <td className="px-6 py-3 text-muted-foreground">{media.size}</td>
                     <td className="px-6 py-3 text-muted-foreground">{media.date}</td>
                     <td className="px-6 py-3 text-right">
-                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                           <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
