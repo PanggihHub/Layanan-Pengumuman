@@ -1,10 +1,24 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Play, FileVideo, Users, Activity, ExternalLink, ArrowUpRight, RefreshCw } from "lucide-react";
+import { 
+  Monitor, 
+  Play, 
+  FileVideo, 
+  Users, 
+  Activity, 
+  ExternalLink, 
+  ArrowUpRight, 
+  RefreshCw,
+  Download,
+  Eye,
+  EyeOff,
+  History,
+  FileText
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
   BarChart, 
@@ -15,9 +29,19 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from "recharts";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { INITIAL_MEDIA, PLAYLISTS, SCREEN_STATUS, ScreenStatus } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const engagementData = [
   { name: 'Mon', engagement: 420 },
@@ -30,16 +54,22 @@ const engagementData = [
 ];
 
 export default function AdminOverview() {
-  const [screens, setScreens] = useState<ScreenStatus[]>(SCREEN_STATUS);
+  const [screens] = useState<ScreenStatus[]>(SCREEN_STATUS);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(true);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { toast } = useToast();
   
   // Simulated activity history
   const [history, setHistory] = useState([
-    { time: "2m ago", text: "Main Hall A started 'Orientation Loop'", type: "play" },
-    { time: "15m ago", text: "Media library: 'Welcome_Slide_V2' uploaded", type: "genai" },
-    { time: "1h ago", text: "Sync: 12 screens updated successfully", type: "sync" },
-    { time: "3h ago", text: "System check: All clear", type: "system" }
+    { id: 1, time: "2m ago", text: "Main Hall A started 'Orientation Loop'", type: "play" },
+    { id: 2, time: "15m ago", text: "Media library: 'Welcome_Slide_V2' uploaded", type: "genai" },
+    { id: 3, time: "1h ago", text: "Sync: 12 screens updated successfully", type: "sync" },
+    { id: 4, time: "3h ago", text: "System check: All clear", type: "system" },
+    { id: 5, time: "5h ago", text: "New schedule added: Friday Jumu'ah", type: "worship" },
+    { id: 6, time: "8h ago", text: "Admin login: Chief Editor", type: "system" },
+    { id: 7, time: "Yesterday", text: "Emergency protocol test completed", type: "sync" }
   ]);
 
   const stats = useMemo(() => {
@@ -58,15 +88,13 @@ export default function AdminOverview() {
 
   const handleSyncAll = () => {
     setIsSyncing(true);
-    
-    // Simulate network delay
     setTimeout(() => {
       setIsSyncing(false);
       const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       
       setHistory(prev => [
-        { time: "Just now", text: `Global fleet sync initiated at ${now}`, type: "sync" },
-        ...prev.slice(0, 3)
+        { id: Date.now(), time: "Just now", text: `Global fleet sync initiated at ${now}`, type: "sync" },
+        ...prev
       ]);
 
       toast({
@@ -76,6 +104,22 @@ export default function AdminOverview() {
     }, 2000);
   };
 
+  const handleExport = () => {
+    setIsExporting(true);
+    toast({
+      title: "Generating Report",
+      description: "Compiling system telemetry and engagement data...",
+    });
+
+    setTimeout(() => {
+      setIsExporting(false);
+      toast({
+        title: "Export Ready",
+        description: "System_Report_Q4.pdf has been saved to your downloads.",
+      });
+    }, 3000);
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -83,21 +127,45 @@ export default function AdminOverview() {
           <h1 className="text-3xl font-bold text-primary">System Dashboard</h1>
           <p className="text-muted-foreground">Monitoring {screens.length} screens across the network.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">Export Reports</Button>
-          <Button 
-            className="bg-primary gap-2" 
-            onClick={handleSyncAll}
-            disabled={isSyncing}
-          >
-            {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync All Screens
-          </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border shadow-sm">
+            {showAnalytics ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+            <Label htmlFor="analytics-toggle" className="text-xs font-bold uppercase tracking-tight cursor-pointer">
+              Analytics
+            </Label>
+            <Switch 
+              id="analytics-toggle" 
+              checked={showAnalytics} 
+              onCheckedChange={setShowAnalytics}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExport}
+              disabled={isExporting}
+              className="gap-2"
+            >
+              {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isExporting ? "Exporting..." : "Export Reports"}
+            </Button>
+            <Button 
+              className="bg-primary gap-2" 
+              onClick={handleSyncAll}
+              disabled={isSyncing}
+            >
+              {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Sync All Screens
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={cn(
+        "grid grid-cols-1 md:grid-cols-2 gap-6",
+        showAnalytics ? "lg:grid-cols-4" : "lg:grid-cols-3"
+      )}>
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -116,11 +184,12 @@ export default function AdminOverview() {
             </div>
           </CardContent>
         </Card>
+        
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Library Items</p>
+                <p className="text-sm text-muted-foreground">Library Assets</p>
                 <p className="text-2xl font-bold">{stats.totalMedia}</p>
               </div>
               <div className="bg-blue-100 p-2 rounded-full">
@@ -129,87 +198,126 @@ export default function AdminOverview() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Playlists</p>
-                <p className="text-2xl font-bold">{stats.totalPlaylists}</p>
-              </div>
-              <div className="bg-accent/20 p-2 rounded-full">
-                <Play className="text-accent w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="hover:shadow-md transition-shadow">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Weekly Engagement</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold">{stats.weeklyViews}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Total Interactions</p>
+
+        {!showAnalytics && (
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Broadcast Loops</p>
+                  <p className="text-2xl font-bold">{stats.totalPlaylists}</p>
+                </div>
+                <div className="bg-accent/20 p-2 rounded-full">
+                  <Play className="text-accent w-6 h-6" />
                 </div>
               </div>
-              <div className="bg-purple-100 p-2 rounded-full">
-                <Users className="text-purple-600 w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {showAnalytics && (
+          <>
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Playlists</p>
+                    <p className="text-2xl font-bold">{stats.totalPlaylists}</p>
+                  </div>
+                  <div className="bg-accent/20 p-2 rounded-full">
+                    <Play className="text-accent w-6 h-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="hover:shadow-md transition-shadow border-accent/20 bg-accent/5">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Weekly Engagement</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-2xl font-bold">{stats.weeklyViews}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Interactions</p>
+                    </div>
+                  </div>
+                  <div className="bg-purple-100 p-2 rounded-full">
+                    <Users className="text-purple-600 w-6 h-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Engagement Chart */}
-        <Card className="lg:col-span-2 shadow-sm">
-          <CardHeader>
-            <CardTitle>Audience Engagement</CardTitle>
-            <CardDescription>Daily interaction frequency based on signage proximity sensor data.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={engagementData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: '#f8f8f8' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
-                  />
-                  <Bar dataKey="engagement" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        {showAnalytics && (
+          <Card className="lg:col-span-2 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Audience Engagement</CardTitle>
+                <CardDescription>Daily interaction frequency based on proximity sensor data.</CardDescription>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-bold">LIVE TELEMETRY</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={engagementData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      cursor={{ fill: '#f8f8f8' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                    />
+                    <Bar dataKey="engagement" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* System Activity */}
-        <Card className="shadow-sm">
-          <CardHeader>
+        <Card className={cn(
+          "shadow-sm",
+          !showAnalytics && "lg:col-span-3"
+        )}>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-accent" />
               Admin Activity Log
             </CardTitle>
+            <History className="w-4 h-4 text-muted-foreground opacity-50" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {history.map((log, i) => (
-                <div key={i} className="flex gap-3 relative">
-                  {i !== history.length - 1 && <div className="absolute left-[3px] top-4 w-px h-8 bg-muted" />}
+            <div className={cn(
+              "space-y-6",
+              !showAnalytics && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 space-y-0"
+            )}>
+              {history.slice(0, showAnalytics ? 4 : 6).map((log, i) => (
+                <div key={log.id} className="flex gap-3 relative">
+                  {(showAnalytics && i !== 3) && <div className="absolute left-[3px] top-4 w-px h-8 bg-muted" />}
                   <div className={cn(
                     "w-1.5 h-1.5 rounded-full mt-2 z-10",
-                    log.type === 'sync' ? 'bg-primary' : 'bg-accent'
+                    log.type === 'sync' ? 'bg-primary' : (log.type === 'worship' ? 'bg-accent' : 'bg-muted-foreground')
                   )}></div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium leading-tight">{log.text}</p>
-                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter mt-1">{log.time}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter mt-1">{log.time}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <Button variant="link" className="mt-6 p-0 text-accent h-auto font-semibold">View Full History</Button>
+            <Button 
+              variant="link" 
+              className="mt-6 p-0 text-accent h-auto font-semibold flex items-center gap-2"
+              onClick={() => setIsHistoryOpen(true)}
+            >
+              View Full History <ArrowUpRight className="w-3 h-3" />
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -277,6 +385,46 @@ export default function AdminOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Full History Dialog */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              System Audit Log
+            </DialogTitle>
+            <DialogDescription>
+              Complete record of administrative actions and automated system events.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] mt-4 pr-4">
+            <div className="space-y-4">
+              {history.map((log) => (
+                <div key={log.id} className="flex items-start gap-4 p-3 rounded-lg border bg-muted/20">
+                  <div className={cn(
+                    "p-2 rounded-full",
+                    log.type === 'sync' ? 'bg-primary/10 text-primary' : 
+                    (log.type === 'worship' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground')
+                  )}>
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-bold text-primary">{log.text}</p>
+                      <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
+                    </div>
+                    <p className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/60 mt-1">
+                      Event Type: {log.type}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
