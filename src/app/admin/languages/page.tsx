@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -13,8 +12,7 @@ import {
   Thermometer, 
   Save,
   CheckCircle2,
-  RefreshCw,
-  Translation
+  RefreshCw
 } from "lucide-react";
 import { 
   Select, 
@@ -25,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function LocalizationSettings() {
   const [lang, setLang] = useState("en-US");
