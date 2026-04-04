@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -10,7 +11,7 @@ import {
   Monitor, 
   RefreshCw, 
   Settings2, 
-  AlertTriangle, 
+  Heart, 
   Play,
   Signal,
   MoreVertical,
@@ -25,9 +26,10 @@ import {
   Wifi,
   CloudCog,
   Link2,
-  Plus,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  MapPin
 } from "lucide-react";
 import { 
   Select, 
@@ -63,7 +65,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
-import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, ScreenStatus } from "@/lib/mock-data";
+import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, WORSHIP_SCHEDULES, ScreenStatus } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -71,7 +73,6 @@ import Image from "next/image";
 export default function ScreensManagement() {
   const [ticker, setTicker] = useState(SCREEN_SETTINGS.tickerMessage);
   const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
-  const [isEmergency, setIsEmergency] = useState(SCREEN_SETTINGS.emergencyAlert);
   const [isSyncing, setIsSyncing] = useState(false);
   const [previewDeviceId, setPreviewDeviceId] = useState(SCREEN_STATUS[0].id);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -111,7 +112,6 @@ export default function ScreensManagement() {
   }, [previewDeviceId, deactivatedIds, fleet]);
 
   useEffect(() => {
-    // Avoid hydration mismatch by setting time only on client
     setScanTime(new Date().toLocaleTimeString());
 
     if (previewUrls.length <= 1) return;
@@ -167,7 +167,7 @@ export default function ScreensManagement() {
       setScanTime(new Date().toLocaleTimeString());
       toast({
         title: "Device Deployment Successful",
-        description: `Content and config successfully pushed to ${localScreenName}.`,
+        description: `Content successfully pushed to ${localScreenName}.`,
       });
     }, 2000);
   };
@@ -175,20 +175,16 @@ export default function ScreensManagement() {
   const handleDeleteDevice = (id: string) => {
     setFleet(prev => prev.filter(s => s.id !== id));
     setScreenToDelete(null);
-    if (previewDeviceId === id) {
-      const remaining = fleet.filter(s => s.id !== id);
-      if (remaining.length > 0) setPreviewDeviceId(remaining[0].id);
-    }
     toast({
       title: "Node Decommissioned",
-      description: `Hardware unit ${id} has been removed from the fleet.`,
+      description: `Hardware unit ${id} has been removed.`,
       variant: "destructive"
     });
   };
 
   const handleLinkNewDevice = () => {
     if (!pairingCode || !linkUnitName) {
-      toast({ title: "Error", description: "Pairing code and location name are required.", variant: "destructive" });
+      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
       return;
     }
 
@@ -208,22 +204,18 @@ export default function ScreensManagement() {
       setIsLinkDialogOpen(false);
       setPairingCode("");
       setLinkUnitName("");
-      toast({ title: "Hardware Linked", description: `Device ${newId} (Pair: ${pairingCode}) is now online.` });
+      toast({ title: "Hardware Linked", description: `Device ${newId} is now online.` });
     }, 2500);
   };
 
   const handleToggleOnlineStatus = (id: string) => {
     const screen = fleet.find(s => s.id === id);
     if (!screen) return;
-
     const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
-    
     setFleet(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
-    
     toast({
       title: `Device ${newStatus}`,
-      description: `Status for ${screen.name} has been manually updated.`,
-      variant: newStatus === 'Offline' ? 'destructive' : 'default'
+      description: `Connectivity updated for ${screen.name}.`,
     });
   };
 
@@ -231,34 +223,11 @@ export default function ScreensManagement() {
     const isDeactivating = !deactivatedIds.includes(deviceId);
     if (isDeactivating) {
       setDeactivatedIds(prev => [...prev, deviceId]);
-      toast({
-        title: "Device Deactivated",
-        description: `Connectivity severed for ${deviceId}.`,
-        variant: "destructive"
-      });
+      toast({ title: "Device Deactivated", variant: "destructive" });
     } else {
       setDeactivatedIds(prev => prev.filter(id => id !== deviceId));
-      toast({
-        title: "Device Reconnected",
-        description: `${deviceId} is back online.`,
-      });
+      toast({ title: "Device Reconnected" });
     }
-  };
-
-  const handleEmergencyToggle = (val: boolean) => {
-    setIsEmergency(val);
-    toast({
-      variant: val ? "destructive" : "default",
-      title: val ? "EMERGENCY BROADCAST ACTIVE" : "Emergency Resolved",
-      description: val ? "Override active on all screens." : "Standard playback restored.",
-    });
-  };
-
-  const handleDeviceAction = (deviceId: string, action: string) => {
-    toast({
-      title: "Command Sent",
-      description: `${action} signal triggered for device ${deviceId}.`,
-    });
   };
 
   return (
@@ -269,23 +238,14 @@ export default function ScreensManagement() {
             <Monitor className="w-8 h-8 text-accent" />
             Display Network Orchestration
           </h1>
-          <p className="text-muted-foreground">Manage device-specific configurations and global overrides.</p>
+          <p className="text-muted-foreground">Manage device-specific configurations and worship loops.</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            className="gap-2 bg-white" 
-            onClick={() => setIsLinkDialogOpen(true)}
-          >
+          <Button variant="outline" className="bg-white" onClick={() => setIsLinkDialogOpen(true)}>
             <Link2 className="w-4 h-4" />
             Link New Unit
           </Button>
-          <Button 
-            variant="default" 
-            className="gap-2" 
-            onClick={handleSaveGlobalSettings}
-            disabled={isSyncing}
-          >
+          <Button variant="default" onClick={handleSaveGlobalSettings} disabled={isSyncing}>
             <RefreshCw className={isSyncing ? "animate-spin" : ""} />
             Fleet Sync
           </Button>
@@ -304,7 +264,7 @@ export default function ScreensManagement() {
                   </CardTitle>
                   <CardDescription>Broadcasting settings for all active nodes.</CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-white border-accent text-primary uppercase tracking-tighter text-[10px] font-bold">
+                <Badge variant="outline" className="bg-white border-accent text-primary text-[10px] font-bold">
                   {fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} Active Nodes
                 </Badge>
               </div>
@@ -348,33 +308,44 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className={cn(
-            "shadow-md border-2 transition-all duration-500",
-            isEmergency ? "border-red-600 bg-red-50 ring-4 ring-red-100" : "border-red-100 bg-red-50/20"
-          )}>
-            <CardHeader>
+          {/* Worship Schedule Quick View (Replaced Emergency Card) */}
+          <Card className="shadow-md border-accent/20 bg-accent/5">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "p-3 rounded-xl shadow-inner",
-                    isEmergency ? "bg-red-600 text-white animate-pulse" : "bg-red-100 text-red-600"
-                  )}>
-                    <AlertTriangle className="w-6 h-6" />
+                  <div className="p-3 rounded-xl bg-primary text-white">
+                    <Heart className="w-6 h-6" />
                   </div>
                   <div>
-                    <CardTitle className={cn("text-lg", isEmergency ? "text-red-900" : "text-red-800")}>Emergency Broadcast Protocol</CardTitle>
-                    <CardDescription className={isEmergency ? "text-red-700" : "text-red-600/70"}>
-                      Instantly hijack all connected screens with safety content.
+                    <CardTitle className="text-lg text-primary">Worship Schedule Feed</CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      Active religious services currently synchronized with display loops.
                     </CardDescription>
                   </div>
                 </div>
-                <Switch 
-                  checked={isEmergency} 
-                  onCheckedChange={handleEmergencyToggle}
-                  className="data-[state=checked]:bg-red-600"
-                />
+                <Button variant="outline" size="sm" className="bg-white" asChild>
+                  <a href="/admin/worship">Manage Schedules</a>
+                </Button>
               </div>
             </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {WORSHIP_SCHEDULES.filter(s => s.active).slice(0, 2).map((schedule) => (
+                  <div key={schedule.id} className="p-4 bg-white rounded-xl border flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-primary truncate">{schedule.name}</span>
+                      <Badge variant="secondary" className="text-[9px]">{schedule.time}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <MapPin className="w-3 h-3" /> {schedule.location}
+                    </div>
+                  </div>
+                ))}
+                {WORSHIP_SCHEDULES.filter(s => s.active).length === 0 && (
+                  <p className="text-xs text-muted-foreground italic col-span-2 text-center py-4">No active worship events scheduled.</p>
+                )}
+              </div>
+            </CardContent>
           </Card>
 
           <Card className="shadow-sm overflow-hidden border-primary/5">
@@ -413,7 +384,7 @@ export default function ScreensManagement() {
                             <div className="flex items-center gap-3">
                               <div className={cn(
                                 "p-2 rounded transition-colors",
-                                isDeactivated ? "bg-muted" : "bg-primary/5 group-hover:bg-primary/10"
+                                isDeactivated ? "bg-muted" : "bg-primary/5"
                               )}>
                                 <Monitor className={cn("w-4 h-4", isDeactivated ? "text-muted-foreground" : "text-primary/70")} />
                               </div>
@@ -458,54 +429,24 @@ export default function ScreensManagement() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-primary"
-                                onClick={() => handleOpenEdit(screen)}
-                                disabled={isDeactivated}
-                              >
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleOpenEdit(screen)} disabled={isDeactivated}>
                                 <Edit className="w-4 h-4" />
                               </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56">
                                   <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated || isOffline}>
-                                    <Eye className="w-4 h-4 mr-2" /> Live Surveillance
+                                    <Eye className="w-4 h-4 mr-2" /> Surveillance
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Identification Flash")} disabled={isDeactivated || isOffline}>
-                                    <Zap className="w-4 h-4 mr-2" /> Identify Physical Unit
+                                  <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
+                                    {isDeactivated ? <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate</> : <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate</>}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
-                                    {isDeactivated ? (
-                                      <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
-                                    ) : (
-                                      <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate Link</>
-                                    )}
+                                  <DropdownMenuItem onClick={() => setScreenToDelete(screen.id)} className="text-red-600">
+                                    <Trash2 className="w-4 h-4 mr-2" /> Decommission
                                   </DropdownMenuItem>
-                                  {!isDeactivated && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem 
-                                        onClick={() => handleDeviceAction(screen.id, "Remote Reboot")}
-                                        className="text-orange-600"
-                                        disabled={isOffline}
-                                      >
-                                        <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem 
-                                        onClick={() => setScreenToDelete(screen.id)}
-                                        className="text-red-600"
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -541,24 +482,12 @@ export default function ScreensManagement() {
                 </SelectContent>
               </Select>
             </CardHeader>
-            <CardContent className="p-0 relative aspect-video group bg-zinc-950">
+            <CardContent className="p-0 relative aspect-video bg-zinc-950">
               {previewUrls.length > 0 ? (
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
-                    <div 
-                      key={i}
-                      className={cn(
-                        "absolute inset-0 transition-opacity duration-1000",
-                        i === previewIndex ? "opacity-100" : "opacity-0"
-                      )}
-                    >
-                      <Image 
-                        src={url} 
-                        alt="Proxy View" 
-                        fill 
-                        className="object-cover opacity-60"
-                        unoptimized
-                      />
+                    <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
+                      <Image src={url} alt="Proxy View" fill className="object-cover opacity-60" unoptimized />
                     </div>
                   ))}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
@@ -578,16 +507,6 @@ export default function ScreensManagement() {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="py-2.5 px-4 flex justify-between items-center text-[9px] text-white/40 font-mono bg-zinc-950/50">
-              <div className="flex items-center gap-3">
-                <span>H.265 / 4K</span>
-                <span>ID: {previewDeviceId}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Signal className={cn("w-3 h-3", previewUrls.length > 0 ? "text-emerald-500" : "text-red-500")} />
-                <span>{previewUrls.length > 0 ? "42ms" : "--"} LATENCY</span>
-              </div>
-            </CardFooter>
           </Card>
 
           <Card className="bg-gradient-to-br from-white to-muted/50 shadow-sm border-primary/5 overflow-hidden">
@@ -598,32 +517,10 @@ export default function ScreensManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 pt-4">
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Network Load</span>
-                  <span className="text-[10px] font-bold text-emerald-600">Optimal</span>
-                </div>
-                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-[22%]" />
-                </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Cloud Sync Storage</span>
-                  <span className="text-[10px] font-bold">12.4 GB / 50 GB</span>
-                </div>
-                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full w-[24%]" />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t flex items-center justify-between">
+              <div className="pt-4 flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
-                  <span className="text-xs font-mono font-bold">
-                    {scanTime || "--:--:--"}
-                  </span>
+                  <span className="text-xs font-mono font-bold">{scanTime || "--:--:--"}</span>
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Connected</span>
@@ -635,7 +532,7 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      {/* Individual Screen Edit Dialog (Update) */}
+      {/* Individual Screen Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -643,28 +540,17 @@ export default function ScreensManagement() {
               <Settings2 className="w-5 h-5 text-primary" />
               Node Configuration
             </DialogTitle>
-            <DialogDescription>
-              Deploy overrides for unit {editingScreen?.id}.
-            </DialogDescription>
+            <DialogDescription>Deploy overrides for unit {editingScreen?.id}.</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Panel Display Name</Label>
-              <Input 
-                value={localScreenName} 
-                onChange={(e) => setLocalScreenName(e.target.value)} 
-                placeholder="e.g. Science Lab West"
-                disabled={isDeploying}
-              />
+              <Input value={localScreenName} onChange={(e) => setLocalScreenName(e.target.value)} disabled={isDeploying} />
             </div>
-            
             <div className="space-y-2">
               <Label>Target Playlist (Loop)</Label>
               <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist} disabled={isDeploying}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Playlist" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PLAYLISTS.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -672,10 +558,9 @@ export default function ScreensManagement() {
                 </SelectContent>
               </Select>
             </div>
-
             {isDeploying && (
               <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary">
+                <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
                   <span>Uploading Config...</span>
                   <span>{deployProgress}%</span>
                 </div>
@@ -683,7 +568,6 @@ export default function ScreensManagement() {
               </div>
             )}
           </div>
-
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} disabled={isDeploying}>Cancel</Button>
             <Button onClick={handleUpdateSpecificScreen} disabled={isDeploying} className="gap-2">
@@ -694,7 +578,7 @@ export default function ScreensManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced Pairing Link Dialog (Create) */}
+      {/* Linking Dialog */}
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -702,81 +586,36 @@ export default function ScreensManagement() {
               <Link2 className="w-5 h-5" />
               Pair Original Hardware
             </DialogTitle>
-            <DialogDescription>
-              Enter the pairing code displayed on your monitor to link it to the ScreenSense network.
-            </DialogDescription>
+            <DialogDescription>Enter pairing code displayed on the monitor.</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-6 py-4">
-            <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
-              <Label htmlFor="pairCode" className="text-primary font-black uppercase tracking-widest text-[10px]">6-Digit Pairing Code</Label>
-              <Input 
-                id="pairCode"
-                value={pairingCode} 
-                onChange={(e) => setPairingCode(e.target.value.toUpperCase())} 
-                placeholder="e.g. XJ-902"
-                className="h-14 text-2xl font-black text-center tracking-[0.2em] border-primary/20 focus:ring-primary uppercase"
-                maxLength={6}
-                disabled={isLinking}
-              />
-              <p className="text-[10px] text-muted-foreground italic text-center">Look for the code on your screen's splash page.</p>
+            <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10 text-center">
+              <Label className="text-primary font-black uppercase text-[10px]">6-Digit Pairing Code</Label>
+              <Input value={pairingCode} onChange={(e) => setPairingCode(e.target.value.toUpperCase())} className="h-14 text-2xl font-black text-center tracking-[0.2em]" maxLength={6} disabled={isLinking} />
             </div>
-            
             <div className="space-y-2">
-              <Label htmlFor="linkName">Assigned Unit Name / Location</Label>
-              <Input 
-                id="linkName"
-                value={linkUnitName} 
-                onChange={(e) => setLinkUnitName(e.target.value)} 
-                placeholder="e.g. Science Wing Exit"
-                disabled={isLinking}
-              />
+              <Label>Assigned Location</Label>
+              <Input value={linkUnitName} onChange={(e) => setLinkUnitName(e.target.value)} disabled={isLinking} />
             </div>
-
-            {isLinking && (
-              <div className="space-y-4 pt-2">
-                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-primary">
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-3 h-3 animate-spin" />
-                    Handshaking...
-                  </span>
-                  <span>Encrypting Link</span>
-                </div>
-                <Progress value={isLinking ? 65 : 0} className="h-1.5" />
-              </div>
-            )}
+            {isLinking && <Progress value={65} className="h-1.5" />}
           </div>
-
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)} disabled={isLinking}>Cancel</Button>
-            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="gap-2 bg-primary h-11 px-6">
-              {isLinking ? <RefreshCw className="animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {isLinking ? "Verifying..." : "Link Hardware"}
-            </Button>
+            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="bg-primary">{isLinking ? "Verifying..." : "Link Hardware"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Alert (Delete) */}
+      {/* Delete Alert */}
       <AlertDialog open={!!screenToDelete} onOpenChange={() => setScreenToDelete(null)}>
-        <AlertDialogContent className="border-red-100">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="w-5 h-5" />
-              Confirm Decommission
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove node <strong>{screenToDelete}</strong>? This will permanently sever the cloud link and requires physical re-pairing to restore.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Confirm Decommission</AlertDialogTitle>
+            <AlertDialogDescription>Remove node {screenToDelete}? This permanently severs the cloud link.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Decommission
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)} className="bg-red-600">Decommission</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
