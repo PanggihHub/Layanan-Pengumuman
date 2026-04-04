@@ -13,6 +13,7 @@ export interface MediaItem {
   date: string;
   url: string;
   category: 'campus' | 'science' | 'math' | 'events';
+  description?: string;
 }
 
 export interface ScreenStatus {
@@ -34,12 +35,66 @@ export interface Playlist {
 }
 
 export const INITIAL_MEDIA: MediaItem[] = [
-  { id: '1', name: 'Orientation_Hero.jpg', type: 'image', size: '2.4 MB', date: '2023-10-12', url: 'https://picsum.photos/seed/screensense1/1920/1080', category: 'campus' },
-  { id: '2', name: 'Science_Fact_Photosynthesis.mp4', type: 'video', size: '45.1 MB', date: '2023-10-14', url: 'https://picsum.photos/seed/science/1920/1080', category: 'science' },
-  { id: '3', name: 'Campus_Map_Vertical.png', type: 'image', size: '1.8 MB', date: '2023-10-15', url: 'https://picsum.photos/seed/campus/1920/1080', category: 'campus' },
-  { id: '4', name: 'Welcome_Slide_V2.jpg', type: 'image', size: '3.2 MB', date: '2023-10-16', url: 'https://picsum.photos/seed/display/1920/1080', category: 'events' },
-  { id: '5', name: 'Prime_Numbers_Grid.png', type: 'image', size: '1.2 MB', date: '2023-10-18', url: 'https://picsum.photos/seed/math/1920/1080', category: 'math' },
-  { id: '6', name: 'Cafeteria_Menu.pdf', type: 'document', size: '0.5 MB', date: '2023-10-20', url: 'https://picsum.photos/seed/food/1920/1080', category: 'events' },
+  { 
+    id: '1', 
+    name: 'Orientation_Hero.jpg', 
+    type: 'image', 
+    size: '2.4 MB', 
+    date: '2023-10-12', 
+    url: 'https://picsum.photos/seed/screensense1/1920/1080', 
+    category: 'campus',
+    description: 'Main hero image for campus orientation week.'
+  },
+  { 
+    id: '2', 
+    name: 'Science_Fact_Photosynthesis.mp4', 
+    type: 'video', 
+    size: '45.1 MB', 
+    date: '2023-10-14', 
+    url: 'https://picsum.photos/seed/science/1920/1080', 
+    category: 'science',
+    description: 'Animated video explaining the photosynthesis process.'
+  },
+  { 
+    id: '3', 
+    name: 'Campus_Map_Vertical.png', 
+    type: 'image', 
+    size: '1.8 MB', 
+    date: '2023-10-15', 
+    url: 'https://picsum.photos/seed/campus/1920/1080', 
+    category: 'campus',
+    description: 'Detailed vertical map of the north quadrant.'
+  },
+  { 
+    id: '4', 
+    name: 'Welcome_Slide_V2.jpg', 
+    type: 'image', 
+    size: '3.2 MB', 
+    date: '2023-10-16', 
+    url: 'https://picsum.photos/seed/display/1920/1080', 
+    category: 'events',
+    description: 'Generic welcome slide for guest lectures.'
+  },
+  { 
+    id: '5', 
+    name: 'Prime_Numbers_Grid.png', 
+    type: 'image', 
+    size: '1.2 MB', 
+    date: '2023-10-18', 
+    url: 'https://picsum.photos/seed/math/1920/1080', 
+    category: 'math',
+    description: 'Visual representation of prime numbers 1-100.'
+  },
+  { 
+    id: '6', 
+    name: 'Cafeteria_Menu.pdf', 
+    type: 'document', 
+    size: '0.5 MB', 
+    date: '2023-10-20', 
+    url: 'https://picsum.photos/seed/food/1920/1080', 
+    category: 'events',
+    description: 'Daily lunch menu for the central cafeteria.'
+  },
 ];
 
 export const SCREEN_STATUS: ScreenStatus[] = [

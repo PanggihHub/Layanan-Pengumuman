@@ -18,7 +18,8 @@ import {
   Upload,
   Link as LinkIcon,
   Globe,
-  HardDrive
+  HardDrive,
+  Info
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -64,12 +66,14 @@ export default function MediaLibrary() {
   // Form states
   const [sourceOrigin, setSourceOrigin] = useState<"internal" | "external">("internal");
   const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newType, setNewType] = useState<MediaType>("image");
   const [newUrl, setNewUrl] = useState("");
 
   const filteredMedia = useMemo(() => {
     return mediaItems.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           item.description?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = !filterType || item.type === filterType;
       return matchesSearch && matchesType;
     });
@@ -97,6 +101,7 @@ export default function MediaLibrary() {
       const newItem: MediaItem = {
         id: Math.random().toString(36).substr(2, 9),
         name: newName,
+        description: newDescription,
         type: newType,
         size: sourceOrigin === 'internal' ? "2.4 MB" : "URL",
         date: new Date().toISOString().split('T')[0],
@@ -107,7 +112,7 @@ export default function MediaLibrary() {
       toast({ title: "Media Added", description: `${newName} has been added.` });
     } else if (currentItem) {
       setMediaItems(prev => prev.map(item => 
-        item.id === currentItem.id ? { ...item, name: newName, url: newUrl || item.url, type: newType } : item
+        item.id === currentItem.id ? { ...item, name: newName, description: newDescription, url: newUrl || item.url, type: newType } : item
       ));
       toast({ title: "Media Updated", description: "Changes saved successfully." });
     }
@@ -118,6 +123,7 @@ export default function MediaLibrary() {
 
   const resetForm = () => {
     setNewName("");
+    setNewDescription("");
     setNewUrl("");
     setNewType("image");
     setSourceOrigin("internal");
@@ -134,6 +140,7 @@ export default function MediaLibrary() {
     setDialogMode("edit");
     setCurrentItem(item);
     setNewName(item.name);
+    setNewDescription(item.description || "");
     setNewUrl(item.url);
     setNewType(item.type);
     setSourceOrigin(item.url.startsWith('http') ? "external" : "internal");
@@ -159,7 +166,7 @@ export default function MediaLibrary() {
               <Search className="w-4 h-4 text-muted-foreground" />
               <input 
                 type="text" 
-                placeholder="Search by filename..." 
+                placeholder="Search by filename or description..." 
                 className="bg-transparent border-none outline-none text-sm w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -218,8 +225,8 @@ export default function MediaLibrary() {
       ) : view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredMedia.map((media) => (
-            <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all">
-              <div className="relative aspect-video bg-muted">
+            <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all flex flex-col">
+              <div className="relative aspect-video bg-muted shrink-0">
                 <Image 
                   src={media.url} 
                   alt={media.name} 
@@ -227,7 +234,7 @@ export default function MediaLibrary() {
                   className="object-cover"
                   unoptimized 
                 />
-                <div className="absolute top-2 right-2">
+                <div className="absolute top-2 right-2 flex gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="secondary" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
@@ -243,9 +250,20 @@ export default function MediaLibrary() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  {/* Quick Delete for specific types like video as requested */}
+                  {media.type === "video" && (
+                     <Button 
+                      variant="destructive" 
+                      size="icon" 
+                      onClick={() => handleDelete(media.id)}
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
                 {media.type === "video" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
                     <PlayCircle className="w-12 h-12 text-white/80" />
                   </div>
                 )}
@@ -261,16 +279,24 @@ export default function MediaLibrary() {
                   )}
                 </div>
               </div>
-              <CardContent className="p-4">
+              <CardContent className="p-4 flex-1 flex flex-col gap-2">
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0">
                     <h3 className="font-semibold text-sm truncate">{media.name}</h3>
-                    <p className="text-xs text-muted-foreground">{media.size} • {media.date}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{media.size} • {media.date}</p>
                   </div>
                   <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0 shrink-0">
                     {media.type}
                   </Badge>
                 </div>
+                {media.description && (
+                  <div className="flex gap-1.5 items-start mt-1">
+                    <Info className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-tight">
+                      {media.description}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -282,7 +308,7 @@ export default function MediaLibrary() {
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-6 py-3 font-semibold text-left">Preview</th>
-                  <th className="px-6 py-3 font-semibold text-left">Filename</th>
+                  <th className="px-6 py-3 font-semibold text-left">Filename & Description</th>
                   <th className="px-6 py-3 font-semibold text-left">Source</th>
                   <th className="px-6 py-3 font-semibold text-left">Size</th>
                   <th className="px-6 py-3 text-right">Actions</th>
@@ -296,7 +322,12 @@ export default function MediaLibrary() {
                         <Image src={media.url} alt={media.name} fill className="object-cover" unoptimized />
                       </div>
                     </td>
-                    <td className="px-6 py-3 font-medium">{media.name}</td>
+                    <td className="px-6 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{media.name}</span>
+                        <span className="text-[10px] text-muted-foreground line-clamp-1 italic">{media.description || "No description provided"}</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-3">
                       {media.url.startsWith('http') ? (
                         <div className="flex items-center gap-2 text-blue-600">
@@ -310,15 +341,14 @@ export default function MediaLibrary() {
                     </td>
                     <td className="px-6 py-3 text-muted-foreground">{media.size}</td>
                     <td className="px-6 py-3 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuItem onClick={() => openEditDialog(media)}>Edit</DropdownMenuItem>
-                           <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(media)}>
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(media.id)} className="text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -363,6 +393,17 @@ export default function MediaLibrary() {
                   value={newName} 
                   onChange={(e) => setNewName(e.target.value)} 
                   placeholder="e.g. Campus_Announcement"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="description">Asset Description</Label>
+                <Textarea 
+                  id="description" 
+                  value={newDescription} 
+                  onChange={(e) => setNewDescription(e.target.value)} 
+                  placeholder="Briefly describe what this media is for..."
+                  className="h-20"
                 />
               </div>
 
