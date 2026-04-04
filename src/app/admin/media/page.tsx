@@ -14,9 +14,11 @@ import {
   MoreVertical,
   PlayCircle,
   FileImage,
-  ExternalLink,
   X,
-  Upload
+  Upload,
+  Link as LinkIcon,
+  Globe,
+  HardDrive
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -34,7 +36,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -55,11 +57,12 @@ export default function MediaLibrary() {
   const { toast } = useToast();
 
   // Dialog states
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"add" | "edit">("add");
   const [currentItem, setCurrentItem] = useState<MediaItem | null>(null);
 
-  // Form states for adding/editing
+  // Form states
+  const [sourceOrigin, setSourceOrigin] = useState<"internal" | "external">("internal");
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<MediaType>("image");
   const [newUrl, setNewUrl] = useState("");
@@ -80,53 +83,61 @@ export default function MediaLibrary() {
     });
   };
 
-  const handleAddMedia = () => {
-    if (!newName || !newUrl) return;
-    
-    const newItem: MediaItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newName,
-      type: newType,
-      size: "0.0 MB",
-      date: new Date().toISOString().split('T')[0],
-      url: newUrl,
-      category: 'events'
-    };
+  const handleSaveMedia = () => {
+    if (!newName || (sourceOrigin === 'external' && !newUrl)) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    setMediaItems(prev => [newItem, ...prev]);
-    setIsAddOpen(false);
+    if (dialogMode === "add") {
+      const newItem: MediaItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: newName,
+        type: newType,
+        size: sourceOrigin === 'internal' ? "2.4 MB" : "URL",
+        date: new Date().toISOString().split('T')[0],
+        url: sourceOrigin === 'internal' ? 'https://picsum.photos/seed/new/1920/1080' : newUrl,
+        category: 'events'
+      };
+      setMediaItems(prev => [newItem, ...prev]);
+      toast({ title: "Media Added", description: `${newName} has been added.` });
+    } else if (currentItem) {
+      setMediaItems(prev => prev.map(item => 
+        item.id === currentItem.id ? { ...item, name: newName, url: newUrl || item.url, type: newType } : item
+      ));
+      toast({ title: "Media Updated", description: "Changes saved successfully." });
+    }
+
+    setIsDialogOpen(false);
     resetForm();
-    toast({
-      title: "Media Added",
-      description: `${newName} has been added to your library.`,
-    });
-  };
-
-  const handleEditMedia = () => {
-    if (!currentItem || !newName) return;
-    
-    setMediaItems(prev => prev.map(item => 
-      item.id === currentItem.id ? { ...item, name: newName } : item
-    ));
-    setIsEditOpen(false);
-    setCurrentItem(null);
-    setNewName("");
-    toast({
-      title: "Item Renamed",
-      description: "Changes have been saved successfully.",
-    });
   };
 
   const resetForm = () => {
     setNewName("");
     setNewUrl("");
     setNewType("image");
+    setSourceOrigin("internal");
+    setCurrentItem(null);
+  };
+
+  const openAddDialog = () => {
+    setDialogMode("add");
+    resetForm();
+    setIsDialogOpen(true);
   };
 
   const openEditDialog = (item: MediaItem) => {
+    setDialogMode("edit");
     setCurrentItem(item);
     setNewName(item.name);
-    setIsEditOpen(true);
+    setNewUrl(item.url);
+    setNewType(item.type);
+    setSourceOrigin(item.url.startsWith('http') ? "external" : "internal");
+    setIsDialogOpen(true);
   };
 
   return (
@@ -136,60 +147,9 @@ export default function MediaLibrary() {
           <h1 className="text-3xl font-bold text-primary">Media Library</h1>
           <p className="text-muted-foreground">Manage your visual assets and external media streams.</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary gap-2">
-                <Plus className="w-4 h-4" /> Add New Source
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Media Source</DialogTitle>
-                <DialogDescription>
-                  Enter the details for the new image or video asset.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Filename / Title</Label>
-                  <Input 
-                    id="name" 
-                    value={newName} 
-                    onChange={(e) => setNewName(e.target.value)} 
-                    placeholder="e.g. Campus_Banner.jpg"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Media Type</Label>
-                  <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="image">Image</SelectItem>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="document">Document</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="url">Source URL</Label>
-                  <Input 
-                    id="url" 
-                    value={newUrl} 
-                    onChange={(e) => setNewUrl(e.target.value)} 
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddMedia}>Add to Library</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button onClick={openAddDialog} className="bg-primary gap-2">
+          <Plus className="w-4 h-4" /> Add New Source
+        </Button>
       </div>
 
       <Card className="bg-white/50 border-none shadow-sm">
@@ -223,7 +183,6 @@ export default function MediaLibrary() {
                   <DropdownMenuItem onClick={() => setFilterType(null)}>All Types</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterType("image")}>Images</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterType("video")}>Videos</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterType("document")}>Documents</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -266,18 +225,18 @@ export default function MediaLibrary() {
                   alt={media.name} 
                   fill 
                   className="object-cover"
-                  unoptimized // For mock urls often picsum/unsplash
+                  unoptimized 
                 />
                 <div className="absolute top-2 right-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="secondary" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => openEditDialog(media)}>
-                        <Edit3 className="w-4 h-4 mr-2" /> Rename
+                        <Edit3 className="w-4 h-4 mr-2" /> Edit Source
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">
                         <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -290,6 +249,17 @@ export default function MediaLibrary() {
                     <PlayCircle className="w-12 h-12 text-white/80" />
                   </div>
                 )}
+                <div className="absolute bottom-2 left-2">
+                  {media.url.startsWith('http') ? (
+                    <Badge className="bg-blue-600/80 backdrop-blur-sm gap-1 border-none">
+                      <Globe className="w-3 h-3" /> External
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-emerald-600/80 backdrop-blur-sm gap-1 border-none">
+                      <HardDrive className="w-3 h-3" /> Internal
+                    </Badge>
+                  )}
+                </div>
               </div>
               <CardContent className="p-4">
                 <div className="flex justify-between items-start gap-2">
@@ -313,9 +283,8 @@ export default function MediaLibrary() {
                 <tr>
                   <th className="px-6 py-3 font-semibold text-left">Preview</th>
                   <th className="px-6 py-3 font-semibold text-left">Filename</th>
-                  <th className="px-6 py-3 font-semibold text-left">Type</th>
+                  <th className="px-6 py-3 font-semibold text-left">Source</th>
                   <th className="px-6 py-3 font-semibold text-left">Size</th>
-                  <th className="px-6 py-3 font-semibold text-left">Added</th>
                   <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -329,20 +298,24 @@ export default function MediaLibrary() {
                     </td>
                     <td className="px-6 py-3 font-medium">{media.name}</td>
                     <td className="px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        {media.type === "video" ? <PlayCircle className="w-4 h-4" /> : <FileImage className="w-4 h-4" />}
-                        <span className="capitalize">{media.type}</span>
-                      </div>
+                      {media.url.startsWith('http') ? (
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <Globe className="w-4 h-4" /> <span>External</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-emerald-600">
+                          <HardDrive className="w-4 h-4" /> <span>Internal</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-3 text-muted-foreground">{media.size}</td>
-                    <td className="px-6 py-3 text-muted-foreground">{media.date}</td>
                     <td className="px-6 py-3 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem onClick={() => openEditDialog(media)}>Rename</DropdownMenuItem>
+                           <DropdownMenuItem onClick={() => openEditDialog(media)}>Edit</DropdownMenuItem>
                            <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -355,25 +328,86 @@ export default function MediaLibrary() {
         </Card>
       )}
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+      {/* Unified Add/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename Asset</DialogTitle>
+            <DialogTitle>{dialogMode === "add" ? "Add Media Source" : "Edit Media Source"}</DialogTitle>
+            <DialogDescription>
+              {dialogMode === "add" 
+                ? "Choose where your content is hosted and provide details." 
+                : "Modify the properties of this media asset."}
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">New Filename</Label>
-              <Input 
-                id="edit-name" 
-                value={newName} 
-                onChange={(e) => setNewName(e.target.value)} 
-              />
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label>Source Type</Label>
+              <Tabs value={sourceOrigin} onValueChange={(v: any) => setSourceOrigin(v)} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 h-12">
+                  <TabsTrigger value="internal" className="gap-2">
+                    <Upload className="w-4 h-4" /> Internal
+                  </TabsTrigger>
+                  <TabsTrigger value="external" className="gap-2">
+                    <LinkIcon className="w-4 h-4" /> External
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Filename / Display Title</Label>
+                <Input 
+                  id="name" 
+                  value={newName} 
+                  onChange={(e) => setNewName(e.target.value)} 
+                  placeholder="e.g. Campus_Announcement"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="type">Media Format</Label>
+                <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="image">Still Image</SelectItem>
+                    <SelectItem value="video">Motion Video</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sourceOrigin === "external" && (
+                <div className="grid gap-2 animate-in slide-in-from-top-2 duration-300">
+                  <Label htmlFor="url">Source URL</Label>
+                  <Input 
+                    id="url" 
+                    value={newUrl} 
+                    onChange={(e) => setNewUrl(e.target.value)} 
+                    placeholder="https://example.com/video.mp4"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Ensure the URL is a direct path to the media file or stream.</p>
+                </div>
+              )}
+
+              {sourceOrigin === "internal" && dialogMode === "add" && (
+                <div className="border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground animate-in slide-in-from-top-2 duration-300">
+                  <Upload className="w-8 h-8 opacity-50" />
+                  <p className="text-sm font-medium">Click to select or drag and drop</p>
+                  <p className="text-xs">Supports JPG, PNG, MP4 up to 50MB</p>
+                </div>
+              )}
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditMedia}>Save Changes</Button>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveMedia} className="gap-2">
+              {dialogMode === "add" ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+              {dialogMode === "add" ? "Create Source" : "Save Changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
