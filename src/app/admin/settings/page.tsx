@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -8,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Settings, 
-  Database, 
   Shield, 
   RefreshCw, 
   Save, 
@@ -21,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 export default function SystemConfig() {
   const [syncUrl, setSyncUrl] = useState("https://api.screensense.cloud/v1");
