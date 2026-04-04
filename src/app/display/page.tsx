@@ -8,7 +8,7 @@ import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS } from "@/lib/mock-data";
 
 export default function DisplayClient() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState<Date | null>(null);
 
   // Derive the active playlist items from our mock store
   const activePlaylist = useMemo(() => {
@@ -27,6 +27,9 @@ export default function DisplayClient() {
   }, []);
 
   useEffect(() => {
+    // Initialize time only on the client
+    setTime(new Date());
+    
     // Time update loop
     const timer = setInterval(() => setTime(new Date()), 1000);
     
@@ -91,10 +94,10 @@ export default function DisplayClient() {
               <span>{SCREEN_SETTINGS.locationName}</span>
             </div>
             <div className="text-7xl font-bold tracking-tighter">
-              {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {time ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"}
             </div>
             <div className="text-lg opacity-80 font-medium">
-              {time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+              {time ? time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : "Loading..."}
             </div>
             
             <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4 w-full justify-between">

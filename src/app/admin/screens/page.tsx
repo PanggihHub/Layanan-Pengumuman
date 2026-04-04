@@ -64,6 +64,7 @@ export default function ScreensManagement() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [previewDeviceId, setPreviewDeviceId] = useState(SCREEN_STATUS[0].id);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [scanTime, setScanTime] = useState<string | null>(null);
   
   // Fleet State
   const [deactivatedIds, setDeactivatedIds] = useState<string[]>([]);
@@ -90,6 +91,9 @@ export default function ScreensManagement() {
   }, [previewDeviceId, deactivatedIds]);
 
   useEffect(() => {
+    // Set initial scan time on mount to avoid hydration mismatch
+    setScanTime(new Date().toLocaleTimeString());
+
     if (previewUrls.length <= 1) return;
     const interval = setInterval(() => {
       setPreviewIndex((prev) => (prev + 1) % previewUrls.length);
@@ -101,6 +105,7 @@ export default function ScreensManagement() {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
+      setScanTime(new Date().toLocaleTimeString());
       toast({
         title: "Global Publish Successful",
         description: "Settings synced to the entire active screen network.",
@@ -136,6 +141,7 @@ export default function ScreensManagement() {
     setTimeout(() => {
       setIsDeploying(false);
       setIsEditDialogOpen(false);
+      setScanTime(new Date().toLocaleTimeString());
       toast({
         title: "Device Deployment Successful",
         description: `Content and config successfully pushed to ${localScreenName}.`,
@@ -517,7 +523,7 @@ export default function ScreensManagement() {
               <div className="pt-4 border-t flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
-                  <span className="text-xs font-mono font-bold">{new Date().toLocaleTimeString()}</span>
+                  <span className="text-xs font-mono font-bold">{scanTime || "--:--:--"}</span>
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Connected</span>
