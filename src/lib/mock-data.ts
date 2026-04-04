@@ -24,6 +24,14 @@ export interface ScreenStatus {
   lastSeen: string;
 }
 
+export interface Playlist {
+  id: string;
+  name: string;
+  description: string;
+  items: string[];
+  isSystem?: boolean;
+}
+
 export const INITIAL_MEDIA: MediaItem[] = [
   { id: '1', name: 'Orientation_Hero.jpg', type: 'image', size: '2.4 MB', date: '2023-10-12', url: 'https://picsum.photos/seed/screensense1/1920/1080', category: 'campus' },
   { id: '2', name: 'Science_Fact_Photosynthesis.mp4', type: 'video', size: '45.1 MB', date: '2023-10-14', url: 'https://picsum.photos/seed/science/1920/1080', category: 'science' },
@@ -44,18 +52,27 @@ export const SCREEN_SETTINGS = {
   tickerMessage: "CAMPUS NEWS: Faculty meeting at 4 PM in Conference Room B • New cafeteria menu launched today! • Registration for Spring Semester opens next Monday.",
   emergencyAlert: false,
   locationName: "Main Campus Hall",
-  activePlaylistId: "default-1",
+  activePlaylistId: "system-default",
 };
 
-export const PLAYLISTS = [
+export const PLAYLISTS: Playlist[] = [
+  {
+    id: "system-default",
+    name: "System: Info Hub",
+    description: "Built-in dynamic card containing Clock, Weather, and AQI modules. Managed by system settings.",
+    items: ['1', '3'],
+    isSystem: true,
+  },
   {
     id: "default-1",
     name: "Standard Campus Loop",
+    description: "Main rotation for general announcements and science facts.",
     items: ['1', '2', '3', '5'],
   },
   {
     id: "default-2",
     name: "Quiet Study",
+    description: "Calm visuals and library-specific information for study zones.",
     items: ['3', '5'],
   }
 ];
