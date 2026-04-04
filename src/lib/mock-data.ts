@@ -4,11 +4,13 @@
  */
 
 export type MediaType = 'image' | 'video' | 'document';
+export type MediaSourceOrigin = 'internal' | 'external';
 
 export interface MediaItem {
   id: string;
   name: string;
   type: MediaType;
+  source: MediaSourceOrigin;
   size: string;
   date: string;
   url: string;
@@ -51,6 +53,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '1', 
     name: 'Orientation_Hero.jpg', 
     type: 'image', 
+    source: 'internal',
     size: '2.4 MB', 
     date: '2023-10-12', 
     url: 'https://picsum.photos/seed/screensense1/1920/1080', 
@@ -61,6 +64,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '2', 
     name: 'Science_Fact_Photosynthesis.mp4', 
     type: 'video', 
+    source: 'internal',
     size: '45.1 MB', 
     date: '2023-10-14', 
     url: 'https://picsum.photos/seed/science/1920/1080', 
@@ -73,6 +77,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '3', 
     name: 'Campus_Map_Vertical.png', 
     type: 'image', 
+    source: 'internal',
     size: '1.8 MB', 
     date: '2023-10-15', 
     url: 'https://picsum.photos/seed/campus/1920/1080', 
@@ -83,6 +88,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '4', 
     name: 'Welcome_Slide_V2.jpg', 
     type: 'image', 
+    source: 'internal',
     size: '3.2 MB', 
     date: '2023-10-16', 
     url: 'https://picsum.photos/seed/display/1920/1080', 
@@ -93,6 +99,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '5', 
     name: 'Prime_Numbers_Grid.png', 
     type: 'image', 
+    source: 'internal',
     size: '1.2 MB', 
     date: '2023-10-18', 
     url: 'https://picsum.photos/seed/math/1920/1080', 
@@ -103,6 +110,7 @@ export const INITIAL_MEDIA: MediaItem[] = [
     id: '6', 
     name: 'Cafeteria_Menu.pdf', 
     type: 'document', 
+    source: 'internal',
     size: '0.5 MB', 
     date: '2023-10-20', 
     url: 'https://picsum.photos/seed/food/1920/1080', 

@@ -498,14 +498,6 @@ export default function AdminOverview() {
                 <p className="text-sm font-medium italic">Device {monitorScreen?.id} is not responding to heartbeat signals.</p>
               </div>
             )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="absolute top-4 right-4 text-white hover:bg-white/10 z-50"
-              onClick={() => setMonitorScreen(null)}
-            >
-              <X className="w-6 h-6" />
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

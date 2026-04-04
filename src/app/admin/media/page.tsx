@@ -20,7 +20,7 @@ import {
   Globe,
   HardDrive,
   Info,
-  Scissor,
+  Scissors,
   Clock
 } from "lucide-react";
 import Image from "next/image";
@@ -108,6 +108,7 @@ export default function MediaLibrary() {
         name: newName,
         description: newDescription,
         type: newType,
+        source: sourceOrigin,
         size: sourceOrigin === 'internal' ? "2.4 MB" : "URL",
         date: new Date().toISOString().split('T')[0],
         url: sourceOrigin === 'internal' ? 'https://picsum.photos/seed/new/1920/1080' : newUrl,
@@ -125,6 +126,7 @@ export default function MediaLibrary() {
           description: newDescription, 
           url: newUrl || item.url, 
           type: newType,
+          source: sourceOrigin,
           startTime: newType === 'video' ? startTime : undefined,
           endTime: newType === 'video' ? endTime : undefined,
         } : item
@@ -160,7 +162,7 @@ export default function MediaLibrary() {
     setNewDescription(item.description || "");
     setNewUrl(item.url);
     setNewType(item.type);
-    setSourceOrigin(item.url.startsWith('http') ? "external" : "internal");
+    setSourceOrigin(item.source);
     setStartTime(item.startTime || 0);
     setEndTime(item.endTime || 30);
     setIsDialogOpen(true);
@@ -276,7 +278,7 @@ export default function MediaLibrary() {
                   </div>
                 )}
                 <div className="absolute bottom-2 left-2">
-                  {media.url.startsWith('http') ? (
+                  {media.source === 'external' ? (
                     <Badge className="bg-blue-600/80 backdrop-blur-sm gap-1 border-none">
                       <Globe className="w-3 h-3" /> External
                     </Badge>
@@ -299,7 +301,7 @@ export default function MediaLibrary() {
                 </div>
                 {media.type === 'video' && media.startTime !== undefined && (
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-accent uppercase tracking-tighter mt-1 bg-accent/10 px-2 py-0.5 rounded w-fit">
-                    <Scissor className="w-3 h-3" /> Selected Clip: {media.startTime}s - {media.endTime}s
+                    <Scissors className="w-3 h-3" /> Selected Clip: {media.startTime}s - {media.endTime}s
                   </div>
                 )}
                 {media.description && (
@@ -342,7 +344,7 @@ export default function MediaLibrary() {
                       </div>
                     </td>
                     <td className="px-6 py-3">
-                      {media.url.startsWith('http') ? (
+                      {media.source === 'external' ? (
                         <div className="flex items-center gap-2 text-blue-600">
                           <Globe className="w-4 h-4" /> <span>External</span>
                         </div>
@@ -437,7 +439,7 @@ export default function MediaLibrary() {
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <Separator />
                   <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase">
-                    <Scissor className="w-4 h-4" />
+                    <Scissors className="w-4 h-4" />
                     Video Clip Selection
                   </div>
                   <div className="grid grid-cols-2 gap-4">
