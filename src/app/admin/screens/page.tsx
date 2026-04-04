@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -21,7 +20,9 @@ import {
   Eye,
   Search,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Edit,
+  Layout
 } from "lucide-react";
 import { 
   Select, 
@@ -38,7 +39,15 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA } from "@/lib/mock-data";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, ScreenStatus } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -48,17 +57,27 @@ export default function ScreensManagement() {
   const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const [isEmergency, setIsEmergency] = useState(SCREEN_SETTINGS.emergencyAlert);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [previewDeviceId, setPreviewDeviceId] = useState(SCREEN_STATUS[0].id);
   const [previewIndex, setPreviewIndex] = useState(0);
+  
+  // Individual Screen Edit Dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingScreen, setEditingScreen] = useState<ScreenStatus | null>(null);
+  const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
+  const [localScreenName, setLocalScreenName] = useState("");
+
   const { toast } = useToast();
 
-  // Dynamic preview logic
+  // Dynamic preview logic based on selected preview device
   const previewUrls = useMemo(() => {
-    const playlist = PLAYLISTS.find(p => p.id === activePlaylistId);
+    const screen = SCREEN_STATUS.find(s => s.id === previewDeviceId);
+    if (!screen) return [];
+    const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
     if (!playlist) return [];
     return playlist.items
       .map(id => INITIAL_MEDIA.find(m => m.id === id)?.url)
       .filter((url): url is string => !!url);
-  }, [activePlaylistId]);
+  }, [previewDeviceId]);
 
   useEffect(() => {
     if (previewUrls.length <= 1) return;
@@ -68,15 +87,31 @@ export default function ScreensManagement() {
     return () => clearInterval(interval);
   }, [previewUrls]);
 
-  const handleSaveSettings = () => {
+  const handleSaveGlobalSettings = () => {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
       toast({
-        title: "Settings Published",
-        description: "Global display settings have been synced to all active screens.",
+        title: "Global Publish Successful",
+        description: "Settings synced to the entire screen network.",
       });
     }, 1500);
+  };
+
+  const handleOpenEdit = (screen: ScreenStatus) => {
+    setEditingScreen(screen);
+    setLocalScreenName(screen.name);
+    setLocalScreenPlaylist(screen.playlistId);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateSpecificScreen = () => {
+    if (!editingScreen) return;
+    toast({
+      title: "Device Updated",
+      description: `Settings for ${localScreenName} have been deployed specifically.`,
+    });
+    setIsEditDialogOpen(false);
   };
 
   const handleEmergencyToggle = (val: boolean) => {
@@ -92,8 +127,8 @@ export default function ScreensManagement() {
 
   const handleDeviceAction = (deviceId: string, action: string) => {
     toast({
-      title: "Action Initiated",
-      description: `${action} command sent to device ${deviceId}.`,
+      title: "Command Sent",
+      description: `${action} signal triggered for device ${deviceId}.`,
     });
   };
 
@@ -103,18 +138,18 @@ export default function ScreensManagement() {
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
             <Monitor className="w-8 h-8 text-accent" />
-            Screen Management
+            Display Network Orchestration
           </h1>
-          <p className="text-muted-foreground">Monitor device health and control global broadcast settings.</p>
+          <p className="text-muted-foreground">Manage device-specific configurations and global overrides.</p>
         </div>
         <Button 
           variant="outline" 
           className="gap-2" 
-          onClick={() => handleSaveSettings()}
+          onClick={handleSaveGlobalSettings}
           disabled={isSyncing}
         >
           <RefreshCw className={isSyncing ? "animate-spin" : ""} />
-          Manual Sync All
+          Manual Force Sync (All)
         </Button>
       </div>
 
@@ -123,28 +158,27 @@ export default function ScreensManagement() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10">
             <CardHeader className="border-b bg-muted/30">
-              <CardTitle className="flex items-center gap-2">
-                <Settings2 className="w-5 h-5 text-primary" />
-                Global Display Settings
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <Layout className="w-5 h-5" />
+                Global Fleet Configuration
               </CardTitle>
-              <CardDescription>These changes affect all screens connected to the network.</CardDescription>
+              <CardDescription>Broadcasting these settings will affect every connected panel.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="ticker">Live Ticker Message</Label>
+                <Label htmlFor="ticker">Global Ticker Feed</Label>
                 <Input 
                   id="ticker" 
                   value={ticker} 
                   onChange={(e) => setTicker(e.target.value)}
-                  placeholder="Enter message for the bottom ticker..."
+                  placeholder="Enter broadcast message..."
                   className="h-12"
                 />
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Recommended: Under 200 characters for optimal legibility.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Active Global Playlist</Label>
+                  <Label>Master Fleet Playlist</Label>
                   <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
                     <SelectTrigger className="h-10">
                       <SelectValue placeholder="Select Playlist" />
@@ -156,46 +190,33 @@ export default function ScreensManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Content Transition</Label>
-                  <Select defaultValue="crossfade">
-                    <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Effect" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="crossfade">Smooth Crossfade</SelectItem>
-                      <SelectItem value="slide">Slide Horizontal</SelectItem>
-                      <SelectItem value="instant">Instant Cut</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2 flex flex-col justify-end">
+                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10">
+                    {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap className="w-4 h-4" />}
+                    Publish Fleet Update
+                  </Button>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="border-t bg-muted/10 justify-end py-4">
-              <Button onClick={handleSaveSettings} disabled={isSyncing} className="gap-2">
-                {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap />}
-                {isSyncing ? "Publishing..." : "Update All Screens"}
-              </Button>
-            </CardFooter>
           </Card>
 
           <Card className={cn(
-            "shadow-md border-2 transition-colors",
-            isEmergency ? "border-red-600 bg-red-50" : "border-red-100 bg-red-50/20"
+            "shadow-md border-2 transition-all duration-500",
+            isEmergency ? "border-red-600 bg-red-50 ring-4 ring-red-100" : "border-red-100 bg-red-50/20"
           )}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className={cn(
-                    "p-2 rounded-lg",
-                    isEmergency ? "bg-red-600 text-white" : "bg-red-100 text-red-600"
+                    "p-3 rounded-xl",
+                    isEmergency ? "bg-red-600 text-white animate-pulse" : "bg-red-100 text-red-600"
                   )}>
                     <AlertTriangle className="w-6 h-6" />
                   </div>
                   <div>
-                    <CardTitle className={isEmergency ? "text-red-900" : "text-red-800"}>Emergency Override</CardTitle>
+                    <CardTitle className={isEmergency ? "text-red-900" : "text-red-800"}>Emergency Broadcast Protocol</CardTitle>
                     <CardDescription className={isEmergency ? "text-red-700" : "text-red-600/70"}>
-                      Instantly take over all screens with a critical alert.
+                      Instantly hijack all connected screens with high-priority safety content.
                     </CardDescription>
                   </div>
                 </div>
@@ -209,81 +230,99 @@ export default function ScreensManagement() {
           </Card>
 
           {/* Device Table */}
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Connected Devices</CardTitle>
-              <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
+          <Card className="shadow-sm overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20">
+              <div>
+                <CardTitle>Fleet Inventory</CardTitle>
+                <CardDescription>Live telemetry for {SCREEN_STATUS.length} devices.</CardDescription>
+              </div>
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border shadow-sm">
                 <Search className="w-4 h-4 text-muted-foreground" />
-                <input type="text" placeholder="Find screen..." className="bg-transparent text-xs border-none outline-none w-24" />
+                <input type="text" placeholder="Filter fleet..." className="bg-transparent text-xs border-none outline-none w-32" />
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-muted-foreground bg-muted/20">
-                    <tr className="border-b">
-                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Device</th>
-                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider text-center">Health</th>
-                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Active Loop</th>
-                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Uptime</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                  <thead className="text-muted-foreground bg-muted/10 border-b">
+                    <tr>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Panel Details</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">Connectivity</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Active Loop</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Uptime</th>
+                      <th className="px-6 py-4 text-right">Ops</th>
                     </tr>
                   </thead>
                   <tbody>
                     {SCREEN_STATUS.map((screen) => (
-                      <tr key={screen.id} className="border-b hover:bg-muted/10 transition-colors">
-                        <td className="px-4 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-primary">{screen.name}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground">{screen.id}</span>
+                      <tr key={screen.id} className="border-b hover:bg-primary/5 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded bg-muted/40 group-hover:bg-primary/10">
+                              <Monitor className="w-4 h-4 text-primary/70" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-primary">{screen.name}</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">{screen.id}</span>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-6 py-4 text-center">
                           <Badge 
                             variant={screen.status === "Online" ? "default" : "destructive"}
                             className={cn(
-                              "text-[10px] uppercase font-bold",
-                              screen.status === "Online" ? "bg-green-500" : ""
+                              "text-[9px] px-2 py-0.5",
+                              screen.status === "Online" ? "bg-emerald-500 hover:bg-emerald-600" : ""
                             )}
                           >
                             {screen.status}
                           </Badge>
                         </td>
-                        <td className="px-4 py-4 text-xs text-muted-foreground truncate max-w-[150px]">
-                          {screen.playlist}
+                        <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
+                          {PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
                         </td>
-                        <td className="px-4 py-4 text-[10px] font-mono text-muted-foreground">
+                        <td className="px-6 py-4 text-[10px] font-mono text-muted-foreground">
                           {screen.uptime}
                         </td>
-                        <td className="px-4 py-4 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Identify")}>
-                                <Eye className="w-4 h-4 mr-2" /> Identify Screen
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Refresh")}>
-                                <RefreshCw className="w-4 h-4 mr-2" /> Force Refresh
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleDeviceAction(screen.id, "Reboot")}
-                                className="text-orange-600"
-                              >
-                                <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeviceAction(screen.id, "Power Off")}
-                                className="text-red-600"
-                              >
-                                <Power className="w-4 h-4 mr-2" /> Power Off
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-primary"
+                              onClick={() => handleOpenEdit(screen)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Flash LED")}>
+                                  <Eye className="w-4 h-4 mr-2" /> Identify Screen
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)}>
+                                  <Monitor className="w-4 h-4 mr-2" /> Spy View (Live)
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeviceAction(screen.id, "Rebooting...")}
+                                  className="text-orange-600"
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeviceAction(screen.id, "Shutting down...")}
+                                  className="text-red-600"
+                                >
+                                  <Power className="w-4 h-4 mr-2" /> Power Down
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -296,13 +335,22 @@ export default function ScreensManagement() {
 
         {/* Live Proxy Preview */}
         <div className="space-y-6">
-          <Card className="shadow-md overflow-hidden bg-black text-white border-none">
-            <CardHeader className="bg-primary/20 backdrop-blur-md border-b border-white/10 flex flex-row items-center justify-between py-3">
-              <div className="flex items-center gap-2">
-                <Signal className="text-accent w-4 h-4 animate-pulse" />
-                <CardTitle className="text-sm">Live Preview</CardTitle>
+          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
+            <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <CardTitle className="text-xs font-bold tracking-widest uppercase">Live Surveillance</CardTitle>
               </div>
-              <Badge variant="outline" className="text-[10px] border-white/20 text-white">Proxy 720p</Badge>
+              <Select value={previewDeviceId} onValueChange={setPreviewDeviceId}>
+                <SelectTrigger className="w-32 h-7 text-[10px] bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCREEN_STATUS.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent className="p-0 relative aspect-video group">
               {previewUrls.length > 0 ? (
@@ -317,65 +365,135 @@ export default function ScreensManagement() {
                     >
                       <Image 
                         src={url} 
-                        alt="Preview" 
+                        alt="Proxy View" 
                         fill 
-                        className="object-cover opacity-60"
+                        className="object-cover opacity-70"
                         unoptimized
                       />
                     </div>
                   ))}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Play className="w-12 h-12 text-white/50 group-hover:text-white transition-colors" />
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10">
-                    <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-1">Active Stream</p>
-                    <p className="text-xs font-semibold truncate">
-                      {PLAYLISTS.find(p => p.id === activePlaylistId)?.name}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 pointer-events-none">
+                    <p className="text-[10px] text-accent font-black uppercase tracking-widest">Active Broadcast</p>
+                    <p className="text-sm font-bold truncate">
+                      {PLAYLISTS.find(p => p.id === SCREEN_STATUS.find(s => s.id === previewDeviceId)?.playlistId)?.name}
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 italic">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 italic bg-zinc-950">
                   <Monitor className="w-12 h-12" />
-                  <p className="text-xs">No media in playlist</p>
+                  <p className="text-xs">No active content signal</p>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="py-2 px-4 flex justify-between items-center text-[10px] text-white/40">
-              <span>Bitrate: 4.2 Mbps</span>
-              <span>Uptime: {SCREEN_STATUS[0].uptime}</span>
+            <CardFooter className="py-2.5 px-4 flex justify-between items-center text-[9px] text-white/40 font-mono bg-zinc-950/50">
+              <div className="flex items-center gap-3">
+                <span>ENC: H.264</span>
+                <span>ID: {previewDeviceId}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Signal className="w-3 h-3 text-emerald-500" />
+                <span>LATENCY: 42ms</span>
+              </div>
             </CardFooter>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-muted/50 shadow-sm">
+          <Card className="bg-gradient-to-br from-white to-muted/50 shadow-sm border-primary/5">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Quick Statistics</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Signal className="w-4 h-4 text-primary" />
+                Network Telemetry
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Network Load</span>
-                <span className="text-xs font-bold text-green-600">Optimal</span>
-              </div>
-              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                <div className="bg-green-500 h-full w-[24%]" />
+            <CardContent className="space-y-5">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Fleet Payload</span>
+                  <span className="text-[10px] font-bold text-emerald-600">Stable (Low)</span>
+                </div>
+                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full w-[18%]" />
+                </div>
               </div>
               
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Storage (Media Cache)</span>
-                <span className="text-xs font-bold">12.4 / 50 GB</span>
-              </div>
-              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                <div className="bg-primary h-full w-[25%]" />
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Cloud Sync Storage</span>
+                  <span className="text-[10px] font-bold">12.4 GB / 50 GB</span>
+                </div>
+                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-primary h-full w-[24%]" />
+                </div>
               </div>
 
-              <div className="pt-2 border-t mt-4 flex items-center justify-between text-[10px]">
-                <span className="text-muted-foreground uppercase font-bold tracking-tighter">Last System Check</span>
-                <span className="font-mono">{new Date().toLocaleTimeString()}</span>
+              <div className="pt-4 border-t flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
+                  <span className="text-xs font-mono font-bold">{new Date().toLocaleTimeString()}</span>
+                </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Active Nodes</span>
+                  <span className="text-xs font-bold text-emerald-600">3 / 4 Online</span>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Individual Screen Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="w-5 h-5 text-primary" />
+              Configure {editingScreen?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Deploy configuration overrides specifically for this physical display panel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Panel Display Name</Label>
+              <Input 
+                value={localScreenName} 
+                onChange={(e) => setLocalScreenName(e.target.value)} 
+                placeholder="e.g. Science Lab West"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Assigned Playlist</Label>
+              <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Playlist" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLAYLISTS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-muted/40 rounded-lg text-[10px] text-muted-foreground border border-dashed flex gap-2">
+              <Zap className="w-3.5 h-3.5 text-accent shrink-0" />
+              <span>Updating this will override the global fleet settings for this device until the next manual sync.</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateSpecificScreen} className="gap-2">
+              <Zap className="w-4 h-4" />
+              Deploy to Device
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

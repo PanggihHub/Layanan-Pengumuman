@@ -20,7 +20,7 @@ export interface ScreenStatus {
   id: string;
   name: string;
   status: 'Online' | 'Offline';
-  playlist: string;
+  playlistId: string;
   uptime: string;
   lastSeen: string;
 }
@@ -98,10 +98,10 @@ export const INITIAL_MEDIA: MediaItem[] = [
 ];
 
 export const SCREEN_STATUS: ScreenStatus[] = [
-  { id: "S-101", name: "Main Hall A", status: "Online", playlist: "Standard Campus Loop", uptime: "14d 2h", lastSeen: "Just now" },
-  { id: "S-102", name: "Library Entrance", status: "Online", playlist: "Quiet Study", uptime: "5d 6h", lastSeen: "2m ago" },
-  { id: "S-103", name: "Cafeteria East", status: "Offline", playlist: "Lunch Specials", uptime: "0", lastSeen: "4h ago" },
-  { id: "S-104", name: "Admin Block", status: "Online", playlist: "Faculty Updates", uptime: "22d 1h", lastSeen: "Just now" },
+  { id: "S-101", name: "Main Hall A", status: "Online", playlistId: "default-1", uptime: "14d 2h", lastSeen: "Just now" },
+  { id: "S-102", name: "Library Entrance", status: "Online", playlistId: "default-2", uptime: "5d 6h", lastSeen: "2m ago" },
+  { id: "S-103", name: "Cafeteria East", status: "Offline", playlistId: "system-default", uptime: "0", lastSeen: "4h ago" },
+  { id: "S-104", name: "Admin Block", status: "Online", playlistId: "default-1", uptime: "22d 1h", lastSeen: "Just now" },
 ];
 
 export const SCREEN_SETTINGS = {
