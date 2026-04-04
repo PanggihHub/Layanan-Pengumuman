@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -67,6 +68,7 @@ export default function ScreensManagement() {
   const [scanTime, setScanTime] = useState<string | null>(null);
   
   // Fleet State
+  const [fleet, setFleet] = useState<ScreenStatus[]>(SCREEN_STATUS);
   const [deactivatedIds, setDeactivatedIds] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployProgress, setDeployProgress] = useState(0);
@@ -81,17 +83,16 @@ export default function ScreensManagement() {
 
   // Dynamic preview logic based on selected preview device
   const previewUrls = useMemo(() => {
-    const screen = SCREEN_STATUS.find(s => s.id === previewDeviceId);
-    if (!screen || deactivatedIds.includes(screen.id)) return [];
+    const screen = fleet.find(s => s.id === previewDeviceId);
+    if (!screen || deactivatedIds.includes(screen.id) || screen.status === 'Offline') return [];
     const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
     if (!playlist) return [];
     return playlist.items
       .map(id => INITIAL_MEDIA.find(m => m.id === id)?.url)
       .filter((url): url is string => !!url);
-  }, [previewDeviceId, deactivatedIds]);
+  }, [previewDeviceId, deactivatedIds, fleet]);
 
   useEffect(() => {
-    // Set initial scan time on mount to avoid hydration mismatch
     setScanTime(new Date().toLocaleTimeString());
 
     if (previewUrls.length <= 1) return;
@@ -139,6 +140,9 @@ export default function ScreensManagement() {
     }, 200);
 
     setTimeout(() => {
+      setFleet(prev => prev.map(s => 
+        s.id === editingScreen.id ? { ...s, name: localScreenName, playlistId: localScreenPlaylist } : s
+      ));
       setIsDeploying(false);
       setIsEditDialogOpen(false);
       setScanTime(new Date().toLocaleTimeString());
@@ -165,6 +169,21 @@ export default function ScreensManagement() {
         description: `${deviceId} is back online and syncing.`,
       });
     }
+  };
+
+  const handleToggleOnlineStatus = (id: string) => {
+    setFleet(prev => prev.map(screen => {
+      if (screen.id === id) {
+        const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
+        toast({
+          title: `Device ${newStatus}`,
+          description: `Status for ${screen.name} has been manually updated.`,
+          variant: newStatus === 'Offline' ? 'destructive' : 'default'
+        });
+        return { ...screen, status: newStatus };
+      }
+      return screen;
+    }));
   };
 
   const handleEmergencyToggle = (val: boolean) => {
@@ -222,7 +241,7 @@ export default function ScreensManagement() {
                   <CardDescription>Broadcasting these settings will affect every connected panel.</CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-white border-accent text-primary">
-                  {SCREEN_STATUS.length - deactivatedIds.length} Active Nodes
+                  {fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} Active Nodes
                 </Badge>
               </div>
             </CardHeader>
@@ -299,7 +318,7 @@ export default function ScreensManagement() {
             <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4">
               <div>
                 <CardTitle className="text-lg">Fleet Inventory</CardTitle>
-                <CardDescription>Live telemetry for {SCREEN_STATUS.length} provisioned panels.</CardDescription>
+                <CardDescription>Live telemetry for {fleet.length} provisioned panels.</CardDescription>
               </div>
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border shadow-sm">
                 <Search className="w-4 h-4 text-muted-foreground" />
@@ -319,8 +338,9 @@ export default function ScreensManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {SCREEN_STATUS.map((screen) => {
+                    {fleet.map((screen) => {
                       const isDeactivated = deactivatedIds.includes(screen.id);
+                      const isOffline = screen.status === 'Offline';
                       return (
                         <tr key={screen.id} className={cn(
                           "border-b transition-colors group",
@@ -344,20 +364,20 @@ export default function ScreensManagement() {
                           </td>
                           <td className="px-6 py-4 text-center">
                             <Badge 
-                              variant={!isDeactivated && screen.status === "Online" ? "default" : "destructive"}
+                              variant={!isDeactivated && !isOffline ? "default" : "destructive"}
                               className={cn(
-                                "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest",
-                                !isDeactivated && screen.status === "Online" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-400"
+                                "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest min-w-[80px] justify-center",
+                                !isDeactivated && !isOffline ? "bg-emerald-500 hover:bg-emerald-600" : (isDeactivated ? "bg-zinc-500" : "bg-red-400")
                               )}
                             >
                               {isDeactivated ? "DEACTIVATED" : screen.status}
                             </Badge>
                           </td>
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
-                            {isDeactivated ? "IDLE" : PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
+                            {isDeactivated || isOffline ? "IDLE" : PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
                           </td>
                           <td className="px-6 py-4 text-[10px] font-mono text-muted-foreground">
-                            {isDeactivated ? "--" : screen.uptime}
+                            {isDeactivated || isOffline ? "--" : screen.uptime}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -377,13 +397,20 @@ export default function ScreensManagement() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56">
-                                  <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated}>
+                                  <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated || isOffline}>
                                     <Eye className="w-4 h-4 mr-2" /> Live Surveillance
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Identification Flash")}>
+                                  <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Identification Flash")} disabled={isDeactivated || isOffline}>
                                     <Zap className="w-4 h-4 mr-2" /> Identify Physical Unit
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleToggleOnlineStatus(screen.id)} disabled={isDeactivated}>
+                                    {isOffline ? (
+                                      <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Force Online</>
+                                    ) : (
+                                      <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Force Offline</>
+                                    )}
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
                                     {isDeactivated ? (
                                       <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
@@ -393,15 +420,18 @@ export default function ScreensManagement() {
                                   </DropdownMenuItem>
                                   {!isDeactivated && (
                                     <>
+                                      <DropdownMenuSeparator />
                                       <DropdownMenuItem 
                                         onClick={() => handleDeviceAction(screen.id, "Remote Reboot")}
                                         className="text-orange-600"
+                                        disabled={isOffline}
                                       >
                                         <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
                                       </DropdownMenuItem>
                                       <DropdownMenuItem 
                                         onClick={() => handleDeviceAction(screen.id, "Safe Shut down")}
                                         className="text-red-600"
+                                        disabled={isOffline}
                                       >
                                         <Power className="w-4 h-4 mr-2" /> Power Down Unit
                                       </DropdownMenuItem>
@@ -437,7 +467,7 @@ export default function ScreensManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SCREEN_STATUS.map(s => (
+                  {fleet.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -469,7 +499,7 @@ export default function ScreensManagement() {
                       <Play className="w-3 h-3 fill-accent" /> Active Signal
                     </p>
                     <p className="text-sm font-bold truncate">
-                      {PLAYLISTS.find(p => p.id === SCREEN_STATUS.find(s => s.id === previewDeviceId)?.playlistId)?.name}
+                      {PLAYLISTS.find(p => p.id === fleet.find(s => s.id === previewDeviceId)?.playlistId)?.name}
                     </p>
                   </div>
                 </div>
@@ -487,7 +517,7 @@ export default function ScreensManagement() {
               </div>
               <div className="flex items-center gap-1">
                 <Signal className={cn("w-3 h-3", previewUrls.length > 0 ? "text-emerald-500" : "text-red-500")} />
-                <span>42ms LATENCY</span>
+                <span>{previewUrls.length > 0 ? "42ms" : "--"} LATENCY</span>
               </div>
             </CardFooter>
           </Card>
@@ -527,7 +557,7 @@ export default function ScreensManagement() {
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Connected</span>
-                  <span className="text-xs font-bold text-emerald-600">{SCREEN_STATUS.length - deactivatedIds.length} / {SCREEN_STATUS.length} Units</span>
+                  <span className="text-xs font-bold text-emerald-600">{fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} / {fleet.length} Units</span>
                 </div>
               </div>
             </CardContent>
