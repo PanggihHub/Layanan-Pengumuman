@@ -30,6 +30,7 @@ export interface Playlist {
   description: string;
   items: string[];
   isSystem?: boolean;
+  schedule?: string;
 }
 
 export const INITIAL_MEDIA: MediaItem[] = [
@@ -62,17 +63,20 @@ export const PLAYLISTS: Playlist[] = [
     description: "Built-in dynamic card containing Clock, Weather, and AQI modules. Managed by system settings.",
     items: ['1', '3'],
     isSystem: true,
+    schedule: "Always Active (24/7)",
   },
   {
     id: "default-1",
     name: "Standard Campus Loop",
     description: "Main rotation for general announcements and science facts.",
     items: ['1', '2', '3', '5'],
+    schedule: "Mon-Fri, 08:00 - 18:00",
   },
   {
     id: "default-2",
     name: "Quiet Study",
     description: "Calm visuals and library-specific information for study zones.",
     items: ['3', '5'],
+    schedule: "Mon-Sat, 09:00 - 21:00",
   }
 ];
