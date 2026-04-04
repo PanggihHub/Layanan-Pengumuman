@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -59,6 +58,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -218,10 +218,8 @@ export default function ScreensManagement() {
 
     const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
     
-    // Pure state update
     setFleet(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
     
-    // Side effect (toast) outside the state updater function
     toast({
       title: `Device ${newStatus}`,
       description: `Status for ${screen.name} has been manually updated.`,
