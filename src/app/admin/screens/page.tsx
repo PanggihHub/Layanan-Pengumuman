@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,12 @@ import {
   XCircle,
   Play,
   Signal,
-  MoreVertical
+  MoreVertical,
+  Power,
+  Eye,
+  Search,
+  Zap,
+  RotateCcw
 } from "lucide-react";
 import { 
   Select, 
@@ -25,19 +31,44 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS } from "@/lib/mock-data";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 export default function ScreensManagement() {
   const [ticker, setTicker] = useState(SCREEN_SETTINGS.tickerMessage);
-  const [activePlaylist, setActivePlaylist] = useState(SCREEN_SETTINGS.activePlaylistId);
+  const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const [isEmergency, setIsEmergency] = useState(SCREEN_SETTINGS.emergencyAlert);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const { toast } = useToast();
+
+  // Dynamic preview logic
+  const previewUrls = useMemo(() => {
+    const playlist = PLAYLISTS.find(p => p.id === activePlaylistId);
+    if (!playlist) return [];
+    return playlist.items
+      .map(id => INITIAL_MEDIA.find(m => m.id === id)?.url)
+      .filter((url): url is string => !!url);
+  }, [activePlaylistId]);
+
+  useEffect(() => {
+    if (previewUrls.length <= 1) return;
+    const interval = setInterval(() => {
+      setPreviewIndex((prev) => (prev + 1) % previewUrls.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [previewUrls]);
 
   const handleSaveSettings = () => {
     setIsSyncing(true);
-    // Simulate API delay
     setTimeout(() => {
       setIsSyncing(false);
       toast({
@@ -55,6 +86,13 @@ export default function ScreensManagement() {
       description: val 
         ? "Override active. All screens are now displaying the emergency alert." 
         : "Displays returned to standard playback.",
+    });
+  };
+
+  const handleDeviceAction = (deviceId: string, action: string) => {
+    toast({
+      title: "Action Initiated",
+      description: `${action} command sent to device ${deviceId}.`,
     });
   };
 
@@ -82,7 +120,7 @@ export default function ScreensManagement() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Global Controls */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-lg">
+          <Card className="shadow-lg border-primary/10">
             <CardHeader className="border-b bg-muted/30">
               <CardTitle className="flex items-center gap-2">
                 <Settings2 className="w-5 h-5 text-primary" />
@@ -93,23 +131,21 @@ export default function ScreensManagement() {
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="ticker">Live Ticker Message</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="ticker" 
-                    value={ticker} 
-                    onChange={(e) => setTicker(e.target.value)}
-                    placeholder="Enter message for the bottom ticker..."
-                    className="flex-1"
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Recommended: Under 200 characters</p>
+                <Input 
+                  id="ticker" 
+                  value={ticker} 
+                  onChange={(e) => setTicker(e.target.value)}
+                  placeholder="Enter message for the bottom ticker..."
+                  className="h-12"
+                />
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Recommended: Under 200 characters for optimal legibility.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Active Global Playlist</Label>
-                  <Select value={activePlaylist} onValueChange={setActivePlaylist}>
-                    <SelectTrigger>
+                  <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
+                    <SelectTrigger className="h-10">
                       <SelectValue placeholder="Select Playlist" />
                     </SelectTrigger>
                     <SelectContent>
@@ -122,7 +158,7 @@ export default function ScreensManagement() {
                 <div className="space-y-2">
                   <Label>Content Transition</Label>
                   <Select defaultValue="crossfade">
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10">
                       <SelectValue placeholder="Effect" />
                     </SelectTrigger>
                     <SelectContent>
@@ -135,22 +171,31 @@ export default function ScreensManagement() {
               </div>
             </CardContent>
             <CardFooter className="border-t bg-muted/10 justify-end py-4">
-              <Button onClick={handleSaveSettings} disabled={isSyncing}>
-                {isSyncing ? "Syncing..." : "Update All Screens"}
+              <Button onClick={handleSaveSettings} disabled={isSyncing} className="gap-2">
+                {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap />}
+                {isSyncing ? "Publishing..." : "Update All Screens"}
               </Button>
             </CardFooter>
           </Card>
 
-          <Card className="border-red-200 bg-red-50/50 shadow-md">
+          <Card className={cn(
+            "shadow-md border-2 transition-colors",
+            isEmergency ? "border-red-600 bg-red-50" : "border-red-100 bg-red-50/20"
+          )}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="bg-red-100 p-2 rounded-lg">
-                    <AlertTriangle className="text-red-600 w-6 h-6" />
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    isEmergency ? "bg-red-600 text-white" : "bg-red-100 text-red-600"
+                  )}>
+                    <AlertTriangle className="w-6 h-6" />
                   </div>
                   <div>
-                    <CardTitle className="text-red-900">Emergency Override</CardTitle>
-                    <CardDescription className="text-red-700/70">Instantly take over all screens with a critical alert.</CardDescription>
+                    <CardTitle className={isEmergency ? "text-red-900" : "text-red-800"}>Emergency Override</CardTitle>
+                    <CardDescription className={isEmergency ? "text-red-700" : "text-red-600/70"}>
+                      Instantly take over all screens with a critical alert.
+                    </CardDescription>
                   </div>
                 </div>
                 <Switch 
@@ -161,57 +206,171 @@ export default function ScreensManagement() {
               </div>
             </CardHeader>
           </Card>
-        </div>
 
-        {/* Device Health Summary */}
-        <div className="space-y-6">
-          <Card className="shadow-md overflow-hidden">
-            <CardHeader className="bg-primary text-white">
-              <CardTitle className="text-lg">Network Health</CardTitle>
+          {/* Device Table */}
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Connected Devices</CardTitle>
+              <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                <input type="text" placeholder="Find screen..." className="bg-transparent text-xs border-none outline-none w-24" />
+              </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y">
-                {SCREEN_STATUS.map((screen) => (
-                  <div key={screen.id} className="p-4 hover:bg-muted/50 transition-colors flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {screen.status === "Online" ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-500" />
-                      )}
-                      <div>
-                        <p className="font-semibold text-sm">{screen.name}</p>
-                        <p className="text-xs text-muted-foreground">{screen.id} • {screen.lastSeen}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={screen.status === "Online" ? "default" : "destructive"} className="text-[10px]">
-                        {screen.status}
-                      </Badge>
-                      <p className="text-[10px] mt-1 text-muted-foreground font-mono">Up: {screen.uptime}</p>
-                    </div>
-                  </div>
-                ))}
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-muted-foreground bg-muted/20">
+                    <tr className="border-b">
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Device</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider text-center">Health</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Active Loop</th>
+                      <th className="px-4 py-3 font-semibold text-[10px] uppercase tracking-wider">Uptime</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SCREEN_STATUS.map((screen) => (
+                      <tr key={screen.id} className="border-b hover:bg-muted/10 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-primary">{screen.name}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{screen.id}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <Badge 
+                            variant={screen.status === "Online" ? "default" : "destructive"}
+                            className={cn(
+                              "text-[10px] uppercase font-bold",
+                              screen.status === "Online" ? "bg-green-500" : ""
+                            )}
+                          >
+                            {screen.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4 text-xs text-muted-foreground truncate max-w-[150px]">
+                          {screen.playlist}
+                        </td>
+                        <td className="px-4 py-4 text-[10px] font-mono text-muted-foreground">
+                          {screen.uptime}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Identify")}>
+                                <Eye className="w-4 h-4 mr-2" /> Identify Screen
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeviceAction(screen.id, "Refresh")}>
+                                <RefreshCw className="w-4 h-4 mr-2" /> Force Refresh
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeviceAction(screen.id, "Reboot")}
+                                className="text-orange-600"
+                              >
+                                <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeviceAction(screen.id, "Power Off")}
+                                className="text-red-600"
+                              >
+                                <Power className="w-4 h-4 mr-2" /> Power Off
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/30 py-3 justify-center">
-              <Button variant="link" size="sm" className="text-xs font-bold text-primary">Download Health Report (PDF)</Button>
+          </Card>
+        </div>
+
+        {/* Live Proxy Preview */}
+        <div className="space-y-6">
+          <Card className="shadow-md overflow-hidden bg-black text-white border-none">
+            <CardHeader className="bg-primary/20 backdrop-blur-md border-b border-white/10 flex flex-row items-center justify-between py-3">
+              <div className="flex items-center gap-2">
+                <Signal className="text-accent w-4 h-4 animate-pulse" />
+                <CardTitle className="text-sm">Live Preview</CardTitle>
+              </div>
+              <Badge variant="outline" className="text-[10px] border-white/20 text-white">Proxy 720p</Badge>
+            </CardHeader>
+            <CardContent className="p-0 relative aspect-video group">
+              {previewUrls.length > 0 ? (
+                <div className="relative w-full h-full overflow-hidden">
+                  {previewUrls.map((url, i) => (
+                    <div 
+                      key={i}
+                      className={cn(
+                        "absolute inset-0 transition-opacity duration-1000",
+                        i === previewIndex ? "opacity-100" : "opacity-0"
+                      )}
+                    >
+                      <Image 
+                        src={url} 
+                        alt="Preview" 
+                        fill 
+                        className="object-cover opacity-60"
+                        unoptimized
+                      />
+                    </div>
+                  ))}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Play className="w-12 h-12 text-white/50 group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10">
+                    <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-1">Active Stream</p>
+                    <p className="text-xs font-semibold truncate">
+                      {PLAYLISTS.find(p => p.id === activePlaylistId)?.name}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 italic">
+                  <Monitor className="w-12 h-12" />
+                  <p className="text-xs">No media in playlist</p>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="py-2 px-4 flex justify-between items-center text-[10px] text-white/40">
+              <span>Bitrate: 4.2 Mbps</span>
+              <span>Uptime: {SCREEN_STATUS[0].uptime}</span>
             </CardFooter>
           </Card>
 
-          <Card className="bg-gradient-to-br from-accent/10 to-primary/5 border-accent/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Signal className="text-accent w-6 h-6" />
-                <h3 className="font-bold">Live Preview</h3>
+          <Card className="bg-gradient-to-br from-white to-muted/50 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Quick Statistics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Network Load</span>
+                <span className="text-xs font-bold text-green-600">Optimal</span>
               </div>
-              <div className="aspect-video bg-black rounded-lg relative overflow-hidden flex items-center justify-center text-white/20">
-                <Play className="w-12 h-12" />
-                <div className="absolute bottom-2 left-2 right-2 h-1 bg-accent/30 rounded-full">
-                  <div className="w-1/3 h-full bg-accent rounded-full animate-[progress_5s_linear_infinite]" />
-                </div>
+              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                <div className="bg-green-500 h-full w-[24%]" />
               </div>
-              <p className="text-[10px] text-center mt-3 text-muted-foreground">Streaming low-res proxy of Main Hall A</p>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Storage (Media Cache)</span>
+                <span className="text-xs font-bold">12.4 / 50 GB</span>
+              </div>
+              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                <div className="bg-primary h-full w-[25%]" />
+              </div>
+
+              <div className="pt-2 border-t mt-4 flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground uppercase font-bold tracking-tighter">Last System Check</span>
+                <span className="font-mono">{new Date().toLocaleTimeString()}</span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -219,3 +378,4 @@ export default function ScreensManagement() {
     </div>
   );
 }
+
