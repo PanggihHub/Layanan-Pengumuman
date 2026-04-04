@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -37,8 +38,10 @@ export default function LocalizationSettings() {
     setTimeout(() => {
       setIsSaving(false);
       toast({
-        title: "System Language Updated",
-        description: `Localization changed to ${lang}. Entire platform translated for teaching staff.`,
+        title: lang === "id-ID" ? "Sistem Diperbarui" : "System Language Updated",
+        description: lang === "id-ID" 
+          ? `Lokalisasi diubah ke Bahasa Indonesia. Seluruh platform diterjemahkan.`
+          : `Localization changed to ${lang}. Entire platform translated for teaching staff.`,
       });
     }, 1500);
   };
@@ -50,6 +53,7 @@ export default function LocalizationSettings() {
       case "ja-JP": return "先生方、ようこそ (Welcome Teachers)";
       case "es-ES": return "Bienvenidos Profesores";
       case "fr-FR": return "Bienvenue aux Enseignants";
+      case "id-ID": return "Selamat Datang Guru (Welcome Teachers)";
       default: return "Welcome Teachers";
     }
   }
@@ -83,6 +87,7 @@ export default function LocalizationSettings() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en-US">English (US)</SelectItem>
+                    <SelectItem value="id-ID">Bahasa Indonesia</SelectItem>
                     <SelectItem value="zh-CN">Chinese (Simplified) - 中文</SelectItem>
                     <SelectItem value="ja-JP">Japanese - 日本語</SelectItem>
                     <SelectItem value="es-ES">Spanish - Español</SelectItem>
@@ -139,6 +144,7 @@ export default function LocalizationSettings() {
                     <SelectItem value="UTC-5">Eastern Time (ET)</SelectItem>
                     <SelectItem value="UTC+0">London (GMT)</SelectItem>
                     <SelectItem value="UTC+1">Paris (CET)</SelectItem>
+                    <SelectItem value="UTC+7">Jakarta / Bangkok (WIB)</SelectItem>
                     <SelectItem value="UTC+8">Beijing / Singapore (CST)</SelectItem>
                     <SelectItem value="UTC+9">Tokyo / Seoul (JST)</SelectItem>
                   </SelectContent>
@@ -163,7 +169,7 @@ export default function LocalizationSettings() {
                 <Separator />
                 <div className="flex justify-between items-baseline">
                   <h4 className="text-3xl font-black tracking-tighter">
-                    {timezone.includes("+9") ? "05:45" : (timezone.includes("+8") ? "04:45" : "15:45")}
+                    {timezone.includes("+9") ? "05:45" : (timezone.includes("+8") ? "04:45" : (timezone.includes("+7") ? "03:45" : "15:45"))}
                   </h4>
                   <span className="text-accent font-black text-lg">
                     {units === "celsius" ? "24°C" : "75°F"}

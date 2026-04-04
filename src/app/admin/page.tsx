@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -17,7 +17,9 @@ import {
   Eye,
   EyeOff,
   History,
-  FileText
+  FileText,
+  Search,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -42,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Image from "next/image";
 
 const engagementData = [
   { name: 'Mon', engagement: 420 },
@@ -57,8 +60,10 @@ export default function AdminOverview() {
   const [screens] = useState<ScreenStatus[]>(SCREEN_STATUS);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [monitorScreen, setMonitorScreen] = useState<ScreenStatus | null>(null);
   const { toast } = useToast();
   
   // Simulated activity history
@@ -104,6 +109,22 @@ export default function AdminOverview() {
     }, 2000);
   };
 
+  const handleRefreshLogs = () => {
+    setIsRefreshingLogs(true);
+    setTimeout(() => {
+      setIsRefreshingLogs(false);
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setHistory(prev => [
+        { id: Date.now(), time: "Just now", text: `System-wide telemetry scan completed at ${now}`, type: "system" },
+        ...prev
+      ]);
+      toast({
+        title: "Logs Updated",
+        description: "Activity feed has been refreshed with latest telemetry.",
+      });
+    }, 1000);
+  };
+
   const handleExport = () => {
     setIsExporting(true);
     toast({
@@ -118,6 +139,13 @@ export default function AdminOverview() {
         description: "System_Report_Q4.pdf has been saved to your downloads.",
       });
     }, 3000);
+  };
+
+  const getActiveMediaForScreen = (screen: ScreenStatus | null) => {
+    if (!screen) return [];
+    const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
+    if (!playlist) return [];
+    return playlist.items.map(id => INITIAL_MEDIA.find(m => m.id === id)).filter(Boolean);
   };
 
   return (
@@ -290,7 +318,14 @@ export default function AdminOverview() {
               <Activity className="w-5 h-5 text-accent" />
               Admin Activity Log
             </CardTitle>
-            <History className="w-4 h-4 text-muted-foreground opacity-50" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-8 w-8", isRefreshingLogs && "animate-spin")}
+              onClick={handleRefreshLogs}
+            >
+              <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            </Button>
           </CardHeader>
           <CardContent>
             <div className={cn(
@@ -299,7 +334,7 @@ export default function AdminOverview() {
             )}>
               {history.slice(0, showAnalytics ? 4 : 6).map((log, i) => (
                 <div key={log.id} className="flex gap-3 relative">
-                  {(showAnalytics && i !== 3) && <div className="absolute left-[3px] top-4 w-px h-8 bg-muted" />}
+                  {(showAnalytics && i !== (showAnalytics ? 3 : 5)) && <div className="absolute left-[3px] top-4 w-px h-8 bg-muted" />}
                   <div className={cn(
                     "w-1.5 h-1.5 rounded-full mt-2 z-10",
                     log.type === 'sync' ? 'bg-primary' : (log.type === 'worship' ? 'bg-accent' : 'bg-muted-foreground')
@@ -373,7 +408,12 @@ export default function AdminOverview() {
                         {screen.status === "Online" ? screen.uptime : "---"}
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => setMonitorScreen(screen)}
+                        >
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                       </td>
@@ -424,7 +464,52 @@ export default function AdminOverview() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Monitoring Dialog */}
+      <Dialog open={!!monitorScreen} onOpenChange={() => setMonitorScreen(null)}>
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none">
+          <div className="relative aspect-video flex flex-col items-center justify-center">
+            {monitorScreen?.status === "Online" ? (
+              <div className="w-full h-full relative">
+                {getActiveMediaForScreen(monitorScreen).map((item, i) => (
+                  <div key={i} className="absolute inset-0 opacity-100 transition-opacity">
+                    <Image 
+                      src={item?.url || 'https://picsum.photos/seed/placeholder/1920/1080'} 
+                      alt="" 
+                      fill 
+                      className="object-cover opacity-80" 
+                      unoptimized 
+                    />
+                  </div>
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-8 left-8 right-8 text-white z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-widest text-emerald-500">Live Proxy Feed</span>
+                  </div>
+                  <h3 className="text-2xl font-bold">{monitorScreen?.name}</h3>
+                  <p className="text-sm opacity-70">Looping: {PLAYLISTS.find(p => p.id === monitorScreen?.playlistId)?.name}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-white/20 flex flex-col items-center gap-4 text-center p-12">
+                <Monitor className="w-24 h-24 opacity-20" />
+                <h3 className="text-2xl font-black uppercase tracking-widest">Signal Offline</h3>
+                <p className="text-sm font-medium italic">Device S-103 is not responding to heartbeat signals.</p>
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute top-4 right-4 text-white hover:bg-white/10"
+              onClick={() => setMonitorScreen(null)}
+            >
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
