@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -8,10 +7,8 @@ import {
   Film, 
   ListMusic, 
   Monitor, 
-  Wand2, 
   Settings, 
   AlertTriangle, 
-  BarChart3,
   Globe,
   Plus
 } from "lucide-react";
@@ -34,11 +31,6 @@ const menuItems = [
   { icon: Film, label: "Media Library", href: "/admin/media" },
   { icon: ListMusic, label: "Playlists", href: "/admin/playlists" },
   { icon: Monitor, label: "Screens", href: "/admin/screens" },
-];
-
-const aiTools = [
-  { icon: Wand2, label: "AI Generator", href: "/admin/ai-gen" },
-  { icon: BarChart3, label: "Intelligence", href: "/admin/analytics" },
 ];
 
 const settings = [
@@ -82,27 +74,7 @@ export function AdminSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-white/60">Smart Tools</SidebarGroupLabel>
-          <SidebarMenu>
-            {aiTools.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton 
-                  asChild 
-                  isActive={pathname === item.href}
-                  className={cn("text-white/90 hover:bg-white/10", pathname === item.href && "bg-white/20 text-white")}
-                >
-                  <Link href={item.href}>
-                    <item.icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarGroup>
+        <SidebarGroup className="mt-auto">
           <SidebarGroupLabel className="text-white/60">Platform</SidebarGroupLabel>
           <SidebarMenu>
             {settings.map((item) => (
