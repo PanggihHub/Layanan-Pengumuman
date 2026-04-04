@@ -467,6 +467,10 @@ export default function AdminOverview() {
       {/* Monitoring Dialog */}
       <Dialog open={!!monitorScreen} onOpenChange={() => setMonitorScreen(null)}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Monitor Screen: {monitorScreen?.name}</DialogTitle>
+            <DialogDescription>Viewing live status and content broadcast for {monitorScreen?.name}.</DialogDescription>
+          </DialogHeader>
           <div className="relative aspect-video flex flex-col items-center justify-center">
             {monitorScreen?.status === "Online" ? (
               <div className="w-full h-full relative">

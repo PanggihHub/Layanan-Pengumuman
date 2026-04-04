@@ -403,6 +403,10 @@ export default function PlaylistsPage() {
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Playlist Preview: {currentPlaylist?.name}</DialogTitle>
+            <DialogDescription>Previewing the media loop for the {currentPlaylist?.name} sequence.</DialogDescription>
+          </DialogHeader>
           <div className="relative group">
             <Carousel className="w-full">
               <CarouselContent>
@@ -434,14 +438,6 @@ export default function PlaylistsPage() {
               <CarouselPrevious className="left-4" />
               <CarouselNext className="right-4" />
             </Carousel>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="absolute top-4 right-4 text-white hover:bg-white/10"
-              onClick={() => setIsPreviewOpen(false)}
-            >
-              <X className="w-6 h-6" />
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
