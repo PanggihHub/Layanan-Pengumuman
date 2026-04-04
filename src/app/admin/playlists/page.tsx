@@ -233,8 +233,8 @@ export default function PlaylistsPage() {
                   {playlist.name}
                   {isActive && <Badge className="bg-accent text-primary text-[10px] font-bold">LIVE</Badge>}
                 </CardTitle>
-                <CardDescription className="line-clamp-2 h-8">
-                  {playlist.description}
+                <CardDescription className="line-clamp-3 min-h-[4.5rem] mt-2 text-sm text-muted-foreground">
+                  {playlist.description || "No internal description provided for this sequence loop."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 flex-1">

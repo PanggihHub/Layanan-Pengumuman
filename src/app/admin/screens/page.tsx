@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -29,7 +28,9 @@ import {
   Trash2,
   CheckCircle2,
   Clock,
-  MapPin
+  MapPin,
+  ShieldCheck,
+  ZapOff
 } from "lucide-react";
 import { 
   Select, 
@@ -89,6 +90,7 @@ export default function ScreensManagement() {
   const [editingScreen, setEditingScreen] = useState<ScreenStatus | null>(null);
   const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
   const [localScreenName, setLocalScreenName] = useState("");
+  const [integritySetting, setIntegritySetting] = useState("standard");
 
   // Linking Dialog (Create)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -167,7 +169,7 @@ export default function ScreensManagement() {
       setScanTime(new Date().toLocaleTimeString());
       toast({
         title: "Device Deployment Successful",
-        description: `Content successfully pushed to ${localScreenName}.`,
+        description: `Content and integrity policy successfully pushed to ${localScreenName}.`,
       });
     }, 2000);
   };
@@ -308,7 +310,6 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          {/* Worship Schedule Quick View (Replaced Emergency Card) */}
           <Card className="shadow-md border-accent/20 bg-accent/5">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -367,8 +368,7 @@ export default function ScreensManagement() {
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Panel ID & Location</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">Connectivity</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Active Loop</th>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-right">Quick Power</th>
-                      <th className="px-6 py-4 text-right">Ops</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-right">Ops</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,45 +411,40 @@ export default function ScreensManagement() {
                             {isDeactivated || isOffline ? "IDLE" : PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
                           </td>
                           <td className="px-6 py-4 text-right">
-                             <Button 
-                                variant={isOffline ? "outline" : "secondary"} 
-                                size="sm" 
-                                className={cn(
-                                  "h-8 px-2 gap-1.5",
-                                  isOffline ? "text-red-500 border-red-200" : "text-emerald-600"
-                                )}
-                                onClick={() => handleToggleOnlineStatus(screen.id)}
-                                disabled={isDeactivated}
-                              >
-                                {isOffline ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
-                                <span className="text-[10px] font-bold uppercase tracking-tight">
-                                  {isOffline ? "Offline" : "Online"}
-                                </span>
-                              </Button>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleOpenEdit(screen)} disabled={isDeactivated}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                  <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated || isOffline}>
-                                    <Eye className="w-4 h-4 mr-2" /> Surveillance
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
-                                    {isDeactivated ? <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate</> : <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate</>}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => setScreenToDelete(screen.id)} className="text-red-600">
-                                    <Trash2 className="w-4 h-4 mr-2" /> Decommission
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onClick={() => handleOpenEdit(screen)} disabled={isDeactivated}>
+                                  <Edit className="w-4 h-4 mr-2" /> Configure Node
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated || isOffline}>
+                                  <Eye className="w-4 h-4 mr-2" /> Surveillance Feed
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleToggleOnlineStatus(screen.id)} disabled={isDeactivated}>
+                                  {isOffline ? (
+                                    <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Power On</>
+                                  ) : (
+                                    <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Power Off</>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
+                                  {isDeactivated ? (
+                                    <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
+                                  ) : (
+                                    <><ZapOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate Node</>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setScreenToDelete(screen.id)} className="text-red-600">
+                                  <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </td>
                         </tr>
                       );
@@ -540,15 +535,16 @@ export default function ScreensManagement() {
               <Settings2 className="w-5 h-5 text-primary" />
               Node Configuration
             </DialogTitle>
-            <DialogDescription>Deploy overrides for unit {editingScreen?.id}.</DialogDescription>
+            <DialogDescription>Deploy localized overrides for unit {editingScreen?.id}.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
-              <Label>Panel Display Name</Label>
-              <Input value={localScreenName} onChange={(e) => setLocalScreenName(e.target.value)} disabled={isDeploying} />
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">1. Network Identity</Label>
+              <Input value={localScreenName} onChange={(e) => setLocalScreenName(e.target.value)} disabled={isDeploying} placeholder="e.g. Science Wing Panel" />
             </div>
+            
             <div className="space-y-2">
-              <Label>Target Playlist (Loop)</Label>
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">2. Broadcast Loop</Label>
               <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist} disabled={isDeploying}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -558,6 +554,25 @@ export default function ScreensManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">3. Operational Integrity</Label>
+              <Select value={integritySetting} onValueChange={setIntegritySetting} disabled={isDeploying}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Integrity Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard (60s Heartbeat)</SelectItem>
+                  <SelectItem value="high">Mission Critical (10s Heartbeat)</SelectItem>
+                  <SelectItem value="low">Eco Mode (300s Heartbeat)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground italic flex items-center gap-1 mt-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                Defines the frequency of connectivity validation pings.
+              </p>
+            </div>
+
             {isDeploying && (
               <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
@@ -572,7 +587,7 @@ export default function ScreensManagement() {
             <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} disabled={isDeploying}>Cancel</Button>
             <Button onClick={handleUpdateSpecificScreen} disabled={isDeploying} className="gap-2">
               {isDeploying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-              {isDeploying ? "Deploying..." : "Push to Device"}
+              {isDeploying ? "Deploying..." : "Push to Node"}
             </Button>
           </DialogFooter>
         </DialogContent>
