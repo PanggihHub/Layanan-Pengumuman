@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -41,20 +40,21 @@ export default function LocalizationSettings() {
         title: lang === "id-ID" ? "Sistem Diperbarui" : "System Language Updated",
         description: lang === "id-ID" 
           ? `Lokalisasi diubah ke Bahasa Indonesia. Seluruh platform diterjemahkan.`
-          : `Localization changed to ${lang}. Entire platform translated for teaching staff.`,
+          : `Localization changed to ${lang}. Entire platform translated.`,
       });
     }, 1500);
   };
 
-  // Mock translation for the preview
+  // Simplified greeting for the preview mockup
   const getGreeting = () => {
     switch(lang) {
-      case "zh-CN": return "欢迎教师 (Welcome Teachers)";
-      case "ja-JP": return "先生方、ようこそ (Welcome Teachers)";
-      case "es-ES": return "Bienvenidos Profesores";
-      case "fr-FR": return "Bienvenue aux Enseignants";
-      case "id-ID": return "Selamat Datang Guru (Welcome Teachers)";
-      default: return "Welcome Teachers";
+      case "zh-CN": return "欢迎 (Welcome)";
+      case "ja-JP": return "ようこそ (Welcome)";
+      case "es-ES": return "Bienvenidos";
+      case "fr-FR": return "Bienvenue";
+      case "id-ID": return "Selamat Datang";
+      case "en-GB": return "Welcome";
+      default: return "Welcome";
     }
   }
 
@@ -65,7 +65,7 @@ export default function LocalizationSettings() {
           <Globe className="w-8 h-8 text-accent" />
           Localization & Language Suite
         </h1>
-        <p className="text-muted-foreground mt-2">Adjust linguistic and environmental parameters so the system is accessible to all staff members.</p>
+        <p className="text-muted-foreground mt-2">Adjust linguistic and environmental parameters across the display network.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -76,7 +76,7 @@ export default function LocalizationSettings() {
                 <Languages className="w-5 h-5" />
                 Language & System Dialect
               </CardTitle>
-              <CardDescription>Select the interface language for teachers and students.</CardDescription>
+              <CardDescription>Select the interface language for dashboard and displays.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               <div className="space-y-2">
@@ -87,12 +87,12 @@ export default function LocalizationSettings() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en-US">English (US)</SelectItem>
+                    <SelectItem value="en-GB">English (UK)</SelectItem>
                     <SelectItem value="id-ID">Bahasa Indonesia</SelectItem>
                     <SelectItem value="zh-CN">Chinese (Simplified) - 中文</SelectItem>
                     <SelectItem value="ja-JP">Japanese - 日本語</SelectItem>
                     <SelectItem value="es-ES">Spanish - Español</SelectItem>
                     <SelectItem value="fr-FR">French - Français</SelectItem>
-                    <SelectItem value="en-GB">English (UK)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground italic">Updating this will instantly translate all menu labels and dashboard modules.</p>
@@ -104,7 +104,7 @@ export default function LocalizationSettings() {
             <CardHeader className="bg-muted/30">
               <CardTitle className="flex items-center gap-2 text-primary">
                 <Thermometer className="w-5 h-5" />
-                Environmental Metrics
+                Environmental Metrics (TU)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
@@ -153,28 +153,18 @@ export default function LocalizationSettings() {
             </CardContent>
           </Card>
 
-          <Card className="bg-primary/5 border-dashed border-primary/20 shadow-inner overflow-hidden">
+          <Card className="bg-primary/5 border-dashed border-primary/20 shadow-inner overflow-hidden h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center justify-between">
                 Live Interface Mockup
                 <Badge variant="outline" className="text-[8px] bg-white">PREVIEW</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 p-4">
-              <div className="p-4 bg-white rounded-xl shadow-sm border space-y-3">
-                <div className="flex justify-between items-center">
-                   <h4 className="text-sm font-bold text-primary">{getGreeting()}</h4>
-                   <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{lang}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-baseline">
-                  <h4 className="text-3xl font-black tracking-tighter">
-                    {timezone.includes("+9") ? "05:45" : (timezone.includes("+8") ? "04:45" : (timezone.includes("+7") ? "03:45" : "15:45"))}
-                  </h4>
-                  <span className="text-accent font-black text-lg">
-                    {units === "celsius" ? "24°C" : "75°F"}
-                  </span>
-                </div>
+            <CardContent className="flex items-center justify-center p-8 h-48">
+              <div className="p-8 bg-white rounded-2xl shadow-xl border w-full text-center">
+                 <h4 className="text-4xl font-black text-primary tracking-tighter">
+                   {getGreeting()}
+                 </h4>
               </div>
             </CardContent>
           </Card>
