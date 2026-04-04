@@ -12,8 +12,6 @@ import {
   RefreshCw, 
   Settings2, 
   AlertTriangle, 
-  CheckCircle2, 
-  XCircle,
   Play,
   Signal,
   MoreVertical,
@@ -23,11 +21,12 @@ import {
   Zap,
   RotateCcw,
   Edit,
-  Layout,
   UploadCloud,
   WifiOff,
   Wifi,
-  CloudCog
+  CloudCog,
+  Link2,
+  Plus
 } from "lucide-react";
 import { 
   Select, 
@@ -79,9 +78,14 @@ export default function ScreensManagement() {
   const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
   const [localScreenName, setLocalScreenName] = useState("");
 
+  // Linking Dialog
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [linkUnitId, setLinkUnitId] = useState("");
+  const [linkUnitName, setLinkUnitName] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
+
   const { toast } = useToast();
 
-  // Dynamic preview logic based on selected preview device
   const previewUrls = useMemo(() => {
     const screen = fleet.find(s => s.id === previewDeviceId);
     if (!screen || deactivatedIds.includes(screen.id) || screen.status === 'Offline') return [];
@@ -153,22 +157,29 @@ export default function ScreensManagement() {
     }, 2000);
   };
 
-  const handleToggleDeactivation = (deviceId: string) => {
-    const isDeactivating = !deactivatedIds.includes(deviceId);
-    if (isDeactivating) {
-      setDeactivatedIds(prev => [...prev, deviceId]);
-      toast({
-        title: "Device Deactivated",
-        description: `Connectivity severed for ${deviceId}. Screen is now idle.`,
-        variant: "destructive"
-      });
-    } else {
-      setDeactivatedIds(prev => prev.filter(id => id !== deviceId));
-      toast({
-        title: "Device Reconnected",
-        description: `${deviceId} is back online and syncing.`,
-      });
+  const handleLinkNewDevice = () => {
+    if (!linkUnitId || !linkUnitName) {
+      toast({ title: "Error", description: "All fields are required for linking.", variant: "destructive" });
+      return;
     }
+
+    setIsLinking(true);
+    setTimeout(() => {
+      const newScreen: ScreenStatus = {
+        id: linkUnitId,
+        name: linkUnitName,
+        status: "Online",
+        playlistId: "system-default",
+        uptime: "Just linked",
+        lastSeen: "Just now"
+      };
+      setFleet(prev => [...prev, newScreen]);
+      setIsLinking(false);
+      setIsLinkDialogOpen(false);
+      setLinkUnitId("");
+      setLinkUnitName("");
+      toast({ title: "Unit Connected", description: `Device ${linkUnitId} has been successfully provisioned.` });
+    }, 2000);
   };
 
   const handleToggleOnlineStatus = (id: string) => {
@@ -186,14 +197,30 @@ export default function ScreensManagement() {
     }));
   };
 
+  const handleToggleDeactivation = (deviceId: string) => {
+    const isDeactivating = !deactivatedIds.includes(deviceId);
+    if (isDeactivating) {
+      setDeactivatedIds(prev => [...prev, deviceId]);
+      toast({
+        title: "Device Deactivated",
+        description: `Connectivity severed for ${deviceId}.`,
+        variant: "destructive"
+      });
+    } else {
+      setDeactivatedIds(prev => prev.filter(id => id !== deviceId));
+      toast({
+        title: "Device Reconnected",
+        description: `${deviceId} is back online.`,
+      });
+    }
+  };
+
   const handleEmergencyToggle = (val: boolean) => {
     setIsEmergency(val);
     toast({
       variant: val ? "destructive" : "default",
       title: val ? "EMERGENCY BROADCAST ACTIVE" : "Emergency Resolved",
-      description: val 
-        ? "Override active. All connected screens are now displaying the emergency alert." 
-        : "Displays returned to standard playback.",
+      description: val ? "Override active on all screens." : "Standard playback restored.",
     });
   };
 
@@ -218,17 +245,24 @@ export default function ScreensManagement() {
           <Button 
             variant="outline" 
             className="gap-2" 
+            onClick={() => setIsLinkDialogOpen(true)}
+          >
+            <Link2 className="w-4 h-4" />
+            Link New Unit
+          </Button>
+          <Button 
+            variant="default" 
+            className="gap-2" 
             onClick={handleSaveGlobalSettings}
             disabled={isSyncing}
           >
             <RefreshCw className={isSyncing ? "animate-spin" : ""} />
-            Manual Fleet Sync
+            Fleet Sync
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Global Controls */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="border-b bg-muted/30 py-4">
@@ -238,7 +272,7 @@ export default function ScreensManagement() {
                     <CloudCog className="w-5 h-5 text-accent" />
                     Global Fleet Orchestrator
                   </CardTitle>
-                  <CardDescription>Broadcasting these settings will affect every connected panel.</CardDescription>
+                  <CardDescription>Broadcasting settings for all active nodes.</CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-white border-accent text-primary">
                   {fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} Active Nodes
@@ -253,7 +287,6 @@ export default function ScreensManagement() {
                   value={ticker} 
                   onChange={(e) => setTicker(e.target.value)}
                   placeholder="Enter broadcast message..."
-                  className="h-12 border-primary/20 focus:ring-primary"
                 />
               </div>
 
@@ -261,7 +294,7 @@ export default function ScreensManagement() {
                 <div className="space-y-2">
                   <Label>Master Fleet Playlist</Label>
                   <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select Playlist" />
                     </SelectTrigger>
                     <SelectContent>
@@ -272,7 +305,7 @@ export default function ScreensManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2 flex flex-col justify-end">
-                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10 shadow-lg shadow-primary/20">
+                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10">
                     {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap className="w-4 h-4" />}
                     Deploy Fleet Update
                   </Button>
@@ -297,23 +330,19 @@ export default function ScreensManagement() {
                   <div>
                     <CardTitle className={cn("text-lg", isEmergency ? "text-red-900" : "text-red-800")}>Emergency Broadcast Protocol</CardTitle>
                     <CardDescription className={isEmergency ? "text-red-700" : "text-red-600/70"}>
-                      Instantly hijack all connected screens with high-priority safety content.
+                      Instantly hijack all connected screens with safety content.
                     </CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-red-800/60">{isEmergency ? "Live Override" : "Ready"}</span>
-                   <Switch 
-                    checked={isEmergency} 
-                    onCheckedChange={handleEmergencyToggle}
-                    className="data-[state=checked]:bg-red-600"
-                  />
-                </div>
+                <Switch 
+                  checked={isEmergency} 
+                  onCheckedChange={handleEmergencyToggle}
+                  className="data-[state=checked]:bg-red-600"
+                />
               </div>
             </CardHeader>
           </Card>
 
-          {/* Device Table */}
           <Card className="shadow-sm overflow-hidden border-primary/5">
             <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4">
               <div>
@@ -322,7 +351,7 @@ export default function ScreensManagement() {
               </div>
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border shadow-sm">
                 <Search className="w-4 h-4 text-muted-foreground" />
-                <input type="text" placeholder="Filter fleet..." className="bg-transparent text-xs border-none outline-none w-32" />
+                <input type="text" placeholder="Search devices..." className="bg-transparent text-xs border-none outline-none w-32" />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -333,7 +362,7 @@ export default function ScreensManagement() {
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Panel ID & Location</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">Connectivity</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Active Loop</th>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Uptime</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-right">Quick Power</th>
                       <th className="px-6 py-4 text-right">Ops</th>
                     </tr>
                   </thead>
@@ -376,8 +405,22 @@ export default function ScreensManagement() {
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
                             {isDeactivated || isOffline ? "IDLE" : PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
                           </td>
-                          <td className="px-6 py-4 text-[10px] font-mono text-muted-foreground">
-                            {isDeactivated || isOffline ? "--" : screen.uptime}
+                          <td className="px-6 py-4 text-right">
+                             <Button 
+                                variant={isOffline ? "outline" : "secondary"} 
+                                size="sm" 
+                                className={cn(
+                                  "h-8 px-2 gap-1.5",
+                                  isOffline ? "text-red-500 border-red-200" : "text-emerald-600"
+                                )}
+                                onClick={() => handleToggleOnlineStatus(screen.id)}
+                                disabled={isDeactivated}
+                              >
+                                {isOffline ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
+                                <span className="text-[10px] font-bold uppercase tracking-tight">
+                                  {isOffline ? "Offline" : "Online"}
+                                </span>
+                              </Button>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -404,13 +447,6 @@ export default function ScreensManagement() {
                                     <Zap className="w-4 h-4 mr-2" /> Identify Physical Unit
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleToggleOnlineStatus(screen.id)} disabled={isDeactivated}>
-                                    {isOffline ? (
-                                      <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Force Online</>
-                                    ) : (
-                                      <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Force Offline</>
-                                    )}
-                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
                                     {isDeactivated ? (
                                       <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
@@ -433,7 +469,7 @@ export default function ScreensManagement() {
                                         className="text-red-600"
                                         disabled={isOffline}
                                       >
-                                        <Power className="w-4 h-4 mr-2" /> Power Down Unit
+                                        <Power className="w-4 h-4 mr-2" /> Power Down
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -451,14 +487,13 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
-        {/* Live Proxy Preview */}
         <div className="space-y-6">
           <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
             <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3 px-4">
               <div className="flex items-center gap-3">
                 <div className={cn(
-                  "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]",
-                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                  "w-2.5 h-2.5 rounded-full",
+                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"
                 )} />
                 <CardTitle className="text-[10px] font-black uppercase tracking-widest">Surveillance Feed</CardTitle>
               </div>
@@ -574,7 +609,7 @@ export default function ScreensManagement() {
               Node Configuration
             </DialogTitle>
             <DialogDescription>
-              Deploy configuration overrides specifically for {editingScreen?.id}.
+              Deploy overrides for unit {editingScreen?.id}.
             </DialogDescription>
           </DialogHeader>
 
@@ -604,32 +639,76 @@ export default function ScreensManagement() {
             </div>
 
             {isDeploying && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary">
-                  <span>Uploading Config Payload...</span>
+                  <span>Uploading Config...</span>
                   <span>{deployProgress}%</span>
                 </div>
                 <Progress value={deployProgress} className="h-2" />
               </div>
             )}
+          </div>
 
-            {!isDeploying && (
-              <div className="p-3 bg-muted/40 rounded-lg text-[10px] text-muted-foreground border border-dashed flex gap-2">
-                <Zap className="w-3.5 h-3.5 text-accent shrink-0" />
-                <span>Updating this node will bypass the master fleet settings until the next manual fleet sync.</span>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} disabled={isDeploying}>Cancel</Button>
+            <Button onClick={handleUpdateSpecificScreen} disabled={isDeploying} className="gap-2">
+              {isDeploying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+              {isDeploying ? "Deploying..." : "Push to Device"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link New Device Dialog */}
+      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-primary" />
+              Provision New Device
+            </DialogTitle>
+            <DialogDescription>
+              Connect a new hardware unit to the ScreenSense network using its pairing ID.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="linkId">Hardware Pairing ID</Label>
+              <Input 
+                id="linkId"
+                value={linkUnitId} 
+                onChange={(e) => setLinkUnitId(e.target.value.toUpperCase())} 
+                placeholder="e.g. S-205"
+                disabled={isLinking}
+              />
+              <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Found on the physical unit sticker or splash screen.</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="linkName">Assigned Location / Name</Label>
+              <Input 
+                id="linkName"
+                value={linkUnitName} 
+                onChange={(e) => setLinkUnitName(e.target.value)} 
+                placeholder="e.g. Student Lounge South"
+                disabled={isLinking}
+              />
+            </div>
+
+            {isLinking && (
+              <div className="flex flex-col items-center gap-3 py-4 text-muted-foreground animate-pulse">
+                <RefreshCw className="w-8 h-8 animate-spin" />
+                <p className="text-xs font-bold uppercase tracking-widest">Establishing Handshake...</p>
               </div>
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} disabled={isDeploying}>Cancel</Button>
-            <Button onClick={handleUpdateSpecificScreen} disabled={isDeploying} className="gap-2 min-w-[140px]">
-              {isDeploying ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <UploadCloud className="w-4 h-4" />
-              )}
-              {isDeploying ? "Deploying..." : "Push to Device"}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)} disabled={isLinking}>Cancel</Button>
+            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="gap-2">
+              {isLinking ? <RefreshCw className="animate-spin" /> : <Plus className="w-4 h-4" />}
+              Link Hardware
             </Button>
           </DialogFooter>
         </DialogContent>
