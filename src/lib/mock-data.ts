@@ -34,6 +34,15 @@ export interface Playlist {
   schedule?: string;
 }
 
+export interface WorshipSchedule {
+  id: string;
+  name: string;
+  time: string;
+  location: string;
+  frequency: string;
+  active: boolean;
+}
+
 export const INITIAL_MEDIA: MediaItem[] = [
   { 
     id: '1', 
@@ -134,4 +143,10 @@ export const PLAYLISTS: Playlist[] = [
     items: ['3', '5'],
     schedule: "Mon-Sat, 09:00 - 21:00",
   }
+];
+
+export const WORSHIP_SCHEDULES: WorshipSchedule[] = [
+  { id: 'w1', name: 'Morning Prayer', time: '07:30', location: 'Campus Chapel', frequency: 'Daily', active: true },
+  { id: 'w2', name: 'Midday Meditation', time: '12:15', location: 'Garden Room', frequency: 'Mon-Fri', active: true },
+  { id: 'w3', name: 'Evening Vespers', time: '18:00', location: 'Main Sanctuary', frequency: 'Weekly (Sun)', active: true },
 ];

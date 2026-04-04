@@ -10,7 +10,8 @@ import {
   Settings, 
   AlertTriangle, 
   Globe,
-  Plus
+  Plus,
+  Heart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +32,7 @@ const menuItems = [
   { icon: Film, label: "Media Library", href: "/admin/media" },
   { icon: ListMusic, label: "Playlists", href: "/admin/playlists" },
   { icon: Monitor, label: "Screens", href: "/admin/screens" },
+  { icon: Heart, label: "Worship Schedule", href: "/admin/worship" },
 ];
 
 const settings = [
