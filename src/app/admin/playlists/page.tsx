@@ -14,7 +14,8 @@ import {
   Copy,
   Search,
   CheckCircle2,
-  X
+  X,
+  Radio
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -35,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PLAYLISTS, INITIAL_MEDIA, MediaItem } from "@/lib/mock-data";
+import { PLAYLISTS, INITIAL_MEDIA, SCREEN_SETTINGS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -49,6 +50,7 @@ interface Playlist {
 export default function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>(PLAYLISTS);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const { toast } = useToast();
 
   // Dialog states
@@ -70,10 +72,26 @@ export default function PlaylistsPage() {
   }, [mediaSearch]);
 
   const handleDelete = (id: string) => {
+    if (id === activePlaylistId) {
+      toast({
+        title: "Cannot Delete",
+        description: "You cannot delete the active playlist. Switch to another one first.",
+        variant: "destructive"
+      });
+      return;
+    }
     setPlaylists(prev => prev.filter(p => p.id !== id));
     toast({
       title: "Playlist Deleted",
       description: "The playlist has been removed from the system.",
+    });
+  };
+
+  const handleActivate = (id: string) => {
+    setActivePlaylistId(id);
+    toast({
+      title: "Playlist Activated",
+      description: "The selected loop is now live on connected displays.",
     });
   };
 
@@ -164,13 +182,20 @@ export default function PlaylistsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPlaylists.map((playlist) => {
           const duration = playlist.items.length * 8;
+          const isActive = playlist.id === activePlaylistId;
           
           return (
-            <Card key={playlist.id} className="group hover:ring-2 hover:ring-accent transition-all overflow-hidden flex flex-col">
+            <Card key={playlist.id} className={cn(
+              "group transition-all overflow-hidden flex flex-col border-2",
+              isActive ? "border-accent ring-4 ring-accent/10" : "border-transparent hover:border-muted-foreground/20"
+            )}>
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
-                  <div className="bg-accent/10 p-2 rounded-lg">
-                    <Layers className="w-6 h-6 text-accent" />
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    isActive ? "bg-accent/20" : "bg-muted"
+                  )}>
+                    <Layers className={cn("w-6 h-6", isActive ? "text-accent" : "text-muted-foreground")} />
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -182,6 +207,11 @@ export default function PlaylistsPage() {
                       <DropdownMenuItem onClick={() => openEditDialog(playlist)}>
                         <Edit2 className="w-4 h-4 mr-2" /> Edit sequence
                       </DropdownMenuItem>
+                      {!isActive && (
+                        <DropdownMenuItem onClick={() => handleActivate(playlist.id)}>
+                          <Radio className="w-4 h-4 mr-2" /> Set as Active
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem className="text-muted-foreground opacity-50 cursor-not-allowed">
                         <Copy className="w-4 h-4 mr-2" /> Duplicate
                       </DropdownMenuItem>
@@ -191,9 +221,12 @@ export default function PlaylistsPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <CardTitle className="mt-4">{playlist.name}</CardTitle>
+                <CardTitle className="mt-4 flex items-center gap-2">
+                  {playlist.name}
+                  {isActive && <Badge variant="default" className="bg-accent text-primary text-[10px] font-bold">LIVE</Badge>}
+                </CardTitle>
                 <CardDescription>
-                  {playlist.id === "default-1" ? "Main Campus Display Loop" : "Custom Sequence"}
+                  {playlist.id.startsWith('default') ? "System Default" : "Custom Sequence"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 flex-1">
@@ -229,24 +262,22 @@ export default function PlaylistsPage() {
                 </div>
               </CardContent>
               <CardFooter className="px-6 py-4 bg-muted/30 border-t flex items-center justify-between">
-                <Badge variant="outline" className="bg-white">Active</Badge>
-                <Button variant="ghost" size="sm" className="gap-2 text-primary font-bold">
-                  <Play className="w-3 h-3 fill-current" /> Preview
-                </Button>
+                <Badge variant={isActive ? "default" : "outline"} className={cn(isActive && "bg-accent text-primary")}>
+                  {isActive ? "Active Broadcast" : "Idle"}
+                </Badge>
+                {isActive ? (
+                  <Button variant="ghost" size="sm" className="gap-2 text-primary font-bold">
+                    <Play className="w-3 h-3 fill-current" /> Preview
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={() => handleActivate(playlist.id)}>
+                    Activate
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           );
         })}
-
-        <button 
-          onClick={openAddDialog}
-          className="border-2 border-dashed border-muted rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:bg-muted/30 transition-colors text-muted-foreground group min-h-[250px]"
-        >
-          <div className="bg-muted p-4 rounded-full group-hover:bg-primary/10 transition-colors">
-            <Plus className="w-8 h-8 group-hover:text-primary" />
-          </div>
-          <span className="font-bold">New Playlist</span>
-        </button>
       </div>
 
       {/* Add/Edit Dialog */}
