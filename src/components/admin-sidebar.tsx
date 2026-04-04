@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -11,7 +12,10 @@ import {
   AlertTriangle, 
   Globe,
   Plus,
-  Heart
+  Heart,
+  Home,
+  ExternalLink,
+  ChevronUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -26,6 +30,12 @@ import {
   SidebarGroupLabel
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Overview", href: "/admin" },
@@ -98,12 +108,37 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 bg-primary border-t border-white/10">
-        <Link href="/admin/media" className="w-full">
-          <Button className="w-full bg-accent text-primary font-bold hover:bg-accent/90" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            New Content
-          </Button>
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="w-full bg-accent text-primary font-bold hover:bg-accent/90 flex items-center justify-between px-4 h-11" size="sm">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                <span>Quick Actions</span>
+              </div>
+              <ChevronUp className="w-4 h-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="center" className="w-56 mb-2">
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+              <Link href="/admin/media">
+                <Film className="w-4 h-4 text-muted-foreground" />
+                Add New Content
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+              <Link href="/display">
+                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                Launch Signage Client
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+              <Link href="/">
+                <Home className="w-4 h-4 text-muted-foreground" />
+                Return to Site
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
   );
