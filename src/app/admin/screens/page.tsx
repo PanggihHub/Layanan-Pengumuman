@@ -26,7 +26,9 @@ import {
   Wifi,
   CloudCog,
   Link2,
-  Plus
+  Plus,
+  Trash2,
+  CheckCircle2
 } from "lucide-react";
 import { 
   Select, 
@@ -51,6 +53,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, ScreenStatus } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
@@ -78,11 +90,14 @@ export default function ScreensManagement() {
   const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
   const [localScreenName, setLocalScreenName] = useState("");
 
-  // Linking Dialog
+  // Linking Dialog (Create)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [linkUnitId, setLinkUnitId] = useState("");
+  const [pairingCode, setPairingCode] = useState("");
   const [linkUnitName, setLinkUnitName] = useState("");
   const [isLinking, setIsLinking] = useState(false);
+
+  // Delete Dialog
+  const [screenToDelete, setScreenToDelete] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -157,16 +172,31 @@ export default function ScreensManagement() {
     }, 2000);
   };
 
+  const handleDeleteDevice = (id: string) => {
+    setFleet(prev => prev.filter(s => s.id !== id));
+    setScreenToDelete(null);
+    if (previewDeviceId === id) {
+      const remaining = fleet.filter(s => s.id !== id);
+      if (remaining.length > 0) setPreviewDeviceId(remaining[0].id);
+    }
+    toast({
+      title: "Node Decommissioned",
+      description: `Hardware unit ${id} has been removed from the fleet.`,
+      variant: "destructive"
+    });
+  };
+
   const handleLinkNewDevice = () => {
-    if (!linkUnitId || !linkUnitName) {
-      toast({ title: "Error", description: "All fields are required for linking.", variant: "destructive" });
+    if (!pairingCode || !linkUnitName) {
+      toast({ title: "Error", description: "Pairing code and location name are required.", variant: "destructive" });
       return;
     }
 
     setIsLinking(true);
     setTimeout(() => {
+      const newId = `S-${Math.floor(Math.random() * 900) + 100}`;
       const newScreen: ScreenStatus = {
-        id: linkUnitId,
+        id: newId,
         name: linkUnitName,
         status: "Online",
         playlistId: "system-default",
@@ -176,10 +206,10 @@ export default function ScreensManagement() {
       setFleet(prev => [...prev, newScreen]);
       setIsLinking(false);
       setIsLinkDialogOpen(false);
-      setLinkUnitId("");
+      setPairingCode("");
       setLinkUnitName("");
-      toast({ title: "Unit Connected", description: `Device ${linkUnitId} has been successfully provisioned.` });
-    }, 2000);
+      toast({ title: "Hardware Linked", description: `Device ${newId} (Pair: ${pairingCode}) is now online.` });
+    }, 2500);
   };
 
   const handleToggleOnlineStatus = (id: string) => {
@@ -244,7 +274,7 @@ export default function ScreensManagement() {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
-            className="gap-2" 
+            className="gap-2 bg-white" 
             onClick={() => setIsLinkDialogOpen(true)}
           >
             <Link2 className="w-4 h-4" />
@@ -274,7 +304,7 @@ export default function ScreensManagement() {
                   </CardTitle>
                   <CardDescription>Broadcasting settings for all active nodes.</CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-white border-accent text-primary">
+                <Badge variant="outline" className="bg-white border-accent text-primary uppercase tracking-tighter text-[10px] font-bold">
                   {fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} Active Nodes
                 </Badge>
               </div>
@@ -282,12 +312,16 @@ export default function ScreensManagement() {
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="ticker">Global Ticker Feed</Label>
-                <Input 
-                  id="ticker" 
-                  value={ticker} 
-                  onChange={(e) => setTicker(e.target.value)}
-                  placeholder="Enter broadcast message..."
-                />
+                <div className="flex gap-2">
+                  <Input 
+                    id="ticker" 
+                    value={ticker} 
+                    onChange={(e) => setTicker(e.target.value)}
+                    placeholder="Enter broadcast message..."
+                    className="flex-1"
+                  />
+                  <Button variant="secondary" onClick={() => toast({ title: "Ticker Updated" })}>Update</Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -344,7 +378,7 @@ export default function ScreensManagement() {
           </Card>
 
           <Card className="shadow-sm overflow-hidden border-primary/5">
-            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4 px-6">
               <div>
                 <CardTitle className="text-lg">Fleet Inventory</CardTitle>
                 <CardDescription>Live telemetry for {fleet.length} provisioned panels.</CardDescription>
@@ -465,11 +499,10 @@ export default function ScreensManagement() {
                                         <RotateCcw className="w-4 h-4 mr-2" /> Remote Reboot
                                       </DropdownMenuItem>
                                       <DropdownMenuItem 
-                                        onClick={() => handleDeviceAction(screen.id, "Safe Shut down")}
+                                        onClick={() => setScreenToDelete(screen.id)}
                                         className="text-red-600"
-                                        disabled={isOffline}
                                       >
-                                        <Power className="w-4 h-4 mr-2" /> Power Down
+                                        <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -588,7 +621,9 @@ export default function ScreensManagement() {
               <div className="pt-4 border-t flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
-                  <span className="text-xs font-mono font-bold">{scanTime || "--:--:--"}</span>
+                  <span className="text-xs font-mono font-bold">
+                    {scanTime || "--:--:--"}
+                  </span>
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Connected</span>
@@ -600,7 +635,7 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      {/* Individual Screen Edit Dialog */}
+      {/* Individual Screen Edit Dialog (Update) */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -659,60 +694,93 @@ export default function ScreensManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Link New Device Dialog */}
+      {/* Enhanced Pairing Link Dialog (Create) */}
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Link2 className="w-5 h-5 text-primary" />
-              Provision New Device
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Link2 className="w-5 h-5" />
+              Pair Original Hardware
             </DialogTitle>
             <DialogDescription>
-              Connect a new hardware unit to the ScreenSense network using its pairing ID.
+              Enter the pairing code displayed on your monitor to link it to the ScreenSense network.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="linkId">Hardware Pairing ID</Label>
+          <div className="space-y-6 py-4">
+            <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
+              <Label htmlFor="pairCode" className="text-primary font-black uppercase tracking-widest text-[10px]">6-Digit Pairing Code</Label>
               <Input 
-                id="linkId"
-                value={linkUnitId} 
-                onChange={(e) => setLinkUnitId(e.target.value.toUpperCase())} 
-                placeholder="e.g. S-205"
+                id="pairCode"
+                value={pairingCode} 
+                onChange={(e) => setPairingCode(e.target.value.toUpperCase())} 
+                placeholder="e.g. XJ-902"
+                className="h-14 text-2xl font-black text-center tracking-[0.2em] border-primary/20 focus:ring-primary uppercase"
+                maxLength={6}
                 disabled={isLinking}
               />
-              <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Found on the physical unit sticker or splash screen.</p>
+              <p className="text-[10px] text-muted-foreground italic text-center">Look for the code on your screen's splash page.</p>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="linkName">Assigned Location / Name</Label>
+              <Label htmlFor="linkName">Assigned Unit Name / Location</Label>
               <Input 
                 id="linkName"
                 value={linkUnitName} 
                 onChange={(e) => setLinkUnitName(e.target.value)} 
-                placeholder="e.g. Student Lounge South"
+                placeholder="e.g. Science Wing Exit"
                 disabled={isLinking}
               />
             </div>
 
             {isLinking && (
-              <div className="flex flex-col items-center gap-3 py-4 text-muted-foreground animate-pulse">
-                <RefreshCw className="w-8 h-8 animate-spin" />
-                <p className="text-xs font-bold uppercase tracking-widest">Establishing Handshake...</p>
+              <div className="space-y-4 pt-2">
+                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-primary">
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    Handshaking...
+                  </span>
+                  <span>Encrypting Link</span>
+                </div>
+                <Progress value={isLinking ? 65 : 0} className="h-1.5" />
               </div>
             )}
           </div>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)} disabled={isLinking}>Cancel</Button>
-            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="gap-2">
-              {isLinking ? <RefreshCw className="animate-spin" /> : <Plus className="w-4 h-4" />}
-              Link Hardware
+            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="gap-2 bg-primary h-11 px-6">
+              {isLinking ? <RefreshCw className="animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {isLinking ? "Verifying..." : "Link Hardware"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Alert (Delete) */}
+      <AlertDialog open={!!screenToDelete} onOpenChange={() => setScreenToDelete(null)}>
+        <AlertDialogContent className="border-red-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Confirm Decommission
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove node <strong>{screenToDelete}</strong>? This will permanently sever the cloud link and requires physical re-pairing to restore.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Decommission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
