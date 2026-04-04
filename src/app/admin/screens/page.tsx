@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 export default function ScreensManagement() {
@@ -378,4 +379,3 @@ export default function ScreensManagement() {
     </div>
   );
 }
-
