@@ -19,7 +19,9 @@ import {
   Link as LinkIcon,
   Globe,
   HardDrive,
-  Info
+  Info,
+  Scissor,
+  Clock
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -50,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -69,6 +72,8 @@ export default function MediaLibrary() {
   const [newDescription, setNewDescription] = useState("");
   const [newType, setNewType] = useState<MediaType>("image");
   const [newUrl, setNewUrl] = useState("");
+  const [startTime, setStartTime] = useState<number>(0);
+  const [endTime, setEndTime] = useState<number>(30);
 
   const filteredMedia = useMemo(() => {
     return mediaItems.filter(item => {
@@ -106,13 +111,23 @@ export default function MediaLibrary() {
         size: sourceOrigin === 'internal' ? "2.4 MB" : "URL",
         date: new Date().toISOString().split('T')[0],
         url: sourceOrigin === 'internal' ? 'https://picsum.photos/seed/new/1920/1080' : newUrl,
-        category: 'events'
+        category: 'events',
+        startTime: newType === 'video' ? startTime : undefined,
+        endTime: newType === 'video' ? endTime : undefined,
       };
       setMediaItems(prev => [newItem, ...prev]);
       toast({ title: "Media Added", description: `${newName} has been added.` });
     } else if (currentItem) {
       setMediaItems(prev => prev.map(item => 
-        item.id === currentItem.id ? { ...item, name: newName, description: newDescription, url: newUrl || item.url, type: newType } : item
+        item.id === currentItem.id ? { 
+          ...item, 
+          name: newName, 
+          description: newDescription, 
+          url: newUrl || item.url, 
+          type: newType,
+          startTime: newType === 'video' ? startTime : undefined,
+          endTime: newType === 'video' ? endTime : undefined,
+        } : item
       ));
       toast({ title: "Media Updated", description: "Changes saved successfully." });
     }
@@ -127,6 +142,8 @@ export default function MediaLibrary() {
     setNewUrl("");
     setNewType("image");
     setSourceOrigin("internal");
+    setStartTime(0);
+    setEndTime(30);
     setCurrentItem(null);
   };
 
@@ -144,6 +161,8 @@ export default function MediaLibrary() {
     setNewUrl(item.url);
     setNewType(item.type);
     setSourceOrigin(item.url.startsWith('http') ? "external" : "internal");
+    setStartTime(item.startTime || 0);
+    setEndTime(item.endTime || 30);
     setIsDialogOpen(true);
   };
 
@@ -250,17 +269,6 @@ export default function MediaLibrary() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {/* Quick Delete for specific types like video as requested */}
-                  {media.type === "video" && (
-                     <Button 
-                      variant="destructive" 
-                      size="icon" 
-                      onClick={() => handleDelete(media.id)}
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
                 {media.type === "video" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
@@ -289,6 +297,11 @@ export default function MediaLibrary() {
                     {media.type}
                   </Badge>
                 </div>
+                {media.type === 'video' && media.startTime !== undefined && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-accent uppercase tracking-tighter mt-1 bg-accent/10 px-2 py-0.5 rounded w-fit">
+                    <Scissor className="w-3 h-3" /> Selected Clip: {media.startTime}s - {media.endTime}s
+                  </div>
+                )}
                 {media.description && (
                   <div className="flex gap-1.5 items-start mt-1">
                     <Info className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
@@ -419,6 +432,37 @@ export default function MediaLibrary() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {newType === 'video' && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <Separator />
+                  <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase">
+                    <Scissor className="w-4 h-4" />
+                    Video Clip Selection
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startTime" className="text-xs">Start Time (sec)</Label>
+                      <Input 
+                        id="startTime" 
+                        type="number" 
+                        value={startTime} 
+                        onChange={(e) => setStartTime(Number(e.target.value))} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endTime" className="text-xs">End Time (sec)</Label>
+                      <Input 
+                        id="endTime" 
+                        type="number" 
+                        value={endTime} 
+                        onChange={(e) => setEndTime(Number(e.target.value))} 
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Select the specific part of the video you want to display in the playlist.</p>
+                </div>
+              )}
 
               {sourceOrigin === "external" && (
                 <div className="grid gap-2 animate-in slide-in-from-top-2 duration-300">

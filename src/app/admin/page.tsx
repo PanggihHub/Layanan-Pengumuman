@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -496,13 +495,13 @@ export default function AdminOverview() {
               <div className="text-white/20 flex flex-col items-center gap-4 text-center p-12">
                 <Monitor className="w-24 h-24 opacity-20" />
                 <h3 className="text-2xl font-black uppercase tracking-widest">Signal Offline</h3>
-                <p className="text-sm font-medium italic">Device S-103 is not responding to heartbeat signals.</p>
+                <p className="text-sm font-medium italic">Device {monitorScreen?.id} is not responding to heartbeat signals.</p>
               </div>
             )}
             <Button 
               variant="ghost" 
               size="icon" 
-              className="absolute top-4 right-4 text-white hover:bg-white/10"
+              className="absolute top-4 right-4 text-white hover:bg-white/10 z-50"
               onClick={() => setMonitorScreen(null)}
             >
               <X className="w-6 h-6" />

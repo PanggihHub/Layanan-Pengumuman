@@ -14,6 +14,9 @@ export interface MediaItem {
   url: string;
   category: 'campus' | 'science' | 'math' | 'events';
   description?: string;
+  // Metadata for video clipping
+  startTime?: number; 
+  endTime?: number;
 }
 
 export interface ScreenStatus {
@@ -62,7 +65,9 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-14', 
     url: 'https://picsum.photos/seed/science/1920/1080', 
     category: 'science',
-    description: 'Animated video explaining the photosynthesis process.'
+    description: 'Animated video explaining the photosynthesis process.',
+    startTime: 0,
+    endTime: 30
   },
   { 
     id: '3', 
