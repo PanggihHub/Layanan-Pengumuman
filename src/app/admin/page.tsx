@@ -13,7 +13,7 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from "recharts";
-import { INITIAL_MEDIA, PLAYLISTS } from "@/lib/mock-data";
+import { INITIAL_MEDIA, PLAYLISTS, SCREEN_STATUS } from "@/lib/mock-data";
 
 const data = [
   { name: 'Mon', engagement: 420 },
@@ -25,24 +25,17 @@ const data = [
   { name: 'Sun', engagement: 190 },
 ];
 
-const screenStatus = [
-  { id: "S-101", name: "Main Hall A", status: "Online", playlist: "Standard Campus Loop", uptime: "14d 2h" },
-  { id: "S-102", name: "Library Entrance", status: "Online", playlist: "Quiet Study", uptime: "5d 6h" },
-  { id: "S-103", name: "Cafeteria East", status: "Offline", playlist: "Lunch Specials", uptime: "0" },
-  { id: "S-104", name: "Admin Block", status: "Online", playlist: "Faculty Updates", uptime: "22d 1h" },
-];
-
 export default function AdminOverview() {
   const totalMedia = INITIAL_MEDIA.length;
   const totalPlaylists = PLAYLISTS.length;
-  const onlineScreens = screenStatus.filter(s => s.status === "Online").length;
+  const onlineScreens = SCREEN_STATUS.filter(s => s.status === "Online").length;
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-primary">System Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, editor. Monitoring {screenStatus.length} screens across the network.</p>
+          <p className="text-muted-foreground">Welcome back, editor. Monitoring {SCREEN_STATUS.length} screens across the network.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">Export Reports</Button>
@@ -58,7 +51,7 @@ export default function AdminOverview() {
               <div>
                 <p className="text-sm text-muted-foreground">Active Screens</p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold">{onlineScreens} / {screenStatus.length}</p>
+                  <p className="text-2xl font-bold">{onlineScreens} / {SCREEN_STATUS.length}</p>
                   <span className="text-xs text-green-600 font-medium flex items-center">
                     <ArrowUpRight className="w-3 h-3" /> 2%
                   </span>
@@ -192,7 +185,7 @@ export default function AdminOverview() {
                 </tr>
               </thead>
               <tbody>
-                {screenStatus.map((screen) => (
+                {SCREEN_STATUS.map((screen) => (
                   <tr key={screen.id} className="border-b hover:bg-muted/30 transition-colors">
                     <td className="py-4 font-mono text-xs">{screen.id}</td>
                     <td className="py-4 font-medium">{screen.name}</td>
