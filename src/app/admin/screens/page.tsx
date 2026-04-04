@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -13,7 +14,6 @@ import {
   Heart, 
   Play,
   Signal,
-  MoreVertical,
   Power,
   Eye,
   Search,
@@ -414,7 +414,7 @@ export default function ScreensManagement() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
-                                  <MoreVertical className="w-4 h-4" />
+                                  <Settings2 className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">

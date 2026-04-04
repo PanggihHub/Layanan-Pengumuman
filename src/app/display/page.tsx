@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { Cloud, MapPin, Info, TriangleAlert } from "lucide-react";
+import { Cloud, MapPin, Info, TriangleAlert, Heart, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS } from "@/lib/mock-data";
+import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS, WORSHIP_SCHEDULES } from "@/lib/mock-data";
 
 export default function DisplayClient() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -24,6 +25,10 @@ export default function DisplayClient() {
         duration: 8000
       };
     });
+  }, []);
+
+  const activeSchedules = useMemo(() => {
+    return WORSHIP_SCHEDULES.filter(s => s.active);
   }, []);
 
   useEffect(() => {
@@ -115,6 +120,33 @@ export default function DisplayClient() {
             </div>
           </div>
           
+          {/* Worship Schedule Widget */}
+          {activeSchedules.length > 0 && (
+            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-5 rounded-3xl text-white min-w-[280px] shadow-2xl animate-in fade-in slide-in-from-right-4 duration-1000">
+              <div className="flex items-center gap-2 text-accent mb-4 border-b border-white/10 pb-2">
+                <Heart className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Upcoming Worship</span>
+              </div>
+              <div className="space-y-4">
+                {activeSchedules.slice(0, 2).map((schedule) => (
+                  <div key={schedule.id} className="group">
+                    <div className="flex justify-between items-start">
+                      <p className="font-bold text-sm text-white/90 group-hover:text-accent transition-colors">{schedule.name}</p>
+                      <span className="text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full">{schedule.time}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-white/60 mt-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{schedule.frequency}</span>
+                      <span className="mx-1">•</span>
+                      <MapPin className="w-3 h-3" />
+                      <span className="truncate">{schedule.location}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Interactive QR Code Widget */}
           <div className="bg-white/95 backdrop-blur p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white">
             <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20 relative">
