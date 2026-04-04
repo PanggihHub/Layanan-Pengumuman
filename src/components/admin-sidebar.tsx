@@ -96,10 +96,12 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 bg-primary border-t border-white/10">
-        <Button className="w-full bg-accent text-primary font-bold hover:bg-accent/90" size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          New Content
-        </Button>
+        <Link href="/admin/media" className="w-full">
+          <Button className="w-full bg-accent text-primary font-bold hover:bg-accent/90" size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            New Content
+          </Button>
+        </Link>
       </SidebarFooter>
     </Sidebar>
   );

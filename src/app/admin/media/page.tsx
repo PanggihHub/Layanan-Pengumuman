@@ -15,7 +15,8 @@ import {
   PlayCircle,
   FileImage,
   ExternalLink,
-  X
+  X,
+  Upload
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -25,13 +26,43 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { INITIAL_MEDIA, MediaItem } from "@/lib/mock-data";
+import { INITIAL_MEDIA, MediaItem, MediaType } from "@/lib/mock-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>(INITIAL_MEDIA);
+  const { toast } = useToast();
+
+  // Dialog states
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState<MediaItem | null>(null);
+
+  // Form states for adding/editing
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<MediaType>("image");
+  const [newUrl, setNewUrl] = useState("");
 
   const filteredMedia = useMemo(() => {
     return mediaItems.filter(item => {
@@ -43,6 +74,59 @@ export default function MediaLibrary() {
 
   const handleDelete = (id: string) => {
     setMediaItems(prev => prev.filter(item => item.id !== id));
+    toast({
+      title: "Item Deleted",
+      description: "Media asset has been removed from the library.",
+    });
+  };
+
+  const handleAddMedia = () => {
+    if (!newName || !newUrl) return;
+    
+    const newItem: MediaItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: newName,
+      type: newType,
+      size: "0.0 MB",
+      date: new Date().toISOString().split('T')[0],
+      url: newUrl,
+      category: 'events'
+    };
+
+    setMediaItems(prev => [newItem, ...prev]);
+    setIsAddOpen(false);
+    resetForm();
+    toast({
+      title: "Media Added",
+      description: `${newName} has been added to your library.`,
+    });
+  };
+
+  const handleEditMedia = () => {
+    if (!currentItem || !newName) return;
+    
+    setMediaItems(prev => prev.map(item => 
+      item.id === currentItem.id ? { ...item, name: newName } : item
+    ));
+    setIsEditOpen(false);
+    setCurrentItem(null);
+    setNewName("");
+    toast({
+      title: "Item Renamed",
+      description: "Changes have been saved successfully.",
+    });
+  };
+
+  const resetForm = () => {
+    setNewName("");
+    setNewUrl("");
+    setNewType("image");
+  };
+
+  const openEditDialog = (item: MediaItem) => {
+    setCurrentItem(item);
+    setNewName(item.name);
+    setIsEditOpen(true);
   };
 
   return (
@@ -53,12 +137,58 @@ export default function MediaLibrary() {
           <p className="text-muted-foreground">Manage your visual assets and external media streams.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <ExternalLink className="w-4 h-4" /> YouTube/External
-          </Button>
-          <Button className="bg-primary gap-2">
-            <Plus className="w-4 h-4" /> Upload Media
-          </Button>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary gap-2">
+                <Plus className="w-4 h-4" /> Add New Source
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Media Source</DialogTitle>
+                <DialogDescription>
+                  Enter the details for the new image or video asset.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Filename / Title</Label>
+                  <Input 
+                    id="name" 
+                    value={newName} 
+                    onChange={(e) => setNewName(e.target.value)} 
+                    placeholder="e.g. Campus_Banner.jpg"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="type">Media Type</Label>
+                  <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="image">Image</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="url">Source URL</Label>
+                  <Input 
+                    id="url" 
+                    value={newUrl} 
+                    onChange={(e) => setNewUrl(e.target.value)} 
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddMedia}>Add to Library</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -130,8 +260,14 @@ export default function MediaLibrary() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredMedia.map((media) => (
             <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all">
-              <div className="relative aspect-video">
-                <Image src={media.url} alt={media.name} fill className="object-cover" />
+              <div className="relative aspect-video bg-muted">
+                <Image 
+                  src={media.url} 
+                  alt={media.name} 
+                  fill 
+                  className="object-cover"
+                  unoptimized // For mock urls often picsum/unsplash
+                />
                 <div className="absolute top-2 right-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -140,9 +276,12 @@ export default function MediaLibrary() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem><Edit3 className="w-4 h-4 mr-2" /> Rename</DropdownMenuItem>
-                      <DropdownMenuItem><PlayCircle className="w-4 h-4 mr-2" /> Preview</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEditDialog(media)}>
+                        <Edit3 className="w-4 h-4 mr-2" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -165,10 +304,6 @@ export default function MediaLibrary() {
               </CardContent>
             </Card>
           ))}
-          <button className="border-2 border-dashed border-muted rounded-xl aspect-video flex flex-col items-center justify-center gap-2 hover:bg-muted/30 transition-colors text-muted-foreground">
-            <Plus className="w-10 h-10" />
-            <span className="font-semibold">Add More Assets</span>
-          </button>
         </div>
       ) : (
         <Card>
@@ -189,7 +324,7 @@ export default function MediaLibrary() {
                   <tr key={media.id} className="border-b hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-3">
                       <div className="w-12 h-8 rounded relative overflow-hidden bg-muted">
-                        <Image src={media.url} alt={media.name} fill className="object-cover" />
+                        <Image src={media.url} alt={media.name} fill className="object-cover" unoptimized />
                       </div>
                     </td>
                     <td className="px-6 py-3 font-medium">{media.name}</td>
@@ -207,6 +342,7 @@ export default function MediaLibrary() {
                           <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                           <DropdownMenuItem onClick={() => openEditDialog(media)}>Rename</DropdownMenuItem>
                            <DropdownMenuItem onClick={() => handleDelete(media.id)} className="text-red-600">Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -218,6 +354,29 @@ export default function MediaLibrary() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Asset</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">New Filename</Label>
+              <Input 
+                id="edit-name" 
+                value={newName} 
+                onChange={(e) => setNewName(e.target.value)} 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditMedia}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
