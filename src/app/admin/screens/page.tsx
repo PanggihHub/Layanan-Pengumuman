@@ -59,7 +59,6 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -112,6 +111,7 @@ export default function ScreensManagement() {
   }, [previewDeviceId, deactivatedIds, fleet]);
 
   useEffect(() => {
+    // Avoid hydration mismatch by setting time only on client
     setScanTime(new Date().toLocaleTimeString());
 
     if (previewUrls.length <= 1) return;
@@ -213,18 +213,20 @@ export default function ScreensManagement() {
   };
 
   const handleToggleOnlineStatus = (id: string) => {
-    setFleet(prev => prev.map(screen => {
-      if (screen.id === id) {
-        const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
-        toast({
-          title: `Device ${newStatus}`,
-          description: `Status for ${screen.name} has been manually updated.`,
-          variant: newStatus === 'Offline' ? 'destructive' : 'default'
-        });
-        return { ...screen, status: newStatus };
-      }
-      return screen;
-    }));
+    const screen = fleet.find(s => s.id === id);
+    if (!screen) return;
+
+    const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
+    
+    // Pure state update
+    setFleet(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+    
+    // Side effect (toast) outside the state updater function
+    toast({
+      title: `Device ${newStatus}`,
+      description: `Status for ${screen.name} has been manually updated.`,
+      variant: newStatus === 'Offline' ? 'destructive' : 'default'
+    });
   };
 
   const handleToggleDeactivation = (deviceId: string) => {
@@ -783,4 +785,3 @@ export default function ScreensManagement() {
     </div>
   );
 }
-
