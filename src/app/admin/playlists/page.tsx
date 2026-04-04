@@ -37,6 +37,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PLAYLISTS, INITIAL_MEDIA, MediaItem } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 interface Playlist {
