@@ -15,7 +15,9 @@ import {
   Heart,
   Home,
   ExternalLink,
-  ChevronUp
+  ChevronUp,
+  Shield,
+  History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +49,7 @@ const menuItems = [
 
 const settings = [
   { icon: Settings, label: "System Config", href: "/admin/settings" },
+  { icon: Shield, label: "Security & PIN", href: "/admin/security" },
   { icon: Globe, label: "Localization", href: "/admin/languages" },
   { icon: AlertTriangle, label: "Emergency", href: "/admin/emergency", className: "text-red-400 hover:text-red-500" },
 ];
@@ -58,7 +61,7 @@ export function AdminSidebar() {
     <Sidebar className="border-r border-white/10">
       <SidebarHeader className="p-6 bg-primary">
         <div className="flex items-center gap-3">
-          <div className="bg-white p-1 rounded-lg">
+          <div className="bg-white p-1 rounded-lg shadow-sm">
             <Monitor className="text-primary w-6 h-6" />
           </div>
           <span className="text-xl font-bold text-white tracking-tight">ScreenSense</span>
@@ -67,14 +70,14 @@ export function AdminSidebar() {
       
       <SidebarContent className="bg-primary">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/60">Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">Management Hub</SidebarGroupLabel>
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton 
                   asChild 
                   isActive={pathname === item.href}
-                  className={cn("text-white/90 hover:bg-white/10", pathname === item.href && "bg-white/20 text-white")}
+                  className={cn("text-white/90 hover:bg-white/10 rounded-xl transition-all h-11", pathname === item.href && "bg-white/20 text-white font-bold")}
                 >
                   <Link href={item.href}>
                     <item.icon className="w-5 h-5" />
@@ -87,14 +90,14 @@ export function AdminSidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="text-white/60">Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">Governance</SidebarGroupLabel>
           <SidebarMenu>
             {settings.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton 
                   asChild 
                   isActive={pathname === item.href}
-                  className={cn("text-white/90 hover:bg-white/10", pathname === item.href && "bg-white/20 text-white", item.className)}
+                  className={cn("text-white/90 hover:bg-white/10 rounded-xl transition-all h-11", pathname === item.href && "bg-white/20 text-white font-bold", item.className)}
                 >
                   <Link href={item.href}>
                     <item.icon className="w-5 h-5" />
@@ -110,31 +113,31 @@ export function AdminSidebar() {
       <SidebarFooter className="p-4 bg-primary border-t border-white/10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="w-full bg-accent text-primary font-bold hover:bg-accent/90 flex items-center justify-between px-4 h-11" size="sm">
+            <Button className="w-full bg-accent text-primary font-black hover:bg-accent/90 flex items-center justify-between px-4 h-12 rounded-xl shadow-lg shadow-black/20" size="sm">
               <div className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                <span>Quick Actions</span>
+                <span className="uppercase tracking-tighter">Actions</span>
               </div>
               <ChevronUp className="w-4 h-4 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="center" className="w-56 mb-2">
-            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+          <DropdownMenuContent side="top" align="center" className="w-56 mb-2 rounded-xl shadow-2xl p-2 border-white/10">
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/admin/media">
                 <Film className="w-4 h-4 text-muted-foreground" />
-                Add New Content
+                Add New Media
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/display">
-                <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                Launch Signage Client
+                <ExternalLink className="w-4 h-4 text-accent" />
+                View Signage Feed
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/">
                 <Home className="w-4 h-4 text-muted-foreground" />
-                Return to Site
+                Exit to Website
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

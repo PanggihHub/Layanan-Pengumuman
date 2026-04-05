@@ -3,15 +3,34 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { Cloud, MapPin, Info, TriangleAlert, Heart, Clock } from "lucide-react";
+import Link from "next/link";
+import { 
+  Cloud, 
+  MapPin, 
+  Info, 
+  TriangleAlert, 
+  Heart, 
+  Clock, 
+  ChevronRight, 
+  Home, 
+  LayoutDashboard, 
+  X 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS, WORSHIP_SCHEDULES } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function DisplayClient() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [time, setTime] = useState<Date | null>(null);
+  const [isNavVisible, setIsNavVisible] = useState(false);
 
-  // Derive the active playlist items from our mock store
   const activePlaylist = useMemo(() => {
     const playlistDef = PLAYLISTS.find(p => p.id === SCREEN_SETTINGS.activePlaylistId);
     if (!playlistDef) return [];
@@ -32,15 +51,11 @@ export default function DisplayClient() {
   }, []);
 
   useEffect(() => {
-    // Initialize time only on the client
     setTime(new Date());
-    
-    // Time update loop
     const timer = setInterval(() => setTime(new Date()), 1000);
     
     if (activePlaylist.length === 0) return () => clearInterval(timer);
 
-    // Playlist loop
     const rotate = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % activePlaylist.length);
     }, activePlaylist[currentIndex]?.duration || 8000);
@@ -54,13 +69,13 @@ export default function DisplayClient() {
   if (activePlaylist.length === 0) {
     return (
       <div className="signage-full bg-black flex items-center justify-center text-white">
-        <p className="text-2xl animate-pulse">Waiting for content sync...</p>
+        <p className="text-2xl animate-pulse font-bold tracking-widest uppercase">Initializing Telemetry...</p>
       </div>
     );
   }
 
   return (
-    <div className="signage-full bg-black">
+    <div className="signage-full bg-black group" onMouseMove={() => setIsNavVisible(true)}>
       {/* Main Content Area */}
       <div className="flex-1 relative overflow-hidden">
         {activePlaylist.map((item, idx) => (
@@ -77,12 +92,13 @@ export default function DisplayClient() {
               fill
               priority
               className="object-cover"
+              unoptimized
             />
             {/* Overlay Info Card */}
             <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl">
               <div className="flex items-center gap-3 mb-2">
                 <Info className="text-accent w-6 h-6" />
-                <span className="text-accent font-bold tracking-widest uppercase text-xs">Featured Content</span>
+                <span className="text-accent font-bold tracking-widest uppercase text-xs">Broadcast Feature</span>
               </div>
               <h2 className="text-4xl font-extrabold leading-tight drop-shadow-lg">
                 {item.title}
@@ -90,6 +106,34 @@ export default function DisplayClient() {
             </div>
           </div>
         ))}
+
+        {/* Floating Navigator (Visible on mouse move) */}
+        <div className={cn(
+          "absolute top-6 left-6 z-[60] transition-all duration-500",
+          isNavVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-12"
+        )}>
+          <DropdownMenu onOpenChange={(open) => !open && setTimeout(() => setIsNavVisible(false), 2000)}>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 hover:bg-black/80">
+                <X className="w-6 h-6 text-white" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-48 bg-black/90 text-white border-white/10 backdrop-blur-xl">
+              <DropdownMenuItem asChild className="gap-3 py-3 cursor-pointer">
+                <Link href="/">
+                  <Home className="w-4 h-4 text-accent" />
+                  <span>Return Home</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-3 py-3 cursor-pointer">
+                <Link href="/admin">
+                  <LayoutDashboard className="w-4 h-4 text-accent" />
+                  <span>Admin Panel</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* Dynamic Modules Overlay */}
         <div className="absolute top-12 right-12 z-20 flex flex-col items-end gap-6">
@@ -125,7 +169,7 @@ export default function DisplayClient() {
             <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-5 rounded-3xl text-white min-w-[280px] shadow-2xl animate-in fade-in slide-in-from-right-4 duration-1000">
               <div className="flex items-center gap-2 text-accent mb-4 border-b border-white/10 pb-2">
                 <Heart className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Upcoming Worship</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Worship Rotation</span>
               </div>
               <div className="space-y-4">
                 {activeSchedules.slice(0, 2).map((schedule) => (
@@ -151,33 +195,24 @@ export default function DisplayClient() {
           <div className="bg-white/95 backdrop-blur p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white">
             <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20 relative">
                <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
-                  <span className="text-[6px] font-black text-primary text-center leading-none">SCAN<br/>FOR<br/>DETAILS</span>
+                  <span className="text-[6px] font-black text-primary text-center leading-none uppercase">Scan for<br/>Details</span>
                </div>
             </div>
             <div className="text-primary pr-2">
               <p className="font-bold text-sm tracking-tight">Interactive Hub</p>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Mobile Companion</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Campus Companion</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Emergency Broadcast System Mock */}
-      {SCREEN_SETTINGS.emergencyAlert && (
-        <div className="fixed inset-0 z-[100] bg-red-600 flex flex-col items-center justify-center p-12 text-white animate-pulse">
-          <TriangleAlert className="w-48 h-48 mb-8" />
-          <h1 className="text-8xl font-black uppercase mb-4 tracking-tighter">Emergency Alert</h1>
-          <p className="text-4xl text-center font-bold">SHELTER IN PLACE IMMEDIATELY. AWAIT FURTHER INSTRUCTIONS.</p>
-        </div>
-      )}
-
       {/* Ticker System */}
       <div className="ticker-wrap border-t border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] bg-primary/90 backdrop-blur-md">
         <div className="ticker-content flex gap-24 items-center">
-          <span className="font-black bg-white text-primary px-3 py-1 rounded text-xs">LIVE UPDATES</span>
+          <span className="font-black bg-white text-primary px-3 py-1 rounded text-xs">LIVE STREAM</span>
           <span className="text-lg font-medium">{SCREEN_SETTINGS.tickerMessage}</span>
           <span className="text-accent text-2xl">•</span>
-          <span className="text-lg font-medium">Welcome to the semester - Stay inspired, stay curious!</span>
+          <span className="text-lg font-medium">ScreenSense: Powering Intelligence Across Campus</span>
         </div>
       </div>
     </div>
