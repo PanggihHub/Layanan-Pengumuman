@@ -50,8 +50,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-background font-body">
         <AdminSidebar />
-        <SidebarInset className="flex flex-col">
-          <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b bg-white shadow-sm z-[100] sticky top-0">
+        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+          <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b bg-white/80 backdrop-blur-md z-[100] sticky top-0">
             <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="hover:bg-muted" />
               <Separator orientation="vertical" className="h-6" />
