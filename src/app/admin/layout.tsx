@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -12,7 +13,6 @@ import {
   Settings, 
   Shield, 
   History,
-  Command,
   Monitor,
   CheckCircle2,
   AlertCircle
@@ -73,9 +73,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <div className="hidden sm:flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg text-[10px] font-bold text-muted-foreground border shadow-sm">
-                  <Command className="w-2.5 h-2.5" /> K
-                </div>
 
                 {/* Simulated Search Results Dropdown */}
                 {isSearchFocused && searchQuery.length > 0 && (
@@ -140,11 +137,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">3 new assets were automatically synced to "Main Hall A" node.</p>
                       <p className="text-[9px] text-muted-foreground/40 font-mono mt-2">12:10:05 UTC</p>
                     </div>
-                  </div>
-                  <div className="p-3 text-center bg-muted/20 border-t">
-                    <Button variant="link" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary h-auto p-0 hover:no-underline hover:text-primary/70">
-                      View System Audit Log
-                    </Button>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
