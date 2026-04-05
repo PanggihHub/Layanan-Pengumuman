@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -30,6 +29,7 @@ import {
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
