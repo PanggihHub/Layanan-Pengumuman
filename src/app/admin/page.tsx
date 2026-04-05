@@ -21,7 +21,8 @@ import {
   Sparkles,
   Lightbulb,
   BrainCircuit,
-  TrendingUp
+  TrendingUp,
+  LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -48,6 +49,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
+import Link from "next/link";
 import { recommendDisplayContent, RecommendDisplayContentOutput } from "@/ai/flows/recommend-display-content";
 
 const engagementData = [
