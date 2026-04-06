@@ -477,6 +477,7 @@ export default function AdminOverview() {
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none shadow-2xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Monitor Screen: {monitorScreen?.name}</DialogTitle>
+            <DialogDescription>Surveillance view for active signage node.</DialogDescription>
           </DialogHeader>
           <div className="relative aspect-video flex flex-col items-center justify-center">
             {monitorScreen?.status === "Online" ? (

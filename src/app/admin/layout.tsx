@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +35,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { toast } = useToast();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = () => {
     toast({
@@ -45,6 +50,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       window.location.href = "/";
     }, 1200);
   };
+
+  // Prevent hydration mismatch by deferring rendering of dynamic header parts
+  if (!mounted) {
+    return (
+      <div className="min-h-screen w-full bg-background animate-pulse" />
+    );
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
