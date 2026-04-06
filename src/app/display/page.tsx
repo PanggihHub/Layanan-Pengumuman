@@ -31,20 +31,22 @@ export default function DisplayClient() {
   const [time, setTime] = useState<Date | null>(null);
   const [isNavVisible, setIsNavVisible] = useState(false);
 
-  // Configuration from Mock DB (simulating real-time updates)
-  const { 
-    displayLayout, 
-    showTicker, 
-    showInfoCard, 
-    showWorship, 
-    showQR 
-  } = SCREEN_SETTINGS;
+  // Find the active playlist to get its layout and visibility overrides
+  const activePlaylistDef = useMemo(() => {
+    return PLAYLISTS.find(p => p.id === SCREEN_SETTINGS.activePlaylistId);
+  }, []);
 
-  const activePlaylist = useMemo(() => {
-    const playlistDef = PLAYLISTS.find(p => p.id === SCREEN_SETTINGS.activePlaylistId);
-    if (!playlistDef) return [];
+  // Configuration (playlist-specific or fallback to global settings)
+  const displayLayout = activePlaylistDef?.layout || SCREEN_SETTINGS.displayLayout;
+  const showTicker = activePlaylistDef?.showTicker ?? SCREEN_SETTINGS.showTicker;
+  const showInfoCard = activePlaylistDef?.showInfoCard ?? SCREEN_SETTINGS.showInfoCard;
+  const showWorship = activePlaylistDef?.showWorship ?? SCREEN_SETTINGS.showWorship;
+  const showQR = activePlaylistDef?.showQR ?? SCREEN_SETTINGS.showQR;
+
+  const playlistItems = useMemo(() => {
+    if (!activePlaylistDef) return [];
     
-    return playlistDef.items.map(itemId => {
+    return activePlaylistDef.items.map(itemId => {
       const media = INITIAL_MEDIA.find(m => m.id === itemId);
       return {
         id: itemId,
@@ -53,7 +55,7 @@ export default function DisplayClient() {
         duration: 8000
       };
     });
-  }, []);
+  }, [activePlaylistDef]);
 
   const activeSchedules = useMemo(() => {
     return WORSHIP_SCHEDULES.filter(s => s.active);
@@ -63,39 +65,38 @@ export default function DisplayClient() {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     
-    if (activePlaylist.length === 0) return () => clearInterval(timer);
+    if (playlistItems.length === 0) return () => clearInterval(timer);
 
     const rotate = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % activePlaylist.length);
+      setCurrentIndex((prev) => (prev + 1) % playlistItems.length);
     }, 8000);
 
     return () => {
       clearInterval(timer);
       clearInterval(rotate);
     };
-  }, [activePlaylist]);
+  }, [playlistItems]);
 
   // Layout Helper: Select items to show based on layout mode
   const displayedItems = useMemo(() => {
+    if (playlistItems.length === 0) return [];
+
     if (displayLayout === 'grid-2x2') {
-      // Show 4 items starting from current index
       const items = [];
       for (let i = 0; i < 4; i++) {
-        items.push(activePlaylist[(currentIndex + i) % activePlaylist.length]);
+        items.push(playlistItems[(currentIndex + i) % playlistItems.length]);
       }
       return items;
     } else if (displayLayout === 'split-v' || displayLayout === 'split-h') {
-      // Show 2 items
       return [
-        activePlaylist[currentIndex % activePlaylist.length],
-        activePlaylist[(currentIndex + 1) % activePlaylist.length]
+        playlistItems[currentIndex % playlistItems.length],
+        playlistItems[(currentIndex + 1) % playlistItems.length]
       ];
     }
-    // Default single item
-    return [activePlaylist[currentIndex % activePlaylist.length]];
-  }, [activePlaylist, currentIndex, displayLayout]);
+    return [playlistItems[currentIndex % playlistItems.length]];
+  }, [playlistItems, currentIndex, displayLayout]);
 
-  if (activePlaylist.length === 0) {
+  if (playlistItems.length === 0) {
     return (
       <div className="signage-full bg-black flex items-center justify-center text-white">
         <p className="text-2xl animate-pulse font-bold tracking-widest uppercase">Initializing Telemetry...</p>
@@ -139,7 +140,6 @@ export default function DisplayClient() {
               />
             )}
             
-            {/* Overlay Info Card (Only if enabled and in single layout) */}
             {showInfoCard && displayLayout === 'single' && (
               <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl animate-in slide-in-from-left-4 duration-700">
                 <div className="flex items-center gap-3 mb-2">
@@ -154,7 +154,7 @@ export default function DisplayClient() {
           </div>
         ))}
 
-        {/* Floating Navigator (Stealth mode: visible only on interaction) */}
+        {/* Floating Navigator (Stealth mode) */}
         <div className={cn(
           "absolute top-6 left-6 z-[60] transition-all duration-500",
           isNavVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-12"
@@ -182,9 +182,8 @@ export default function DisplayClient() {
           </DropdownMenu>
         </div>
 
-        {/* Dynamic Overlays (Only visible if layouts allow and enabled) */}
+        {/* Dynamic Overlays */}
         <div className="absolute top-12 right-12 z-20 flex flex-col items-end gap-6 pointer-events-none">
-          {/* Main Status Block (Always visible unless completely minimized) */}
           <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-6 rounded-3xl text-white flex flex-col items-end min-w-[280px] shadow-2xl">
             <div className="flex items-center gap-2 text-accent mb-1 font-bold">
               <MapPin className="w-4 h-4" />
@@ -212,7 +211,6 @@ export default function DisplayClient() {
             </div>
           </div>
           
-          {/* Worship Schedule Widget (Conditional) */}
           {showWorship && activeSchedules.length > 0 && (
             <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-5 rounded-3xl text-white min-w-[280px] shadow-2xl animate-in fade-in slide-in-from-right-4 duration-1000">
               <div className="flex items-center gap-2 text-accent mb-4 border-b border-white/10 pb-2">
@@ -239,7 +237,6 @@ export default function DisplayClient() {
             </div>
           )}
 
-          {/* Interactive QR Code Widget (Conditional) */}
           {showQR && (
             <div className="bg-white/95 backdrop-blur p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white">
               <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20 relative">
@@ -256,7 +253,7 @@ export default function DisplayClient() {
         </div>
       </div>
 
-      {/* Ticker System (Conditional) */}
+      {/* Ticker System */}
       {showTicker && (
         <div className="ticker-wrap border-t border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] bg-primary/90 backdrop-blur-md">
           <div className="ticker-content flex gap-24 items-center">

@@ -18,7 +18,8 @@ import {
   Radio,
   Eye,
   Settings,
-  CalendarDays
+  CalendarDays,
+  Layout
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -40,7 +41,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PLAYLISTS, INITIAL_MEDIA, SCREEN_SETTINGS, Playlist } from "@/lib/mock-data";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { PLAYLISTS, INITIAL_MEDIA, SCREEN_SETTINGS, Playlist, DisplayLayout } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -64,6 +74,13 @@ export default function PlaylistsPage() {
   const [newSchedule, setNewSchedule] = useState("");
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [mediaSearch, setMediaSearch] = useState("");
+  
+  // Visibility toggles within playlist
+  const [showTicker, setShowTicker] = useState(true);
+  const [showInfoCard, setShowInfoCard] = useState(true);
+  const [showWorship, setShowWorship] = useState(true);
+  const [showQR, setShowQR] = useState(true);
+  const [layout, setLayout] = useState<DisplayLayout>('single');
 
   const filteredPlaylists = useMemo(() => {
     return playlists.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -98,20 +115,24 @@ export default function PlaylistsPage() {
       return;
     }
 
+    const payload: Playlist = {
+      id: currentPlaylist?.id || Math.random().toString(36).substr(2, 9),
+      name: newName,
+      description: newDesc,
+      schedule: newSchedule,
+      items: selectedMediaIds,
+      showTicker,
+      showInfoCard,
+      showWorship,
+      showQR,
+      layout,
+    };
+
     if (dialogMode === "add") {
-      const newPlaylist: Playlist = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: newName,
-        description: newDesc,
-        schedule: newSchedule,
-        items: selectedMediaIds,
-      };
-      setPlaylists(prev => [newPlaylist, ...prev]);
+      setPlaylists(prev => [payload, ...prev]);
       toast({ title: "Playlist Created", description: "New sequence added to library." });
     } else if (currentPlaylist) {
-      setPlaylists(prev => prev.map(p => 
-        p.id === currentPlaylist.id ? { ...p, name: newName, description: newDesc, schedule: newSchedule, items: selectedMediaIds } : p
-      ));
+      setPlaylists(prev => prev.map(p => p.id === currentPlaylist.id ? payload : p));
       toast({ title: "Playlist Updated", description: "Changes saved." });
     }
 
@@ -125,6 +146,11 @@ export default function PlaylistsPage() {
     setNewSchedule("");
     setSelectedMediaIds([]);
     setMediaSearch("");
+    setShowTicker(true);
+    setShowInfoCard(true);
+    setShowWorship(true);
+    setShowQR(true);
+    setLayout('single');
     setCurrentPlaylist(null);
   };
 
@@ -141,6 +167,11 @@ export default function PlaylistsPage() {
     setNewDesc(playlist.description);
     setNewSchedule(playlist.schedule || "");
     setSelectedMediaIds(playlist.items);
+    setShowTicker(playlist.showTicker ?? true);
+    setShowInfoCard(playlist.showInfoCard ?? true);
+    setShowWorship(playlist.showWorship ?? true);
+    setShowQR(playlist.showQR ?? true);
+    setLayout(playlist.layout ?? 'single');
     setIsDialogOpen(true);
   };
 
@@ -256,6 +287,14 @@ export default function PlaylistsPage() {
                   </div>
                 </div>
 
+                <div className="flex flex-wrap gap-1">
+                  {playlist.showTicker && <Badge variant="secondary" className="text-[8px]">Ticker</Badge>}
+                  {playlist.showInfoCard && <Badge variant="secondary" className="text-[8px]">Info</Badge>}
+                  {playlist.showWorship && <Badge variant="secondary" className="text-[8px]">Worship</Badge>}
+                  {playlist.showQR && <Badge variant="secondary" className="text-[8px]">QR</Badge>}
+                  <Badge className="bg-primary/10 text-primary border-none text-[8px] uppercase">{playlist.layout || 'single'}</Badge>
+                </div>
+
                 <div className="flex -space-x-2 overflow-hidden py-1 px-1">
                   {playlist.items.slice(0, 4).map((itemId, i) => {
                     const media = INITIAL_MEDIA.find(m => m.id === itemId);
@@ -305,50 +344,93 @@ export default function PlaylistsPage() {
 
       {/* Main Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogMode === "add" ? "New Sequence" : "Modify Sequence"}</DialogTitle>
             <DialogDescription>
-              Configure sequence name, broadcast schedule, and items.
+              Configure sequence name, broadcast schedule, and display overlays.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="playlist-name">Sequence Title</Label>
-                <Input 
-                  id="playlist-name" 
-                  value={newName} 
-                  onChange={(e) => setNewName(e.target.value)} 
-                  placeholder="e.g. Afternoon Info Loop"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                 <div className="space-y-2">
+                  <Label htmlFor="playlist-name">Sequence Title</Label>
+                  <Input 
+                    id="playlist-name" 
+                    value={newName} 
+                    onChange={(e) => setNewName(e.target.value)} 
+                    placeholder="e.g. Afternoon Info Loop"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="playlist-schedule">Broadcast Window (Schedule)</Label>
+                  <Input 
+                    id="playlist-schedule" 
+                    value={newSchedule} 
+                    onChange={(e) => setNewSchedule(e.target.value)} 
+                    placeholder="e.g. Mon-Fri, 08:00 - 18:00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="playlist-desc">Internal Description</Label>
+                  <Textarea 
+                    id="playlist-desc" 
+                    value={newDesc} 
+                    onChange={(e) => setNewDesc(e.target.value)} 
+                    placeholder="e.g. For library screens only"
+                    className="h-20"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="playlist-schedule">Broadcast Window (Schedule)</Label>
-                <Input 
-                  id="playlist-schedule" 
-                  value={newSchedule} 
-                  onChange={(e) => setNewSchedule(e.target.value)} 
-                  placeholder="e.g. Mon-Fri, 08:00 - 18:00"
-                />
+
+              <div className="space-y-4 bg-muted/30 p-4 rounded-xl border border-dashed">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary mb-2">
+                  <Layout className="w-4 h-4" /> Display Overlay & Layout
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Screen Layout</Label>
+                  <Select value={layout} onValueChange={(v: any) => setLayout(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single">Single Rotation</SelectItem>
+                      <SelectItem value="grid-2x2">2x2 Grid</SelectItem>
+                      <SelectItem value="split-v">Split Vertical</SelectItem>
+                      <SelectItem value="split-h">Split Horizontal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
+                    <Label className="text-[10px] font-bold">Bottom Ticker</Label>
+                    <Switch checked={showTicker} onCheckedChange={setShowTicker} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
+                    <Label className="text-[10px] font-bold">Info Overlays</Label>
+                    <Switch checked={showInfoCard} onCheckedChange={setShowInfoCard} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
+                    <Label className="text-[10px] font-bold">Worship Widget</Label>
+                    <Switch checked={showWorship} onCheckedChange={setShowWorship} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
+                    <Label className="text-[10px] font-bold">Interactive QR</Label>
+                    <Switch checked={showQR} onCheckedChange={setShowQR} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="playlist-desc">Internal Description</Label>
-              <Textarea 
-                id="playlist-desc" 
-                value={newDesc} 
-                onChange={(e) => setNewDesc(e.target.value)} 
-                placeholder="e.g. For library screens only"
-                className="h-20"
-              />
-            </div>
+            <Separator />
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>Media Items ({selectedMediaIds.length})</Label>
+                <Label className="text-primary font-bold">Media Selection ({selectedMediaIds.length})</Label>
                 <div className="flex items-center gap-2">
                   <Search className="w-3.5 h-3.5 text-muted-foreground" />
                   <Input 
@@ -360,8 +442,8 @@ export default function PlaylistsPage() {
                 </div>
               </div>
               
-              <ScrollArea className="h-[240px] rounded-md border p-4 bg-muted/10">
-                <div className="grid grid-cols-1 gap-2">
+              <ScrollArea className="h-[200px] rounded-md border p-4 bg-muted/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {filteredMediaForSelection.map((item) => (
                     <div 
                       key={item.id} 
@@ -376,12 +458,12 @@ export default function PlaylistsPage() {
                         onCheckedChange={() => toggleMediaSelection(item.id)}
                         className="pointer-events-none"
                       />
-                      <div className="relative h-10 w-16 rounded overflow-hidden bg-muted">
+                      <div className="relative h-10 w-16 rounded overflow-hidden bg-muted shrink-0">
                         <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold truncate">{item.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase">{item.type}</p>
+                        <p className="text-[10px] font-bold truncate">{item.name}</p>
+                        <p className="text-[8px] text-muted-foreground uppercase">{item.type}</p>
                       </div>
                     </div>
                   ))}

@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   Layout,
   Eye,
-  EyeOff
+  EyeOff,
+  ScreenShare,
+  Monitor
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -31,6 +33,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { SCREEN_SETTINGS, DisplayLayout } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 
 export default function SystemConfig() {
   const [syncUrl, setSyncUrl] = useState("https://api.screensense.cloud/v1");
@@ -38,12 +41,8 @@ export default function SystemConfig() {
   const [sessionTimeout, setSessionTimeout] = useState("30");
   const [autoUpdate, setAutoUpdate] = useState(true);
   
-  // Display Controls
+  // Display Controls (Master Defaults)
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(SCREEN_SETTINGS.displayLayout);
-  const [showTicker, setShowTicker] = useState(SCREEN_SETTINGS.showTicker);
-  const [showInfoCard, setShowInfoCard] = useState(SCREEN_SETTINGS.showInfoCard);
-  const [showWorship, setShowWorship] = useState(SCREEN_SETTINGS.showWorship);
-  const [showQR, setShowQR] = useState(SCREEN_SETTINGS.showQR);
 
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -52,10 +51,6 @@ export default function SystemConfig() {
     setIsSaving(true);
     // Simulate updating mock DB
     SCREEN_SETTINGS.displayLayout = displayLayout;
-    SCREEN_SETTINGS.showTicker = showTicker;
-    SCREEN_SETTINGS.showInfoCard = showInfoCard;
-    SCREEN_SETTINGS.showWorship = showWorship;
-    SCREEN_SETTINGS.showQR = showQR;
 
     setTimeout(() => {
       setIsSaving(false);
@@ -66,6 +61,35 @@ export default function SystemConfig() {
     }, 1200);
   };
 
+  const LayoutPreview = ({ layout }: { layout: DisplayLayout }) => {
+    const boxClass = "bg-primary/20 border-2 border-primary/40 rounded flex items-center justify-center";
+    return (
+      <div className="w-full h-full bg-white border rounded p-1">
+        {layout === 'single' && <div className={cn("w-full h-full", boxClass)}><Monitor className="w-4 h-4" /></div>}
+        {layout === 'grid-2x2' && (
+          <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            <div className={boxClass} />
+            <div className={boxClass} />
+            <div className={boxClass} />
+            <div className={boxClass} />
+          </div>
+        )}
+        {layout === 'split-v' && (
+          <div className="grid grid-cols-2 gap-1 h-full">
+            <div className={boxClass} />
+            <div className={boxClass} />
+          </div>
+        )}
+        {layout === 'split-h' && (
+          <div className="grid grid-rows-2 gap-1 h-full">
+            <div className={boxClass} />
+            <div className={boxClass} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
@@ -73,67 +97,47 @@ export default function SystemConfig() {
           <Settings className="w-8 h-8 text-accent" />
           System Configuration
         </h1>
-        <p className="text-muted-foreground mt-2">Core platform orchestration and display visibility parameters.</p>
+        <p className="text-muted-foreground mt-2">Core platform orchestration and master display parameters.</p>
       </div>
 
       <div className="grid gap-6">
-        <Card className="border-primary/10 shadow-sm">
+        <Card className="border-primary/10 shadow-sm overflow-hidden">
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Layout className="w-5 h-5 text-accent" />
-              Signage Display Visibility
+              Signage Display Visibility Defaults
             </CardTitle>
-            <CardDescription>Control what components are visible on the public /display client.</CardDescription>
+            <CardDescription>Control the master fallback layout for screens without specific overrides.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Active Screen Layout</Label>
-                <Select value={displayLayout} onValueChange={(v: any) => setDisplayLayout(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Layout" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">Single (1x1 Rotation)</SelectItem>
-                    <SelectItem value="grid-2x2">Grid (2x2 Multi-Feed)</SelectItem>
-                    <SelectItem value="split-v">Split Vertical (Left/Right)</SelectItem>
-                    <SelectItem value="split-h">Split Horizontal (Top/Bottom)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-muted-foreground italic">Grid modes display multiple items from the playlist simultaneously.</p>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold">Bottom Ticker</p>
-                  <p className="text-[10px] text-muted-foreground">News headline scrolling bar.</p>
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-8">
+              <div className="flex-1 space-y-6">
+                <div className="space-y-2">
+                  <Label>Master Fallback Layout</Label>
+                  <Select value={displayLayout} onValueChange={(v: any) => setDisplayLayout(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Layout" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single">Single (1x1 Rotation)</SelectItem>
+                      <SelectItem value="grid-2x2">Grid (2x2 Multi-Feed)</SelectItem>
+                      <SelectItem value="split-v">Split Vertical (Left/Right)</SelectItem>
+                      <SelectItem value="split-h">Split Horizontal (Top/Bottom)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground italic mt-2 bg-primary/5 p-2 rounded">Note: Visibility toggles (Ticker, QR, etc.) are now managed per sequence in the Playlists menu for granular control.</p>
                 </div>
-                <Switch checked={showTicker} onCheckedChange={setShowTicker} />
               </div>
-              <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold">Content Info Overlays</p>
-                  <p className="text-[10px] text-muted-foreground">Floating title and category cards.</p>
+              
+              <div className="w-full md:w-64 space-y-2">
+                <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Layout Preview</Label>
+                <div className="aspect-video relative group border shadow-sm rounded-xl overflow-hidden bg-muted/20">
+                  <LayoutPreview layout={displayLayout} />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/5 pointer-events-none">
+                    <ScreenShare className="text-primary w-8 h-8" />
+                  </div>
                 </div>
-                <Switch checked={showInfoCard} onCheckedChange={setShowInfoCard} />
-              </div>
-              <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold">Worship Widget</p>
-                  <p className="text-[10px] text-muted-foreground">Upcoming religious service schedule.</p>
-                </div>
-                <Switch checked={showWorship} onCheckedChange={setShowWorship} />
-              </div>
-              <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-bold">Interactive Hub (QR)</p>
-                  <p className="text-[10px] text-muted-foreground">Scan for campus information details.</p>
-                </div>
-                <Switch checked={showQR} onCheckedChange={setShowQR} />
+                <div className="text-[9px] text-center text-muted-foreground uppercase font-black tracking-tighter">Mock Visual Representative</div>
               </div>
             </div>
           </CardContent>

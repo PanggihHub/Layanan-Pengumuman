@@ -38,6 +38,12 @@ export interface Playlist {
   items: string[];
   isSystem?: boolean;
   schedule?: string;
+  // Visibility overrides per playlist
+  showTicker?: boolean;
+  showInfoCard?: boolean;
+  showWorship?: boolean;
+  showQR?: boolean;
+  layout?: DisplayLayout;
 }
 
 export interface WorshipSchedule {
@@ -133,6 +139,7 @@ export const SCREEN_SETTINGS = {
   locationName: "Main Campus Hall",
   activePlaylistId: "default-1",
   displayLayout: 'single' as DisplayLayout,
+  // Global defaults if not set in playlist
   showTicker: true,
   showInfoCard: true,
   showWorship: true,
@@ -147,6 +154,11 @@ export const PLAYLISTS: Playlist[] = [
     items: ['1', '3'],
     isSystem: true,
     schedule: "Always Active (24/7)",
+    showTicker: true,
+    showInfoCard: true,
+    showWorship: true,
+    showQR: true,
+    layout: 'single',
   },
   {
     id: "default-1",
@@ -154,6 +166,11 @@ export const PLAYLISTS: Playlist[] = [
     description: "Main rotation for general announcements and science facts.",
     items: ['1', '2', '3', '5', '4', '1'],
     schedule: "Mon-Fri, 08:00 - 18:00",
+    showTicker: true,
+    showInfoCard: true,
+    showWorship: true,
+    showQR: true,
+    layout: 'single',
   },
   {
     id: "default-2",
@@ -161,6 +178,11 @@ export const PLAYLISTS: Playlist[] = [
     description: "Calm visuals and library-specific information for study zones.",
     items: ['3', '5'],
     schedule: "Mon-Sat, 09:00 - 21:00",
+    showTicker: false,
+    showInfoCard: true,
+    showWorship: false,
+    showQR: true,
+    layout: 'single',
   }
 ];
 

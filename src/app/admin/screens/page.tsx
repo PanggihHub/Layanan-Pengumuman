@@ -28,7 +28,8 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
-  ZapOff
+  ZapOff,
+  ExternalLink
 } from "lucide-react";
 import { 
   Select, 
@@ -311,45 +312,6 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-accent/20 bg-accent/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-primary text-white">
-                    <Heart className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg text-primary">Worship Schedule Feed</CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Active religious services currently synchronized with display loops.
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="bg-white" asChild>
-                  <a href="/admin/worship">Manage Schedules</a>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {WORSHIP_SCHEDULES.filter(s => s.active).slice(0, 2).map((schedule) => (
-                  <div key={schedule.id} className="p-4 bg-white rounded-xl border flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-primary truncate">{schedule.name}</span>
-                      <Badge variant="secondary" className="text-[9px]">{schedule.time}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <MapPin className="w-3 h-3" /> {schedule.location}
-                    </div>
-                  </div>
-                ))}
-                {WORSHIP_SCHEDULES.filter(s => s.active).length === 0 && (
-                  <p className="text-xs text-muted-foreground italic col-span-2 text-center py-4">No active worship events scheduled.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="shadow-sm overflow-hidden border-primary/5">
             <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4 px-6">
               <div>
@@ -506,7 +468,7 @@ export default function ScreensManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 pt-4">
-              <div className="pt-4 flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
                   <span className="text-xs font-mono font-bold">{scanTime || "--:--:--"}</span>

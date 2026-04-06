@@ -20,8 +20,8 @@ export default function Home() {
       </header>
 
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center p-6 gap-12 max-w-7xl mx-auto">
-        <div className="flex-1 space-y-6">
-          <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 w-fit">
+        <div className="flex-1 space-y-6 text-center md:text-left">
+          <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 w-fit mx-auto md:mx-0">
             <div className="bg-white p-2 rounded-xl shadow-sm">
               <School className="w-8 h-8 text-primary" />
             </div>
@@ -37,17 +37,17 @@ export default function Home() {
           <p className="text-lg text-muted-foreground leading-relaxed">
             ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and ensure seamless communication across your entire campus network.
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-row items-center justify-center md:justify-start gap-4">
             <Link href="/admin">
               <Button size="lg" className="h-14 px-8 text-lg gap-2">
                 <LayoutDashboard className="w-5 h-5" />
-                Go to Dashboard
+                Dashboard
               </Button>
             </Link>
             <Link href="/display">
               <Button variant="outline" size="lg" className="h-14 px-8 text-lg gap-2">
                 <Monitor className="w-5 h-5" />
-                Launch Signage Client
+                Signage Client
               </Button>
             </Link>
           </div>
