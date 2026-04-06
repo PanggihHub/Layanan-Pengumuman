@@ -1,7 +1,6 @@
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Monitor, LayoutDashboard, ShieldCheck, Zap } from 'lucide-react';
+import { Monitor, LayoutDashboard, ShieldCheck, Zap, School } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -27,6 +26,16 @@ export default function Home() {
 
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center p-6 gap-12 max-w-7xl mx-auto">
         <div className="flex-1 space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 w-fit">
+            <div className="bg-white p-2 rounded-xl shadow-sm">
+              <School className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Official Platform</p>
+              <p className="text-sm font-bold text-primary">Yogya State University</p>
+            </div>
+          </div>
+
           <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-primary">
             Next-Gen Intelligence for Your <span className="text-accent">Digital Displays</span>
           </h2>
@@ -80,8 +89,17 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="p-8 border-t bg-white/50 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} ScreenSense Systems. Built for clarity and intelligence.
+      <footer className="p-12 border-t bg-white flex flex-col items-center justify-center gap-4">
+        <div className="flex items-center gap-3 grayscale opacity-60">
+           <School className="w-6 h-6" />
+           <span className="text-xs font-bold uppercase tracking-widest">Universitas Negeri Yogyakarta</span>
+        </div>
+        <p className="text-xs text-muted-foreground font-medium">
+          Created by : RP support by Firebase Studio
+        </p>
+        <p className="text-[10px] text-muted-foreground/40 mt-2">
+          &copy; {new Date().getFullYear()} ScreenSense Systems. Built for clarity and intelligence.
+        </p>
       </footer>
     </div>
   );
