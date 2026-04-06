@@ -75,7 +75,7 @@ export default function ScreensManagement() {
   const [ticker, setTicker] = useState(SCREEN_SETTINGS.tickerMessage);
   const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [previewDeviceId, setPreviewDeviceId] = useState(SCREEN_STATUS[0].id);
+  const [previewDeviceId, setPreviewDeviceId] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [scanTime, setScanTime] = useState<string | null>(null);
   
@@ -104,6 +104,7 @@ export default function ScreensManagement() {
   const { toast } = useToast();
 
   const previewUrls = useMemo(() => {
+    if (!previewDeviceId) return [];
     const screen = fleet.find(s => s.id === previewDeviceId);
     if (!screen || deactivatedIds.includes(screen.id) || screen.status === 'Offline') return [];
     const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
@@ -466,9 +467,9 @@ export default function ScreensManagement() {
                 )} />
                 <CardTitle className="text-[10px] font-black uppercase tracking-widest">Surveillance Feed</CardTitle>
               </div>
-              <Select value={previewDeviceId} onValueChange={setPreviewDeviceId}>
+              <Select value={previewDeviceId || ""} onValueChange={setPreviewDeviceId}>
                 <SelectTrigger className="w-32 h-7 text-[10px] bg-white/10 border-white/20 text-white rounded-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select Node" />
                 </SelectTrigger>
                 <SelectContent>
                   {fleet.map(s => (
@@ -590,6 +591,45 @@ export default function ScreensManagement() {
               {isDeploying ? "Deploying..." : "Push to Node"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Surveillance Dialog (Activated from Dropdown) */}
+      <Dialog open={!!previewDeviceId} onOpenChange={(open) => !open && setPreviewDeviceId(null)}>
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Surveillance Feed: {fleet.find(s => s.id === previewDeviceId)?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="relative aspect-video flex flex-col items-center justify-center">
+            {previewUrls.length > 0 ? (
+              <div className="w-full h-full relative">
+                {previewUrls.map((url, i) => (
+                    <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
+                      <Image src={url} alt="Live Proxy" fill className="object-cover opacity-80" unoptimized />
+                    </div>
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-10 left-10 text-white animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Surveillance</span>
+                  </div>
+                  <h3 className="text-4xl font-black tracking-tighter leading-none">{fleet.find(s => s.id === previewDeviceId)?.name}</h3>
+                  <p className="text-lg opacity-70 font-medium mt-2">Node ID: {previewDeviceId}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-white/20 flex flex-col items-center gap-6 text-center animate-pulse">
+                <div className="p-8 rounded-full bg-white/5">
+                  <Monitor className="w-24 h-24 opacity-20" />
+                </div>
+                <div>
+                  <h3 className="text-3xl font-black uppercase tracking-[0.2em]">Signal Offline</h3>
+                  <p className="text-sm font-mono mt-2 opacity-40">NODE_ID: {previewDeviceId}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

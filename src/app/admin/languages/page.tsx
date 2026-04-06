@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -153,16 +154,16 @@ export default function LocalizationSettings() {
             </CardContent>
           </Card>
 
-          <Card className="bg-primary/5 border-dashed border-primary/20 shadow-inner overflow-hidden h-full">
+          <Card className="bg-primary/5 border-dashed border-primary/20 shadow-inner overflow-hidden h-fit">
             <CardHeader className="pb-2">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center justify-between">
                 Live Interface Mockup
                 <Badge variant="outline" className="text-[8px] bg-white">PREVIEW</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center p-8 h-48">
-              <div className="p-8 bg-white rounded-2xl shadow-xl border w-full text-center">
-                 <h4 className="text-4xl font-black text-primary tracking-tighter">
+            <CardContent className="flex items-center justify-center p-6 h-auto">
+              <div className="p-6 bg-white rounded-2xl shadow-xl border w-full text-center">
+                 <h4 className="text-3xl font-black text-primary tracking-tighter">
                    {getGreeting()}
                  </h4>
               </div>
