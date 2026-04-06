@@ -38,7 +38,7 @@ export interface Playlist {
   items: string[];
   isSystem?: boolean;
   schedule?: string;
-  // Visibility overrides per playlist
+  // Visibility overrides per playlist (Scene settings)
   showTicker?: boolean;
   showInfoCard?: boolean;
   showWorship?: boolean;

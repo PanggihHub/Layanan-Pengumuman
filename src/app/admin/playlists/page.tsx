@@ -19,7 +19,10 @@ import {
   Eye,
   Settings,
   CalendarDays,
-  Layout
+  Layout,
+  LayoutGrid,
+  Columns2,
+  Rows2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -75,7 +78,7 @@ export default function PlaylistsPage() {
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [mediaSearch, setMediaSearch] = useState("");
   
-  // Visibility toggles within playlist
+  // Visibility toggles within playlist (Scene settings)
   const [showTicker, setShowTicker] = useState(true);
   const [showInfoCard, setShowInfoCard] = useState(true);
   const [showWorship, setShowWorship] = useState(true);
@@ -186,6 +189,15 @@ export default function PlaylistsPage() {
     );
   };
 
+  const getLayoutIcon = (l?: DisplayLayout) => {
+    switch(l) {
+      case 'grid-2x2': return <LayoutGrid className="w-3.5 h-3.5" />;
+      case 'split-v': return <Columns2 className="w-3.5 h-3.5" />;
+      case 'split-h': return <Rows2 className="w-3.5 h-3.5" />;
+      default: return <Layout className="w-3.5 h-3.5" />;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -287,12 +299,15 @@ export default function PlaylistsPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 items-center">
                   {playlist.showTicker && <Badge variant="secondary" className="text-[8px]">Ticker</Badge>}
                   {playlist.showInfoCard && <Badge variant="secondary" className="text-[8px]">Info</Badge>}
                   {playlist.showWorship && <Badge variant="secondary" className="text-[8px]">Worship</Badge>}
                   {playlist.showQR && <Badge variant="secondary" className="text-[8px]">QR</Badge>}
-                  <Badge className="bg-primary/10 text-primary border-none text-[8px] uppercase">{playlist.layout || 'single'}</Badge>
+                  <Badge className="bg-primary/10 text-primary border-none text-[8px] uppercase gap-1">
+                    {getLayoutIcon(playlist.layout)}
+                    {playlist.layout || 'single'}
+                  </Badge>
                 </div>
 
                 <div className="flex -space-x-2 overflow-hidden py-1 px-1">
