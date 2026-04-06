@@ -5,6 +5,7 @@
 
 export type MediaType = 'image' | 'video' | 'document';
 export type MediaSourceOrigin = 'internal' | 'external';
+export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h';
 
 export interface MediaItem {
   id: string;
@@ -127,10 +128,15 @@ export const SCREEN_STATUS: ScreenStatus[] = [
 ];
 
 export const SCREEN_SETTINGS = {
-  tickerMessage: "CAMPUS NEWS: Faculty meeting at 4 PM in Conference Room B • New cafeteria menu launched today! • Registration for Spring Semester opens next Monday.",
+  tickerMessage: "FACULTY MEETING: Conference Room B at 4 PM • New cafeteria menu launched today! • Registration for Spring Semester opens next Monday.",
   emergencyAlert: false,
   locationName: "Main Campus Hall",
-  activePlaylistId: "system-default",
+  activePlaylistId: "default-1",
+  displayLayout: 'single' as DisplayLayout,
+  showTicker: true,
+  showInfoCard: true,
+  showWorship: true,
+  showQR: true,
 };
 
 export const PLAYLISTS: Playlist[] = [
@@ -146,7 +152,7 @@ export const PLAYLISTS: Playlist[] = [
     id: "default-1",
     name: "Standard Campus Loop",
     description: "Main rotation for general announcements and science facts.",
-    items: ['1', '2', '3', '5'],
+    items: ['1', '2', '3', '5', '4', '1'],
     schedule: "Mon-Fri, 08:00 - 18:00",
   },
   {
