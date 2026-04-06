@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { 
   Monitor, 
   RefreshCw, 
@@ -74,7 +73,7 @@ export default function ScreensManagement() {
   const [ticker, setTicker] = useState(SCREEN_SETTINGS.tickerMessage);
   const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [previewDeviceId, setPreviewDeviceId] = useState<string | null>(null);
+  const [previewDeviceId, setPreviewDeviceId] = useState<string | null>(SCREEN_STATUS[0]?.id || null);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [scanTime, setScanTime] = useState<string | null>(null);
   
@@ -232,6 +231,8 @@ export default function ScreensManagement() {
     }
   };
 
+  const selectedScreen = fleet.find(s => s.id === previewDeviceId);
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -375,11 +376,12 @@ export default function ScreensManagement() {
                     {fleet.map((screen) => {
                       const isDeactivated = deactivatedIds.includes(screen.id);
                       const isOffline = screen.status === 'Offline';
+                      const isSelected = previewDeviceId === screen.id;
                       return (
                         <tr key={screen.id} className={cn(
-                          "border-b transition-colors group",
-                          isDeactivated ? "bg-muted/30 grayscale" : "hover:bg-primary/5"
-                        )}>
+                          "border-b transition-colors group cursor-pointer",
+                          isDeactivated ? "bg-muted/30 grayscale" : (isSelected ? "bg-primary/10" : "hover:bg-primary/5")
+                        )} onClick={() => setPreviewDeviceId(screen.id)}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className={cn(
@@ -412,27 +414,24 @@ export default function ScreensManagement() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
                                   <Settings2 className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem onClick={() => handleOpenEdit(screen)} disabled={isDeactivated}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEdit(screen); }} disabled={isDeactivated}>
                                   <Edit className="w-4 h-4 mr-2" /> Configure Node
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setPreviewDeviceId(screen.id)} disabled={isDeactivated || isOffline}>
-                                  <Eye className="w-4 h-4 mr-2" /> Surveillance Feed
-                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleToggleOnlineStatus(screen.id)} disabled={isDeactivated}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id); }} disabled={isDeactivated}>
                                   {isOffline ? (
                                     <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Power On</>
                                   ) : (
                                     <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Power Off</>
                                   )}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleToggleDeactivation(screen.id)}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen.id); }}>
                                   {isDeactivated ? (
                                     <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
                                   ) : (
@@ -440,7 +439,7 @@ export default function ScreensManagement() {
                                   )}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setScreenToDelete(screen.id)} className="text-red-600">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setScreenToDelete(screen.id); }} className="text-red-600">
                                   <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -457,25 +456,18 @@ export default function ScreensManagement() {
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
+          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10 sticky top-24">
             <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3 px-4">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-2.5 h-2.5 rounded-full",
                   previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"
                 )} />
-                <CardTitle className="text-[10px] font-black uppercase tracking-widest">Surveillance Feed</CardTitle>
+                <CardTitle className="text-[10px] font-black uppercase tracking-widest">Live Surveillance Feed</CardTitle>
               </div>
-              <Select value={previewDeviceId || ""} onValueChange={setPreviewDeviceId}>
-                <SelectTrigger className="w-32 h-7 text-[10px] bg-white/10 border-white/20 text-white rounded-full">
-                  <SelectValue placeholder="Select Node" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fleet.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Badge variant="outline" className="text-[9px] text-white border-white/20">
+                {selectedScreen?.name || "No Node"}
+              </Badge>
             </CardHeader>
             <CardContent className="p-0 relative aspect-video bg-zinc-950">
               {previewUrls.length > 0 ? (
@@ -486,19 +478,21 @@ export default function ScreensManagement() {
                     </div>
                   ))}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 pointer-events-none">
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 pointer-events-none text-left">
                     <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-1.5">
-                      <Play className="w-3 h-3 fill-accent" /> Active Signal
+                      <Play className="w-3 h-3 fill-accent" /> Active Signal: {selectedScreen?.name}
                     </p>
                     <p className="text-sm font-bold truncate">
-                      {PLAYLISTS.find(p => p.id === fleet.find(s => s.id === previewDeviceId)?.playlistId)?.name}
+                      Looping: {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/10 italic">
                   <Monitor className="w-12 h-12" />
-                  <p className="text-[10px] font-bold tracking-widest uppercase">Signal Lost / Idle</p>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-center">
+                    {selectedScreen?.status === "Offline" ? "Signal Lost: Device Offline" : "Signal Idle: No Active Playlist"}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -590,45 +584,6 @@ export default function ScreensManagement() {
               {isDeploying ? "Deploying..." : "Push to Node"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Surveillance Dialog (Activated from Dropdown) */}
-      <Dialog open={!!previewDeviceId} onOpenChange={(open) => !open && setPreviewDeviceId(null)}>
-        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none shadow-2xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Surveillance Feed: {fleet.find(s => s.id === previewDeviceId)?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="relative aspect-video flex flex-col items-center justify-center">
-            {previewUrls.length > 0 ? (
-              <div className="w-full h-full relative">
-                {previewUrls.map((url, i) => (
-                    <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      <Image src={url} alt="Live Proxy" fill className="object-cover opacity-80" unoptimized />
-                    </div>
-                ))}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
-                <div className="absolute bottom-10 left-10 text-white animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Surveillance</span>
-                  </div>
-                  <h3 className="text-4xl font-black tracking-tighter leading-none">{fleet.find(s => s.id === previewDeviceId)?.name}</h3>
-                  <p className="text-lg opacity-70 font-medium mt-2">Node ID: {previewDeviceId}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="text-white/20 flex flex-col items-center gap-6 text-center animate-pulse">
-                <div className="p-8 rounded-full bg-white/5">
-                  <Monitor className="w-24 h-24 opacity-20" />
-                </div>
-                <div>
-                  <h3 className="text-3xl font-black uppercase tracking-[0.2em]">Signal Offline</h3>
-                  <p className="text-sm font-mono mt-2 opacity-40">NODE_ID: {previewDeviceId}</p>
-                </div>
-              </div>
-            )}
-          </div>
         </DialogContent>
       </Dialog>
 

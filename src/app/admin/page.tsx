@@ -1,14 +1,12 @@
-
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Monitor, 
   Play, 
   FileVideo, 
-  Users, 
   Activity, 
   ExternalLink, 
   ArrowUpRight, 
@@ -18,9 +16,6 @@ import {
   EyeOff,
   History,
   FileText,
-  Sparkles,
-  Lightbulb,
-  BrainCircuit,
   TrendingUp,
   LayoutDashboard
 } from "lucide-react";
@@ -50,7 +45,6 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import Link from "next/link";
-import { recommendDisplayContent, RecommendDisplayContentOutput } from "@/ai/flows/recommend-display-content";
 
 const engagementData = [
   { name: 'Mon', engagement: 420 },
@@ -70,12 +64,10 @@ export default function AdminOverview() {
   const [showAnalytics, setShowAnalytics] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [monitorScreen, setMonitorScreen] = useState<ScreenStatus | null>(null);
-  const [aiRecommendation, setAiRecommendation] = useState<RecommendDisplayContentOutput | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
   
   // Simulated activity history
-  const [history, setHistory] = useState([
+  const [history] = useState([
     { id: 1, time: "2m ago", text: "Main Hall A started 'Orientation Loop'", type: "play" },
     { id: 2, time: "15m ago", text: "Media library: 'Welcome_Slide_V2' uploaded", type: "genai" },
     { id: 3, time: "1h ago", text: "Sync: 12 screens updated successfully", type: "sync" },
@@ -98,37 +90,10 @@ export default function AdminOverview() {
     };
   }, [screens]);
 
-  const handleGetAiRecommendation = async () => {
-    setIsAiLoading(true);
-    try {
-      const result = await recommendDisplayContent({
-        timeOfDay: "Morning",
-        location: "Main Campus Hall",
-        audienceEngagementPatterns: "High student traffic, moderate scan rate",
-        availableContentSummary: "playlists: Orientation, MorningNews. items: MathQuiz, WeatherUpdate"
-      });
-      setAiRecommendation(result);
-      setHistory(prev => [
-        { id: Date.now(), time: "Just now", text: "AI content strategy generated for morning shift", type: "genai" },
-        ...prev
-      ]);
-      toast({ title: "Analysis Complete", description: "AI has generated a new content strategy." });
-    } catch (error) {
-      toast({ title: "AI Error", description: "Failed to fetch content recommendation.", variant: "destructive" });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
   const handleSyncAll = () => {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setHistory(prev => [
-        { id: Date.now(), time: "Just now", text: `Global fleet sync initiated at ${now}`, type: "sync" },
-        ...prev
-      ]);
       toast({ title: "Fleet Sync Complete", description: `Synchronized ${stats.onlineScreens} screens.` });
     }, 2000);
   };
@@ -246,7 +211,7 @@ export default function AdminOverview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Engagement Chart */}
-        {showAnalytics ? (
+        {showAnalytics && (
           <Card className="lg:col-span-2 shadow-sm border-primary/10">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -276,58 +241,10 @@ export default function AdminOverview() {
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <Card className="lg:col-span-2 border-primary/10 bg-gradient-to-br from-white to-primary/5">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-accent/20 rounded-2xl">
-                  <BrainCircuit className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">AI Smart Strategy</CardTitle>
-                  <CardDescription>GenAI-powered content scheduling and optimization.</CardDescription>
-                </div>
-              </div>
-              <Button onClick={handleGetAiRecommendation} disabled={isAiLoading} size="sm" className="gap-2 bg-primary">
-                {isAiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Analyze Fleet
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-4">
-              {aiRecommendation ? (
-                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="p-6 bg-white rounded-2xl border border-primary/10 shadow-inner italic text-primary font-medium leading-relaxed">
-                    <p className="text-xs font-black uppercase tracking-widest text-accent mb-3 not-italic">Strategy Reasoning</p>
-                    "{aiRecommendation.reasoning}"
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {aiRecommendation.recommendedContentIds.map((id, i) => (
-                      <div key={i} className="px-4 py-3 bg-white border rounded-xl text-sm font-bold flex items-center gap-3 hover:border-accent transition-colors">
-                        <Badge variant="outline" className="h-6 w-6 p-0 flex items-center justify-center bg-primary/5 border-primary/20 text-primary">
-                          {i + 1}
-                        </Badge>
-                        {id}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-                    <Lightbulb className="w-8 h-8 text-muted-foreground/40" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-primary">Intelligence Idle</p>
-                    <p className="text-xs text-muted-foreground max-w-xs mx-auto mt-1">Click "Analyze Fleet" to generate a context-aware content strategy for the current time and traffic patterns.</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         )}
 
         {/* System Activity */}
-        <Card className="border-primary/10 shadow-sm">
+        <Card className={cn("border-primary/10 shadow-sm", !showAnalytics && "lg:col-span-3")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-accent" />
@@ -373,18 +290,16 @@ export default function AdminOverview() {
 
       {/* Screen Management Table */}
       <Card className="border-primary/10 shadow-sm overflow-hidden">
-        <CardHeader className="bg-muted/30 border-b">
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-lg">Network Health Matrix</CardTitle>
-              <CardDescription>Live telemetry and loop integrity for all provisioned nodes.</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="outline" className="bg-white">{stats.onlineScreens} Online</Badge>
-              <Button variant="ghost" size="sm" className="text-xs h-8" asChild>
-                <Link href="/admin/screens">Manage Device Inventory</Link>
-              </Button>
-            </div>
+        <CardHeader className="bg-muted/30 border-b flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-6">
+          <div>
+            <CardTitle className="text-lg">Network Health Matrix</CardTitle>
+            <CardDescription>Live telemetry and loop integrity for all provisioned nodes.</CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="bg-white px-3 py-1">{stats.onlineScreens} Online</Badge>
+            <Button variant="outline" size="sm" className="bg-white border-primary/20 text-xs px-4" asChild>
+              <Link href="/admin/screens">Manage Device Inventory</Link>
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -421,7 +336,7 @@ export default function AdminOverview() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-white hover:shadow-sm opacity-0 group-hover:opacity-100 transition-all" onClick={() => setMonitorScreen(screen)}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-white hover:shadow-sm transition-all opacity-100" onClick={() => setMonitorScreen(screen)}>
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                       </td>

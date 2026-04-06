@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Monitor, LayoutDashboard, ShieldCheck, Zap, School } from 'lucide-react';
+import { Monitor, LayoutDashboard, School } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -14,14 +14,9 @@ export default function Home() {
           <Monitor className="text-primary h-8 w-8" />
           <h1 className="text-2xl font-bold text-primary">ScreenSense</h1>
         </div>
-        <nav className="flex gap-4">
-          <Link href="/admin">
-            <Button variant="ghost">Admin Login</Button>
-          </Link>
-          <Link href="/display">
-            <Button className="bg-primary hover:bg-primary/90">View Signage</Button>
-          </Link>
-        </nav>
+        <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest hidden sm:block">
+          Digital Signage Orchestration
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center p-6 gap-12 max-w-7xl mx-auto">
@@ -40,7 +35,7 @@ export default function Home() {
             Next-Gen Intelligence for Your <span className="text-accent">Digital Displays</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and utilize AI to generate engaging science and math facts for your audience.
+            ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and ensure seamless communication across your entire campus network.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link href="/admin">
@@ -55,23 +50,6 @@ export default function Home() {
                 Launch Signage Client
               </Button>
             </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-6 pt-8">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="w-6 h-6 text-accent mt-1" />
-              <div>
-                <h3 className="font-semibold">Secure Admin</h3>
-                <p className="text-sm text-muted-foreground">PIN protected access and encrypted communication.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Zap className="w-6 h-6 text-accent mt-1" />
-              <div>
-                <h3 className="font-semibold">AI Powered</h3>
-                <p className="text-sm text-muted-foreground">Automated content generation and smart scheduling.</p>
-              </div>
-            </div>
           </div>
         </div>
 
