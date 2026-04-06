@@ -17,7 +17,7 @@ export interface MediaItem {
   url: string;
   category: 'campus' | 'science' | 'math' | 'events';
   description?: string;
-  // Metadata for video clipping
+  // Metadata for video clipping/transform
   startTime?: number; 
   endTime?: number;
 }

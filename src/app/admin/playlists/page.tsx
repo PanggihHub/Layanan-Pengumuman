@@ -22,7 +22,8 @@ import {
   Layout,
   LayoutGrid,
   Columns2,
-  Rows2
+  Rows2,
+  ArrowRightCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -123,7 +124,7 @@ export default function PlaylistsPage() {
       name: newName,
       description: newDesc,
       schedule: newSchedule,
-      items: selectedMediaIds,
+      items: selectedMediaIds, // Order is preserved here
       showTicker,
       showInfoCard,
       showWorship,
@@ -184,9 +185,19 @@ export default function PlaylistsPage() {
   };
 
   const toggleMediaSelection = (id: string) => {
-    setSelectedMediaIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+    setSelectedMediaIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(i => i !== id);
+      } else {
+        // Append to the end to maintain user's click order (A,B,C vs C,B,A)
+        return [...prev, id];
+      }
+    });
+  };
+
+  const getSelectionIndex = (id: string) => {
+    const index = selectedMediaIds.indexOf(id);
+    return index !== -1 ? index + 1 : null;
   };
 
   const getLayoutIcon = (l?: DisplayLayout) => {
@@ -359,7 +370,7 @@ export default function PlaylistsPage() {
 
       {/* Main Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogMode === "add" ? "New Sequence" : "Modify Sequence"}</DialogTitle>
             <DialogDescription>
@@ -445,7 +456,10 @@ export default function PlaylistsPage() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-primary font-bold">Media Selection ({selectedMediaIds.length})</Label>
+                <div className="flex flex-col">
+                  <Label className="text-primary font-bold">Sequential Media Selection ({selectedMediaIds.length})</Label>
+                  <p className="text-[10px] text-muted-foreground italic mt-0.5">Selection order is strictly preserved. Click to add/remove.</p>
+                </div>
                 <div className="flex items-center gap-2">
                   <Search className="w-3.5 h-3.5 text-muted-foreground" />
                   <Input 
@@ -457,33 +471,69 @@ export default function PlaylistsPage() {
                 </div>
               </div>
               
-              <ScrollArea className="h-[200px] rounded-md border p-4 bg-muted/10">
+              <ScrollArea className="h-[250px] rounded-md border p-4 bg-muted/10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {filteredMediaForSelection.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className={cn(
-                        "flex items-center gap-3 p-2 rounded-lg border bg-white transition-all cursor-pointer",
-                        selectedMediaIds.includes(item.id) ? "border-primary bg-primary/5" : "hover:border-primary/30"
-                      )}
-                      onClick={() => toggleMediaSelection(item.id)}
-                    >
-                      <Checkbox 
-                        checked={selectedMediaIds.includes(item.id)}
-                        onCheckedChange={() => toggleMediaSelection(item.id)}
-                        className="pointer-events-none"
-                      />
-                      <div className="relative h-10 w-16 rounded overflow-hidden bg-muted shrink-0">
-                        <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
+                  {filteredMediaForSelection.map((item) => {
+                    const selIndex = getSelectionIndex(item.id);
+                    const isSelected = !!selIndex;
+
+                    return (
+                      <div 
+                        key={item.id} 
+                        className={cn(
+                          "flex items-center gap-3 p-2 rounded-lg border bg-white transition-all cursor-pointer relative",
+                          isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:border-primary/30"
+                        )}
+                        onClick={() => toggleMediaSelection(item.id)}
+                      >
+                        {isSelected && (
+                          <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black z-20 shadow-md animate-in zoom-in-50">
+                            {selIndex}
+                          </div>
+                        )}
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={() => toggleMediaSelection(item.id)}
+                          className="pointer-events-none"
+                        />
+                        <div className={cn(
+                          "relative h-12 w-20 rounded overflow-hidden bg-muted shrink-0 border-2 transition-colors",
+                          isSelected ? "border-primary" : "border-transparent"
+                        )}>
+                          <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
+                          {isSelected && (
+                            <div className="absolute inset-0 bg-primary/10 border-2 border-primary/40 pointer-events-none" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold truncate">{item.name}</p>
+                          <p className="text-[8px] text-muted-foreground uppercase">{item.type}</p>
+                        </div>
+                        {isSelected && (
+                          <div className="text-primary opacity-50">
+                            <ArrowRightCircle className="w-3.5 h-3.5" />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-bold truncate">{item.name}</p>
-                        <p className="text-[8px] text-muted-foreground uppercase">{item.type}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
+              
+              {selectedMediaIds.length > 0 && (
+                <div className="p-3 bg-muted/40 rounded-lg border border-dashed flex flex-wrap gap-2 items-center">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mr-2">Preview Flow:</span>
+                  {selectedMediaIds.map((id, idx) => {
+                    const media = INITIAL_MEDIA.find(m => m.id === id);
+                    return (
+                      <div key={idx} className="flex items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm text-[10px] font-bold">
+                        <span className="text-primary">{idx + 1}</span>
+                        <span className="max-w-[80px] truncate">{media?.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -524,7 +574,7 @@ export default function PlaylistsPage() {
                           <p className="text-white opacity-50">Media Unavailable</p>
                         )}
                         <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/40 backdrop-blur-md rounded-xl text-white">
-                          <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Preview Mode</p>
+                          <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Preview Mode • Slide {index + 1}</p>
                           <h4 className="text-xl font-bold">{media?.name}</h4>
                         </div>
                       </div>

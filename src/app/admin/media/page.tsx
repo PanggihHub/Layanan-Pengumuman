@@ -11,7 +11,7 @@ import {
   List, 
   Trash2, 
   Edit3, 
-  MoreVertical,
+  MoreVertical, 
   PlayCircle,
   FileImage,
   X,
@@ -21,7 +21,8 @@ import {
   HardDrive,
   Info,
   Scissors,
-  Clock
+  Clock,
+  ArrowRight
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -53,6 +54,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -373,127 +375,158 @@ export default function MediaLibrary() {
         </Card>
       )}
 
-      {/* Unified Add/Edit Dialog */}
+      {/* Unified Add/Edit Dialog with OBS-style Preview */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{dialogMode === "add" ? "Add Media Source" : "Edit Media Source"}</DialogTitle>
             <DialogDescription>
               {dialogMode === "add" 
-                ? "Choose where your content is hosted and provide details." 
-                : "Modify the properties of this media asset."}
+                ? "Define your media parameters and clipping region." 
+                : "Modify the properties and source transform for this asset."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="space-y-3">
-              <Label>Source Type</Label>
-              <Tabs value={sourceOrigin} onValueChange={(v: any) => setSourceOrigin(v)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-12">
-                  <TabsTrigger value="internal" className="gap-2">
-                    <Upload className="w-4 h-4" /> Internal
-                  </TabsTrigger>
-                  <TabsTrigger value="external" className="gap-2">
-                    <LinkIcon className="w-4 h-4" /> External
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+            {/* Form Side */}
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <Label>Source Origin</Label>
+                <Tabs value={sourceOrigin} onValueChange={(v: any) => setSourceOrigin(v)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-10">
+                    <TabsTrigger value="internal" className="text-xs">Internal</TabsTrigger>
+                    <TabsTrigger value="external" className="text-xs">External</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider">Title</Label>
+                  <Input 
+                    id="name" 
+                    value={newName} 
+                    onChange={(e) => setNewName(e.target.value)} 
+                    placeholder="e.g. Campus_Announcement"
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="type" className="text-xs font-bold uppercase tracking-wider">Format</Label>
+                  <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="image">Still Image</SelectItem>
+                      <SelectItem value="video">Motion Video</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {newType === 'video' && (
+                  <div className="space-y-4 pt-2 border-t border-dashed">
+                    <div className="flex items-center gap-2 text-xs font-black text-primary uppercase">
+                      <Scissors className="w-4 h-4" />
+                      Timeline Clipping
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="startTime" className="text-[10px] uppercase">Start (s)</Label>
+                        <Input 
+                          id="startTime" 
+                          type="number" 
+                          value={startTime} 
+                          onChange={(e) => setStartTime(Number(e.target.value))} 
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="endTime" className="text-[10px] uppercase">End (s)</Label>
+                        <Input 
+                          id="endTime" 
+                          type="number" 
+                          value={endTime} 
+                          onChange={(e) => setEndTime(Number(e.target.value))} 
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {sourceOrigin === "external" && (
+                  <div className="grid gap-2 pt-2">
+                    <Label htmlFor="url" className="text-xs font-bold uppercase tracking-wider">Direct URL</Label>
+                    <Input 
+                      id="url" 
+                      value={newUrl} 
+                      onChange={(e) => setNewUrl(e.target.value)} 
+                      placeholder="https://example.com/stream.mp4"
+                      className="h-9"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* OBS Style Preview Side */}
             <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Filename / Display Title</Label>
-                <Input 
-                  id="name" 
-                  value={newName} 
-                  onChange={(e) => setNewName(e.target.value)} 
-                  placeholder="e.g. Campus_Announcement"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="description">Asset Description</Label>
-                <Textarea 
-                  id="description" 
-                  value={newDescription} 
-                  onChange={(e) => setNewDescription(e.target.value)} 
-                  placeholder="Briefly describe what this media is for..."
-                  className="h-20"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="type">Media Format</Label>
-                <Select value={newType} onValueChange={(v: any) => setNewType(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="image">Still Image</SelectItem>
-                    <SelectItem value="video">Motion Video</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newType === 'video' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <Separator />
-                  <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase">
-                    <Scissors className="w-4 h-4" />
-                    Video Clip Selection
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="startTime" className="text-xs">Start Time (sec)</Label>
-                      <Input 
-                        id="startTime" 
-                        type="number" 
-                        value={startTime} 
-                        onChange={(e) => setStartTime(Number(e.target.value))} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="endTime" className="text-xs">End Time (sec)</Label>
-                      <Input 
-                        id="endTime" 
-                        type="number" 
-                        value={endTime} 
-                        onChange={(e) => setEndTime(Number(e.target.value))} 
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground italic">Select the specific part of the video you want to display in the playlist.</p>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                Source Transform Preview
+                <Badge variant="outline" className="text-[8px] bg-white border-red-500 text-red-600 font-black animate-pulse">ACTIVE TRANSFORM</Badge>
+              </Label>
+              <div className="relative aspect-video bg-zinc-950 rounded-lg overflow-hidden border-2 border-zinc-800 shadow-2xl">
+                {/* Red OBS Selection Box */}
+                <div className="absolute inset-2 border-2 border-red-500 z-20 pointer-events-none ring-[100vw] ring-black/40">
+                  {/* Anchor handles like OBS */}
+                  <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500" />
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500" />
+                  <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-red-500" />
+                  <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-red-500" />
+                  <div className="absolute top-1/2 -left-1 w-2 h-2 bg-red-500 -translate-y-1/2" />
+                  <div className="absolute top-1/2 -right-1 w-2 h-2 bg-red-500 -translate-y-1/2" />
                 </div>
-              )}
 
-              {sourceOrigin === "external" && (
-                <div className="grid gap-2 animate-in slide-in-from-top-2 duration-300">
-                  <Label htmlFor="url">Source URL</Label>
-                  <Input 
-                    id="url" 
-                    value={newUrl} 
-                    onChange={(e) => setNewUrl(e.target.value)} 
-                    placeholder="https://example.com/video.mp4"
+                <div className="w-full h-full relative group">
+                  <Image 
+                    src={newUrl || (currentItem?.url || 'https://picsum.photos/seed/preview/1920/1080')} 
+                    alt="Transform View" 
+                    fill 
+                    className="object-cover opacity-80"
+                    unoptimized
                   />
-                  <p className="text-[10px] text-muted-foreground">Ensure the URL is a direct path to the media file or stream.</p>
+                  {newType === 'video' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
+                      <PlayCircle className="w-12 h-12 text-white/40" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-white/60">Clip Preview</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {sourceOrigin === "internal" && dialogMode === "add" && (
-                <div className="border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground animate-in slide-in-from-top-2 duration-300">
-                  <Upload className="w-8 h-8 opacity-50" />
-                  <p className="text-sm font-medium">Click to select or drag and drop</p>
-                  <p className="text-xs">Supports JPG, PNG, MP4 up to 50MB</p>
+                {/* Status Overlay */}
+                <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end z-30 pointer-events-none">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[8px] font-black uppercase tracking-tighter text-red-500 bg-black/60 px-2 py-0.5 rounded w-fit">Transforming Source...</p>
+                    <p className="text-xs font-bold text-white drop-shadow-md truncate max-w-[150px]">{newName || "Untitled Source"}</p>
+                  </div>
+                  <div className="bg-black/80 px-2 py-1 rounded text-[10px] font-mono text-emerald-400 border border-emerald-500/30">
+                    {newType === 'video' ? `T: ${startTime}s > ${endTime}s` : 'MODE: STATIC'}
+                  </div>
                 </div>
-              )}
+              </div>
+              <div className="p-3 bg-muted/40 rounded border border-dashed text-[10px] text-muted-foreground leading-relaxed italic">
+                Adjusting clipping parameters will "transform" the source on the signage timeline. Use the handles (simulated) to define the visual crop of the display.
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveMedia} className="gap-2">
+            <Button onClick={handleSaveMedia} className="gap-2 bg-primary">
               {dialogMode === "add" ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-              {dialogMode === "add" ? "Create Source" : "Save Changes"}
+              {dialogMode === "add" ? "Create Source" : "Push Transformations"}
             </Button>
           </DialogFooter>
         </DialogContent>
