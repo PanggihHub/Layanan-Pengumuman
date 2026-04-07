@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -322,7 +321,7 @@ export default function ScreensManagement() {
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Panel ID & Location</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">Connectivity</th>
                       <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Active Loop</th>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-right">Ops</th>
+                      <th className="px-6 py-4 text-right font-bold text-[10px] uppercase tracking-widest">Ops</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -410,8 +409,8 @@ export default function ScreensManagement() {
 
         {/* Optimized Sticky Sidebar */}
         <div className="lg:sticky lg:top-8 space-y-6">
-          <Card className="shadow-2xl overflow-hidden bg-black text-white border-none ring-1 ring-white/20 transform transition-all duration-300 hover:ring-white/40">
-            <CardHeader className="bg-primary/40 backdrop-blur-3xl border-b border-white/10 flex flex-row items-center justify-between py-4 px-5">
+          <Card className="shadow-2xl overflow-hidden bg-black text-white border-none ring-1 ring-white/20 transform transition-all duration-300 hover:ring-white/40 rounded-[2.5rem]">
+            <CardHeader className="bg-primary/40 backdrop-blur-3xl border-b border-white/10 flex flex-row items-center justify-between py-5 px-6">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-3 h-3 rounded-full shadow-[0_0_12px_rgba(255,255,255,0.3)]",
@@ -443,9 +442,9 @@ export default function ScreensManagement() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-6 text-white/20 italic animate-pulse">
-                  <div className="p-6 rounded-full bg-white/5 border border-white/10">
-                    <Monitor className="w-16 h-16 opacity-30" />
+                <div className="w-full h-full flex flex-col items-center justify-center gap-6 text-white/20 italic animate-pulse py-20">
+                  <div className="p-8 rounded-full bg-white/5 border border-white/10">
+                    <Monitor className="w-20 h-20 opacity-30" />
                   </div>
                   <div className="text-center space-y-2">
                     <p className="text-[11px] font-black tracking-[0.3em] uppercase">No Active Link</p>
@@ -456,8 +455,8 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-muted/30 shadow-xl border-primary/10 overflow-hidden group">
-            <CardHeader className="pb-4 border-b bg-muted/40 px-5 transition-colors group-hover:bg-muted/60">
+          <Card className="bg-gradient-to-br from-white to-muted/30 shadow-xl border-primary/10 overflow-hidden group rounded-[2.5rem]">
+            <CardHeader className="pb-4 border-b bg-muted/40 px-6 transition-colors group-hover:bg-muted/60">
               <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-primary">
                 <div className="p-1.5 bg-primary/10 rounded-md">
                    <Signal className="w-4 h-4" />
@@ -465,13 +464,13 @@ export default function ScreensManagement() {
                 Network Health Matrix
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 pt-5 px-5">
+            <CardContent className="space-y-6 pt-5 px-6 pb-8">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col p-3 rounded-xl bg-white border shadow-sm">
+                <div className="flex flex-col p-4 rounded-3xl bg-white border shadow-sm">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Fleet Scan</span>
                   <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
-                <div className="flex flex-col p-3 rounded-xl bg-white border shadow-sm text-right">
+                <div className="flex flex-col p-4 rounded-3xl bg-white border shadow-sm text-right">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
                   <span className="text-sm font-black text-emerald-600">98.4%</span>
                 </div>
@@ -487,111 +486,6 @@ export default function ScreensManagement() {
           </Card>
         </div>
       </div>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings2 className="w-5 h-5 text-primary" />
-              Node Configuration
-            </DialogTitle>
-            <DialogDescription>Deploy localized overrides for unit {editingScreen?.id}.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">1. Network Identity</Label>
-              <Input value={localScreenName} onChange={(e) => setLocalScreenName(e.target.value)} disabled={isDeploying} placeholder="e.g. Science Wing Panel" />
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">2. Broadcast Loop</Label>
-              <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist} disabled={isDeploying}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PLAYLISTS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">3. Operational Integrity</Label>
-              <Select value={integritySetting} onValueChange={setIntegritySetting} disabled={isDeploying}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Integrity Level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard (60s Heartbeat)</SelectItem>
-                  <SelectItem value="high">Mission Critical (10s Heartbeat)</SelectItem>
-                  <SelectItem value="low">Eco Mode (300s Heartbeat)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground italic flex items-center gap-1 mt-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                Defines the frequency of connectivity validation pings.
-              </p>
-            </div>
-
-            {isDeploying && (
-              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-primary/20">
-                <div className="flex justify-between text-[10px] font-bold uppercase text-primary">
-                  <span>Uploading Config...</span>
-                  <span>{deployProgress}%</span>
-                </div>
-                <Progress value={deployProgress} className="h-2" />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} disabled={isDeploying}>Cancel</Button>
-            <Button onClick={handleUpdateSpecificScreen} disabled={isDeploying} className="gap-2">
-              {isDeploying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-              {isDeploying ? "Deploying..." : "Push to Node"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-primary">
-              <Link2 className="w-5 h-5" />
-              Pair Original Hardware
-            </DialogTitle>
-            <DialogDescription>Enter pairing code displayed on the monitor.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-3 p-4 bg-primary/5 rounded-xl border border-primary/10 text-center">
-              <Label className="text-primary font-black uppercase text-[10px]">6-Digit Pairing Code</Label>
-              <Input value={pairingCode} onChange={(e) => setPairingCode(e.target.value.toUpperCase())} className="h-14 text-2xl font-black text-center tracking-[0.2em]" maxLength={6} disabled={isLinking} />
-            </div>
-            <div className="space-y-2">
-              <Label>Assigned Location</Label>
-              <Input value={linkUnitName} onChange={(e) => setLinkUnitName(e.target.value)} disabled={isLinking} />
-            </div>
-            {isLinking && <Progress value={65} className="h-1.5" />}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)} disabled={isLinking}>Cancel</Button>
-            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="bg-primary">{isLinking ? "Verifying..." : "Link Hardware"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!screenToDelete} onOpenChange={() => setScreenToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Decommission</AlertDialogTitle>
-            <AlertDialogDescription>Remove node {screenToDelete}? This permanently severs the cloud link.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)} className="bg-red-600">Decommission</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
