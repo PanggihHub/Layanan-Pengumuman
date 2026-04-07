@@ -9,27 +9,20 @@ import {
   Monitor, 
   RefreshCw, 
   Settings2, 
-  Heart, 
   Play,
   Signal,
-  Power,
-  Eye,
-  Search,
-  Zap,
-  RotateCcw,
-  Edit,
-  UploadCloud,
   WifiOff,
   Wifi,
   CloudCog,
   Link2,
   Trash2,
   CheckCircle2,
-  Clock,
-  MapPin,
   ShieldCheck,
   ZapOff,
-  ExternalLink
+  Search,
+  Zap,
+  UploadCloud,
+  Edit
 } from "lucide-react";
 import { 
   Select, 
@@ -65,7 +58,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
-import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, WORSHIP_SCHEDULES, ScreenStatus } from "@/lib/mock-data";
+import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, ScreenStatus } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -78,26 +71,22 @@ export default function ScreensManagement() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [scanTime, setScanTime] = useState<string | null>(null);
   
-  // Fleet State
   const [fleet, setFleet] = useState<ScreenStatus[]>(SCREEN_STATUS);
   const [deactivatedIds, setDeactivatedIds] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployProgress, setDeployProgress] = useState(0);
 
-  // Individual Screen Edit Dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingScreen, setEditingScreen] = useState<ScreenStatus | null>(null);
   const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
   const [localScreenName, setLocalScreenName] = useState("");
   const [integritySetting, setIntegritySetting] = useState("standard");
 
-  // Linking Dialog (Create)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [pairingCode, setPairingCode] = useState("");
   const [linkUnitName, setLinkUnitName] = useState("");
   const [isLinking, setIsLinking] = useState(false);
 
-  // Delete Dialog
   const [screenToDelete, setScreenToDelete] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -256,7 +245,7 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="border-b bg-muted/30 py-4">
@@ -417,8 +406,8 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10 sticky top-24">
+        <div className="space-y-6 lg:sticky lg:top-24">
+          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
             <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3 px-4">
               <div className="flex items-center gap-3">
                 <div className={cn(
@@ -483,7 +472,6 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      {/* Individual Screen Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -549,7 +537,6 @@ export default function ScreensManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Linking Dialog */}
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -577,7 +564,6 @@ export default function ScreensManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Alert */}
       <AlertDialog open={!!screenToDelete} onOpenChange={() => setScreenToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

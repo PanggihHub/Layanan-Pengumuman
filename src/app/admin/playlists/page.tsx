@@ -11,7 +11,6 @@ import {
   Layers,
   Trash2,
   Edit2,
-  Copy,
   Search,
   CheckCircle2,
   X,
@@ -66,20 +65,17 @@ export default function PlaylistsPage() {
   const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
   const { toast } = useToast();
 
-  // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add");
   const [currentPlaylist, setCurrentPlaylist] = useState<Playlist | null>(null);
 
-  // Form states
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newSchedule, setNewSchedule] = useState("");
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [mediaSearch, setMediaSearch] = useState("");
   
-  // Visibility toggles within playlist (Scene settings)
   const [showTicker, setShowTicker] = useState(true);
   const [showInfoCard, setShowInfoCard] = useState(true);
   const [showWorship, setShowWorship] = useState(true);
@@ -124,7 +120,7 @@ export default function PlaylistsPage() {
       name: newName,
       description: newDesc,
       schedule: newSchedule,
-      items: selectedMediaIds, // Order is preserved here
+      items: selectedMediaIds,
       showTicker,
       showInfoCard,
       showWorship,
@@ -189,7 +185,6 @@ export default function PlaylistsPage() {
       if (prev.includes(id)) {
         return prev.filter(i => i !== id);
       } else {
-        // Append to the end to maintain user's click order (A,B,C vs C,B,A)
         return [...prev, id];
       }
     });
@@ -368,7 +363,6 @@ export default function PlaylistsPage() {
         })}
       </div>
 
-      {/* Main Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -471,8 +465,8 @@ export default function PlaylistsPage() {
                 </div>
               </div>
               
-              <ScrollArea className="h-[250px] rounded-md border p-4 bg-muted/10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {filteredMediaForSelection.map((item) => {
                     const selIndex = getSelectionIndex(item.id);
                     const isSelected = !!selIndex;
@@ -481,39 +475,32 @@ export default function PlaylistsPage() {
                       <div 
                         key={item.id} 
                         className={cn(
-                          "flex items-center gap-3 p-2 rounded-lg border bg-white transition-all cursor-pointer relative",
+                          "flex flex-col gap-2 p-3 rounded-lg border bg-white transition-all cursor-pointer relative group",
                           isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:border-primary/30"
                         )}
                         onClick={() => toggleMediaSelection(item.id)}
                       >
                         {isSelected && (
-                          <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black z-20 shadow-md animate-in zoom-in-50">
+                          <div className="absolute top-2 left-2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-black z-20 shadow-lg border-2 border-white animate-in zoom-in-50">
                             {selIndex}
                           </div>
                         )}
-                        <Checkbox 
-                          checked={isSelected}
-                          onCheckedChange={() => toggleMediaSelection(item.id)}
-                          className="pointer-events-none"
-                        />
                         <div className={cn(
-                          "relative h-12 w-20 rounded overflow-hidden bg-muted shrink-0 border-2 transition-colors",
+                          "relative aspect-video w-full rounded-md overflow-hidden bg-muted border-2 transition-colors",
                           isSelected ? "border-primary" : "border-transparent"
                         )}>
                           <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
                           {isSelected && (
-                            <div className="absolute inset-0 bg-primary/10 border-2 border-primary/40 pointer-events-none" />
+                            <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold truncate">{item.name}</p>
-                          <p className="text-[8px] text-muted-foreground uppercase">{item.type}</p>
-                        </div>
-                        {isSelected && (
-                          <div className="text-primary opacity-50">
-                            <ArrowRightCircle className="w-3.5 h-3.5" />
+                          <p className="text-[11px] font-bold truncate">{item.name}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-[9px] text-muted-foreground uppercase">{item.type}</p>
+                            {isSelected && <ArrowRightCircle className="w-3.5 h-3.5 text-primary" />}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -521,17 +508,27 @@ export default function PlaylistsPage() {
               </ScrollArea>
               
               {selectedMediaIds.length > 0 && (
-                <div className="p-3 bg-muted/40 rounded-lg border border-dashed flex flex-wrap gap-2 items-center">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mr-2">Preview Flow:</span>
-                  {selectedMediaIds.map((id, idx) => {
-                    const media = INITIAL_MEDIA.find(m => m.id === id);
-                    return (
-                      <div key={idx} className="flex items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm text-[10px] font-bold">
-                        <span className="text-primary">{idx + 1}</span>
-                        <span className="max-w-[80px] truncate">{media?.name}</span>
-                      </div>
-                    );
-                  })}
+                <div className="p-4 bg-primary/5 rounded-xl border border-dashed border-primary/20 space-y-3">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                    <Radio className="w-4 h-4 animate-pulse" /> Live Loop Sequence
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedMediaIds.map((id, idx) => {
+                      const media = INITIAL_MEDIA.find(m => m.id === id);
+                      return (
+                        <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border shadow-sm text-xs font-bold animate-in slide-in-from-left-2">
+                          <span className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
+                          <span className="max-w-[120px] truncate">{media?.name}</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleMediaSelection(id); }}
+                            className="text-muted-foreground hover:text-red-500 ml-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -539,7 +536,7 @@ export default function PlaylistsPage() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSavePlaylist} className="gap-2">
+            <Button onClick={handleSavePlaylist} className="gap-2 px-8">
               {dialogMode === "add" ? <Plus className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               {dialogMode === "add" ? "Create Sequence" : "Confirm Changes"}
             </Button>
@@ -547,7 +544,6 @@ export default function PlaylistsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black">
           <DialogHeader className="sr-only">
@@ -573,17 +569,21 @@ export default function PlaylistsPage() {
                         ) : (
                           <p className="text-white opacity-50">Media Unavailable</p>
                         )}
-                        <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/40 backdrop-blur-md rounded-xl text-white">
-                          <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Preview Mode • Slide {index + 1}</p>
-                          <h4 className="text-xl font-bold">{media?.name}</h4>
+                        <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md rounded-xl text-white border border-white/10">
+                          <div className="flex items-center gap-2 mb-2">
+                             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Sequence Step {index + 1} of {currentPlaylist.items.length}</p>
+                          </div>
+                          <h4 className="text-2xl font-black tracking-tight">{media?.name}</h4>
+                          <p className="text-xs text-white/60 mt-1 uppercase font-bold tracking-widest">{media?.type} • Standard Duration</p>
                         </div>
                       </div>
                     </CarouselItem>
                   );
                 })}
               </CarouselContent>
-              <CarouselPrevious className="left-4" />
-              <CarouselNext className="right-4" />
+              <CarouselPrevious className="left-4 bg-white/10 border-white/20 text-white hover:bg-white/20" />
+              <CarouselNext className="right-4 bg-white/10 border-white/20 text-white hover:bg-white/20" />
             </Carousel>
           </div>
         </DialogContent>
