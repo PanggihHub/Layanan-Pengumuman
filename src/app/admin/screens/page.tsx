@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -23,7 +24,8 @@ import {
   Zap,
   UploadCloud,
   Edit,
-  Info
+  Info,
+  X
 } from "lucide-react";
 import { 
   Select, 
@@ -128,25 +130,23 @@ export default function ScreensManagement() {
     setEditingScreen(screen);
     setLocalScreenName(screen.name);
     setLocalScreenPlaylist(screen.playlistId);
-    setIsEditDialogOpen(true);
     setDeployProgress(0);
     setIsDeploying(false);
+    setIsEditDialogOpen(true);
   };
 
   const handleUpdateSpecificScreen = () => {
     if (!editingScreen) return;
     
     setIsDeploying(true);
-    setDeployProgress(10);
-    
+    let progress = 0;
     const interval = setInterval(() => {
-      setDeployProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 15;
-      });
+      progress += Math.floor(Math.random() * 20) + 10;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+      }
+      setDeployProgress(progress);
     }, 200);
 
     setTimeout(() => {
@@ -245,7 +245,7 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10 overflow-hidden rounded-2xl">
             <CardHeader className="border-b bg-muted/30 py-4">
@@ -407,7 +407,7 @@ export default function ScreensManagement() {
         </div>
 
         {/* Live Surveillance Feed Sidebar */}
-        <div className="lg:sticky lg:top-8 space-y-6">
+        <div className="lg:sticky lg:top-24 space-y-6">
           <Card className="shadow-2xl overflow-hidden rounded-2xl border border-primary/10">
             <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-5 px-6">
               <div className="flex items-center gap-3">
@@ -486,6 +486,61 @@ export default function ScreensManagement() {
         </div>
       </div>
 
+      {/* Configure Node Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Configure Node</DialogTitle>
+            <DialogDescription>Modify settings and assigned loops for hardware node {editingScreen?.id}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Node Display Name</Label>
+              <Input 
+                value={localScreenName} 
+                onChange={e => setLocalScreenName(e.target.value)} 
+                placeholder="e.g. Science Hall A"
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assigned Broadcast Loop</Label>
+              <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist}>
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder="Choose a playlist" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {PLAYLISTS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isDeploying && (
+              <div className="space-y-2 pt-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
+                  <span>Deploying Assets...</span>
+                  <span>{deployProgress}%</span>
+                </div>
+                <Progress value={deployProgress} className="h-2" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl">Cancel</Button>
+            <Button 
+              onClick={handleUpdateSpecificScreen} 
+              disabled={isDeploying} 
+              className="rounded-xl px-8 h-11 shadow-lg shadow-primary/20 bg-primary"
+            >
+              {isDeploying ? <RefreshCw className="animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}
+              {isDeploying ? "Pushing Data..." : "Apply & Deploy"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Linking Dialog */}
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="rounded-3xl">
@@ -511,6 +566,27 @@ export default function ScreensManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!screenToDelete} onOpenChange={(open) => !open && setScreenToDelete(null)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black text-red-600">Confirm Decommission</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently sever the link with node {screenToDelete}. The hardware will require re-pairing to reconnect to the network.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)}
+              className="bg-red-600 hover:bg-red-700 rounded-xl"
+            >
+              Confirm Removal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
