@@ -246,7 +246,8 @@ export default function ScreensManagement() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative">
+        {/* Inventory Column */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="border-b bg-muted/30 py-4">
@@ -407,19 +408,19 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
-        {/* Sticky Surveillance Feed Sidebar */}
-        <div className="space-y-6 lg:sticky lg:top-24">
-          <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
-            <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3 px-4">
+        {/* Optimized Sticky Sidebar */}
+        <div className="lg:sticky lg:top-8 space-y-6">
+          <Card className="shadow-2xl overflow-hidden bg-black text-white border-none ring-1 ring-white/20 transform transition-all duration-300 hover:ring-white/40">
+            <CardHeader className="bg-primary/40 backdrop-blur-3xl border-b border-white/10 flex flex-row items-center justify-between py-4 px-5">
               <div className="flex items-center gap-3">
                 <div className={cn(
-                  "w-2.5 h-2.5 rounded-full",
-                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"
+                  "w-3 h-3 rounded-full shadow-[0_0_12px_rgba(255,255,255,0.3)]",
+                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-emerald-500/50" : "bg-red-500 shadow-red-500/50"
                 )} />
-                <CardTitle className="text-[10px] font-black uppercase tracking-widest">Live Surveillance Feed</CardTitle>
+                <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none">Live Telemetry Proxy</CardTitle>
               </div>
-              <Badge variant="outline" className="text-[9px] text-white border-white/20">
-                {selectedScreen?.name || "No Node"}
+              <Badge variant="outline" className="text-[10px] text-white border-white/30 font-bold bg-white/5 backdrop-blur-sm">
+                {selectedScreen?.id || "NO_SIGNAL"}
               </Badge>
             </CardHeader>
             <CardContent className="p-0 relative aspect-video bg-zinc-950">
@@ -427,47 +428,60 @@ export default function ScreensManagement() {
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      <Image src={url} alt="Proxy View" fill className="object-cover opacity-60" unoptimized />
+                      <Image src={url} alt="Signage View" fill className="object-cover opacity-70 scale-105" unoptimized />
                     </div>
                   ))}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-1 pointer-events-none text-left">
-                    <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-1.5">
-                      <Play className="w-3 h-3 fill-accent" /> Active Signal: {selectedScreen?.name}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
+                  <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-1.5 pointer-events-none">
+                    <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-2">
+                      <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> BROADCASTING: {selectedScreen?.name}
                     </p>
-                    <p className="text-sm font-bold truncate">
-                      Looping: {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
+                    <p className="text-base font-black tracking-tight drop-shadow-lg truncate">
+                      {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
                     </p>
+                    <p className="text-[9px] font-mono text-white/40 uppercase tracking-tighter">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/10 italic">
-                  <Monitor className="w-12 h-12" />
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-center">
-                    {selectedScreen?.status === "Offline" ? "Signal Lost: Device Offline" : "Signal Idle: No Active Playlist"}
-                  </p>
+                <div className="w-full h-full flex flex-col items-center justify-center gap-6 text-white/20 italic animate-pulse">
+                  <div className="p-6 rounded-full bg-white/5 border border-white/10">
+                    <Monitor className="w-16 h-16 opacity-30" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-[11px] font-black tracking-[0.3em] uppercase">No Active Link</p>
+                    <p className="text-[9px] font-mono opacity-40">WAITING_FOR_HANDSHAKE...</p>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-muted/50 shadow-sm border-primary/5 overflow-hidden">
-            <CardHeader className="pb-3 border-b bg-muted/20">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                <Signal className="w-4 h-4 text-primary" />
-                Fleet Telemetry
+          <Card className="bg-gradient-to-br from-white to-muted/30 shadow-xl border-primary/10 overflow-hidden group">
+            <CardHeader className="pb-4 border-b bg-muted/40 px-5 transition-colors group-hover:bg-muted/60">
+              <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-primary">
+                <div className="p-1.5 bg-primary/10 rounded-md">
+                   <Signal className="w-4 h-4" />
+                </div>
+                Network Health Matrix
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Last Fleet Scan</span>
-                  <span className="text-xs font-mono font-bold">{scanTime || "--:--:--"}</span>
+            <CardContent className="space-y-6 pt-5 px-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col p-3 rounded-xl bg-white border shadow-sm">
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Fleet Scan</span>
+                  <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Connected</span>
-                  <span className="text-xs font-bold text-emerald-600">{fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} / {fleet.length} Units</span>
+                <div className="flex flex-col p-3 rounded-xl bg-white border shadow-sm text-right">
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
+                  <span className="text-sm font-black text-emerald-600">98.4%</span>
                 </div>
+              </div>
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground/80 px-1">
+                   <span>Resource Load</span>
+                   <span>34%</span>
+                </div>
+                <Progress value={34} className="h-1.5 bg-muted" />
               </div>
             </CardContent>
           </Card>
