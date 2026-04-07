@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -406,6 +407,7 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
+        {/* Sticky Surveillance Feed Sidebar */}
         <div className="space-y-6 lg:sticky lg:top-24">
           <Card className="shadow-xl overflow-hidden bg-black text-white border-none ring-1 ring-white/10">
             <CardHeader className="bg-primary/30 backdrop-blur-xl border-b border-white/10 flex flex-row items-center justify-between py-3 px-4">

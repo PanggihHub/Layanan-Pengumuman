@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -180,6 +181,7 @@ export default function PlaylistsPage() {
     setIsPreviewOpen(true);
   };
 
+  // Optimized selection logic to preserve click order
   const toggleMediaSelection = (id: string) => {
     setSelectedMediaIds(prev => {
       if (prev.includes(id)) {
