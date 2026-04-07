@@ -14,7 +14,8 @@ import {
   Home, 
   LayoutDashboard, 
   X,
-  Maximize2
+  Maximize2,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS, WORSHIP_SCHEDULES } from "@/lib/mock-data";
@@ -25,6 +26,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+// Real-time Widgets
+import { ClockWidget } from "@/components/widgets/clock-widget";
+import { WeatherWidget } from "@/components/widgets/weather-widget";
+import { StocksWidget } from "@/components/widgets/stocks-widget";
 
 export default function DisplayClient() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -109,7 +115,6 @@ export default function DisplayClient() {
       className="signage-full bg-black group transition-all" 
       onMouseMove={() => {
         setIsNavVisible(true);
-        // Hide after 3 seconds of inactivity
         const timeout = setTimeout(() => setIsNavVisible(false), 3000);
         return () => clearTimeout(timeout);
       }}
@@ -119,40 +124,49 @@ export default function DisplayClient() {
         "flex-1 relative overflow-hidden transition-all duration-700",
         displayLayout === 'grid-2x2' && "grid grid-cols-2 grid-rows-2",
         displayLayout === 'split-v' && "grid grid-cols-2",
-        displayLayout === 'split-h' && "grid grid-rows-2"
+        displayLayout === 'split-h' && "grid grid-rows-2",
+        displayLayout === 'widget-hub' && "bg-zinc-900 flex items-center justify-center p-12"
       )}>
-        {displayedItems.map((item, idx) => (
-          <div
-            key={`${item?.id}-${idx}`}
-            className={cn(
-              "relative w-full h-full overflow-hidden border-black transition-opacity duration-1000",
-              displayLayout === 'single' ? "absolute inset-0" : "relative border-2"
-            )}
-          >
-            {item && (
-              <Image
-                src={item.src}
-                alt={item.title}
-                fill
-                priority
-                className="object-cover"
-                unoptimized
-              />
-            )}
-            
-            {showInfoCard && displayLayout === 'single' && (
-              <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl animate-in slide-in-from-left-4 duration-700">
-                <div className="flex items-center gap-3 mb-2">
-                  <Info className="text-accent w-6 h-6" />
-                  <span className="text-accent font-bold tracking-widest uppercase text-xs">Broadcast Feature</span>
-                </div>
-                <h2 className="text-4xl font-extrabold leading-tight drop-shadow-lg">
-                  {item?.title}
-                </h2>
-              </div>
-            )}
+        {displayLayout === 'widget-hub' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl animate-in zoom-in-95 duration-700">
+            <ClockWidget />
+            <WeatherWidget />
+            <StocksWidget />
           </div>
-        ))}
+        ) : (
+          displayedItems.map((item, idx) => (
+            <div
+              key={`${item?.id}-${idx}`}
+              className={cn(
+                "relative w-full h-full overflow-hidden border-black transition-opacity duration-1000",
+                displayLayout === 'single' ? "absolute inset-0" : "relative border-2"
+              )}
+            >
+              {item && (
+                <Image
+                  src={item.src}
+                  alt={item.title}
+                  fill
+                  priority
+                  className="object-cover"
+                  unoptimized
+                />
+              )}
+              
+              {showInfoCard && displayLayout === 'single' && (
+                <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl animate-in slide-in-from-left-4 duration-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Info className="text-accent w-6 h-6" />
+                    <span className="text-accent font-bold tracking-widest uppercase text-xs">Broadcast Feature</span>
+                  </div>
+                  <h2 className="text-4xl font-extrabold leading-tight drop-shadow-lg">
+                    {item?.title}
+                  </h2>
+                </div>
+              )}
+            </div>
+          ))
+        )}
 
         {/* Floating Navigator (Stealth mode) */}
         <div className={cn(

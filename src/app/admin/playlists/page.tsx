@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -23,7 +22,8 @@ import {
   LayoutGrid,
   Columns2,
   Rows2,
-  ArrowRightCircle
+  ArrowRightCircle,
+  Sparkles
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -201,6 +201,7 @@ export default function PlaylistsPage() {
       case 'grid-2x2': return <LayoutGrid className="w-3.5 h-3.5" />;
       case 'split-v': return <Columns2 className="w-3.5 h-3.5" />;
       case 'split-h': return <Rows2 className="w-3.5 h-3.5" />;
+      case 'widget-hub': return <Sparkles className="w-3.5 h-3.5" />;
       default: return <Layout className="w-3.5 h-3.5" />;
     }
   };
@@ -422,6 +423,7 @@ export default function PlaylistsPage() {
                       <SelectItem value="grid-2x2">2x2 Grid</SelectItem>
                       <SelectItem value="split-v">Split Vertical</SelectItem>
                       <SelectItem value="split-h">Split Horizontal</SelectItem>
+                      <SelectItem value="widget-hub">Widget Hub (Real-time)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

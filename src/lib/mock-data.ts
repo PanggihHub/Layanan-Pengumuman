@@ -5,7 +5,7 @@
 
 export type MediaType = 'image' | 'video' | 'document';
 export type MediaSourceOrigin = 'internal' | 'external';
-export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h';
+export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h' | 'widget-hub';
 
 export interface MediaItem {
   id: string;
@@ -183,6 +183,18 @@ export const PLAYLISTS: Playlist[] = [
     showWorship: false,
     showQR: true,
     layout: 'single',
+  },
+  {
+    id: "widget-scene",
+    name: "Information Hub (Widgets)",
+    description: "Real-time Clock, Weather, and Market data hub.",
+    items: ['4', '1'],
+    schedule: "Daily, 07:00 - 22:00",
+    showTicker: true,
+    showInfoCard: true,
+    showWorship: true,
+    showQR: true,
+    layout: 'widget-hub',
   }
 ];
 

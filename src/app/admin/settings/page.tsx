@@ -19,7 +19,8 @@ import {
   Eye,
   EyeOff,
   ScreenShare,
-  Monitor
+  Monitor,
+  Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -86,6 +87,13 @@ export default function SystemConfig() {
             <div className={boxClass} />
           </div>
         )}
+        {layout === 'widget-hub' && (
+          <div className="grid grid-cols-3 gap-1 h-full">
+            <div className={cn(boxClass, "bg-zinc-800")}><Sparkles className="w-3 h-3 text-white" /></div>
+            <div className={cn(boxClass, "bg-sky-600")}><Sparkles className="w-3 h-3 text-white" /></div>
+            <div className={cn(boxClass, "bg-zinc-950")}><Sparkles className="w-3 h-3 text-white" /></div>
+          </div>
+        )}
       </div>
     );
   };
@@ -123,6 +131,7 @@ export default function SystemConfig() {
                       <SelectItem value="grid-2x2">Grid (2x2 Multi-Feed)</SelectItem>
                       <SelectItem value="split-v">Split Vertical (Left/Right)</SelectItem>
                       <SelectItem value="split-h">Split Horizontal (Top/Bottom)</SelectItem>
+                      <SelectItem value="widget-hub">Widget Hub (Real-time Hub)</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-muted-foreground italic mt-2 bg-primary/5 p-2 rounded">Note: Visibility toggles (Ticker, QR, etc.) are now managed per sequence in the Playlists menu for granular control.</p>
