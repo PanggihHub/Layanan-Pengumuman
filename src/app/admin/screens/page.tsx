@@ -80,7 +80,6 @@ export default function ScreensManagement() {
   const [editingScreen, setEditingScreen] = useState<ScreenStatus | null>(null);
   const [localScreenPlaylist, setLocalScreenPlaylist] = useState("");
   const [localScreenName, setLocalScreenName] = useState("");
-  const [integritySetting, setIntegritySetting] = useState("standard");
 
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [pairingCode, setPairingCode] = useState("");
@@ -246,7 +245,6 @@ export default function ScreensManagement() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative">
-        {/* Inventory Column */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="border-b bg-muted/30 py-4">
@@ -407,18 +405,17 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
-        {/* Optimized Sticky Sidebar */}
         <div className="lg:sticky lg:top-8 space-y-6">
-          <Card className="shadow-2xl overflow-hidden bg-black text-white border-none ring-1 ring-white/20 transform transition-all duration-300 hover:ring-white/40 rounded-[2.5rem]">
-            <CardHeader className="bg-primary/40 backdrop-blur-3xl border-b border-white/10 flex flex-row items-center justify-between py-5 px-6">
+          <Card className="shadow-2xl overflow-hidden rounded-3xl border border-primary/10">
+            <CardHeader className="bg-primary/5 border-b flex flex-row items-center justify-between py-5 px-6">
               <div className="flex items-center gap-3">
                 <div className={cn(
-                  "w-3 h-3 rounded-full shadow-[0_0_12px_rgba(255,255,255,0.3)]",
-                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-emerald-500/50" : "bg-red-500 shadow-red-500/50"
+                  "w-3 h-3 rounded-full",
+                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse" : "bg-red-500"
                 )} />
-                <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none">Live Telemetry Proxy</CardTitle>
+                <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none text-primary">Live Telemetry Proxy</CardTitle>
               </div>
-              <Badge variant="outline" className="text-[10px] text-white border-white/30 font-bold bg-white/5 backdrop-blur-sm">
+              <Badge variant="outline" className="text-[10px] font-bold bg-white">
                 {selectedScreen?.id || "NO_SIGNAL"}
               </Badge>
             </CardHeader>
@@ -427,7 +424,7 @@ export default function ScreensManagement() {
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      <Image src={url} alt="Signage View" fill className="object-cover opacity-70 scale-105" unoptimized />
+                      <Image src={url} alt="Signage View" fill className="object-cover opacity-70" unoptimized />
                     </div>
                   ))}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
@@ -435,7 +432,7 @@ export default function ScreensManagement() {
                     <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-2">
                       <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> BROADCASTING: {selectedScreen?.name}
                     </p>
-                    <p className="text-base font-black tracking-tight drop-shadow-lg truncate">
+                    <p className="text-base font-black tracking-tight drop-shadow-lg truncate text-white">
                       {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
                     </p>
                     <p className="text-[9px] font-mono text-white/40 uppercase tracking-tighter">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
@@ -455,8 +452,8 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-white to-muted/30 shadow-xl border-primary/10 overflow-hidden group rounded-[2.5rem]">
-            <CardHeader className="pb-4 border-b bg-muted/40 px-6 transition-colors group-hover:bg-muted/60">
+          <Card className="bg-white shadow-xl border-primary/10 overflow-hidden group rounded-3xl">
+            <CardHeader className="pb-4 border-b bg-muted/20 px-6">
               <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-primary">
                 <div className="p-1.5 bg-primary/10 rounded-md">
                    <Signal className="w-4 h-4" />
@@ -466,11 +463,11 @@ export default function ScreensManagement() {
             </CardHeader>
             <CardContent className="space-y-6 pt-5 px-6 pb-8">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col p-4 rounded-3xl bg-white border shadow-sm">
+                <div className="flex flex-col p-4 rounded-2xl bg-muted/30 border shadow-sm">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Fleet Scan</span>
                   <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
-                <div className="flex flex-col p-4 rounded-3xl bg-white border shadow-sm text-right">
+                <div className="flex flex-col p-4 rounded-2xl bg-muted/30 border shadow-sm text-right">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
                   <span className="text-sm font-black text-emerald-600">98.4%</span>
                 </div>

@@ -18,7 +18,6 @@ export function StocksWidget() {
   useEffect(() => {
     async function fetchMarkets() {
       try {
-        // Using CoinGecko as a real-time free keyless source, mapped to look like a stock feed
         const res = await fetch(
           "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,cardano&vs_currencies=usd&include_24hr_change=true"
         );
@@ -38,12 +37,12 @@ export function StocksWidget() {
     }
 
     fetchMarkets();
-    const interval = setInterval(fetchMarkets, 30000); // Update every 30s
+    const interval = setInterval(fetchMarkets, 30000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="w-full aspect-square bg-zinc-950 rounded-[2.5rem] p-8 flex flex-col justify-between shadow-2xl border border-white/5 text-white">
+    <div className="w-full aspect-square bg-zinc-950 rounded-3xl p-8 flex flex-col justify-between shadow-2xl border border-white/5 text-white">
       <div className="flex flex-col gap-6 h-full justify-center">
         {loading ? (
           <div className="space-y-6 animate-pulse">

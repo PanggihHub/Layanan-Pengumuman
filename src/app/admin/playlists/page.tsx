@@ -44,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { 
   Select, 
@@ -213,12 +212,12 @@ export default function PlaylistsPage() {
           <h1 className="text-3xl font-bold text-primary">Content Playlists</h1>
           <p className="text-muted-foreground">Manage sequences and schedule your broadcast library.</p>
         </div>
-        <Button onClick={openAddDialog} className="bg-primary gap-2">
+        <Button onClick={openAddDialog} className="bg-primary gap-2 h-11 px-6 shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4" /> Create Sequence
         </Button>
       </div>
 
-      <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 w-full md:w-96 shadow-sm">
+      <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 w-full md:w-96 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
         <Search className="w-4 h-4 text-muted-foreground" />
         <input 
           type="text" 
@@ -241,14 +240,14 @@ export default function PlaylistsPage() {
           
           return (
             <Card key={playlist.id} className={cn(
-              "group transition-all overflow-hidden flex flex-col border-2",
-              isActive ? "border-accent ring-4 ring-accent/5 bg-accent/5" : "border-transparent hover:border-primary/20",
+              "group transition-all overflow-hidden flex flex-col border shadow-sm rounded-2xl",
+              isActive ? "border-accent ring-2 ring-accent/20 bg-accent/5" : "hover:border-primary/30 hover:shadow-md",
               isSystem && "bg-muted/10 border-dashed border-muted-foreground/30"
             )}>
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
                   <div className={cn(
-                    "p-2 rounded-lg",
+                    "p-2.5 rounded-xl transition-colors",
                     isActive ? "bg-accent text-primary" : "bg-muted text-muted-foreground",
                     isSystem && "bg-primary/10 text-primary"
                   )}>
@@ -257,72 +256,72 @@ export default function PlaylistsPage() {
                   {!isSystem && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/50">
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(playlist)}>
-                          <Edit2 className="w-4 h-4 mr-2" /> Edit sequence
+                      <DropdownMenuContent align="end" className="w-48 rounded-xl p-2">
+                        <DropdownMenuItem onClick={() => openEditDialog(playlist)} className="rounded-lg gap-2 p-2.5">
+                          <Edit2 className="w-4 h-4" /> Edit Sequence
                         </DropdownMenuItem>
                         {!isActive && (
-                          <DropdownMenuItem onClick={() => handleActivate(playlist.id)}>
-                            <Radio className="w-4 h-4 mr-2" /> Activate Loop
+                          <DropdownMenuItem onClick={() => handleActivate(playlist.id)} className="rounded-lg gap-2 p-2.5">
+                            <Radio className="w-4 h-4" /> Set Live
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem onClick={() => handleDelete(playlist.id)} className="text-red-600">
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        <DropdownMenuItem onClick={() => handleDelete(playlist.id)} className="text-red-600 rounded-lg gap-2 p-2.5">
+                          <Trash2 className="w-4 h-4" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
                   {isSystem && (
-                    <Badge variant="outline" className="text-[10px] font-bold tracking-widest bg-white">PROTECTED</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold tracking-widest bg-white border-primary/20 text-primary">SYSTEM</Badge>
                   )}
                 </div>
-                <CardTitle className="mt-4 flex items-center gap-2">
+                <CardTitle className="mt-4 flex items-center gap-2 text-xl tracking-tight">
                   {playlist.name}
-                  {isActive && <Badge className="bg-accent text-primary text-[10px] font-bold">LIVE</Badge>}
+                  {isActive && <Badge className="bg-accent text-primary text-[10px] font-bold border-none">ACTIVE</Badge>}
                 </CardTitle>
-                <CardDescription className="line-clamp-3 min-h-[4.5rem] mt-2 text-sm text-muted-foreground">
+                <CardDescription className="line-clamp-3 min-h-[4.5rem] mt-2 text-sm text-muted-foreground leading-relaxed">
                   {playlist.description || "No internal description provided for this sequence loop."}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 flex-1">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 p-2 rounded-md border border-dashed">
-                    <CalendarDays className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-medium truncate">{playlist.schedule || "No schedule set"}</span>
+              <CardContent className="space-y-5 flex-1 pt-2">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[11px] text-primary/70 bg-primary/5 p-2.5 rounded-xl border border-primary/10">
+                    <CalendarDays className="w-4 h-4" />
+                    <span className="font-bold truncate">{playlist.schedule || "No schedule set"}</span>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
-                    <div className="flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>{playlist.items.length} items</span>
+                  <div className="flex items-center gap-6 text-[11px] font-bold text-muted-foreground/80 px-1">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 opacity-50" />
+                      <span>{playlist.items.length} Assets</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>~{playlist.items.length * 8}s cycle</span>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 opacity-50" />
+                      <span>{playlist.items.length * 8}s Loop</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1 items-center">
-                  {playlist.showTicker && <Badge variant="secondary" className="text-[8px]">Ticker</Badge>}
-                  {playlist.showInfoCard && <Badge variant="secondary" className="text-[8px]">Info</Badge>}
-                  {playlist.showWorship && <Badge variant="secondary" className="text-[8px]">Worship</Badge>}
-                  {playlist.showQR && <Badge variant="secondary" className="text-[8px]">QR</Badge>}
-                  <Badge className="bg-primary/10 text-primary border-none text-[8px] uppercase gap-1">
+                <div className="flex flex-wrap gap-1.5">
+                  {playlist.showTicker && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">Ticker</Badge>}
+                  {playlist.showInfoCard && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">Info</Badge>}
+                  {playlist.showWorship && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">Worship</Badge>}
+                  {playlist.showQR && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">QR</Badge>}
+                  <Badge className="bg-primary/10 text-primary border-none text-[9px] uppercase gap-1 rounded-md py-0 px-1.5 h-5">
                     {getLayoutIcon(playlist.layout)}
                     {playlist.layout || 'single'}
                   </Badge>
                 </div>
 
-                <div className="flex -space-x-2 overflow-hidden py-1 px-1">
-                  {playlist.items.slice(0, 4).map((itemId, i) => {
+                <div className="flex -space-x-3 overflow-hidden py-1">
+                  {playlist.items.slice(0, 5).map((itemId, i) => {
                     const media = INITIAL_MEDIA.find(m => m.id === itemId);
                     return (
-                      <div key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-muted overflow-hidden relative">
+                      <div key={i} className="inline-block h-9 w-9 rounded-full ring-2 ring-white bg-muted overflow-hidden relative shadow-sm">
                         {media ? (
                           <Image src={media.url} alt="" fill className="object-cover" unoptimized />
                         ) : (
@@ -331,30 +330,30 @@ export default function PlaylistsPage() {
                       </div>
                     );
                   })}
-                  {playlist.items.length > 4 && (
-                    <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-primary text-white flex items-center justify-center text-[10px] font-bold">
-                      +{playlist.items.length - 4}
+                  {playlist.items.length > 5 && (
+                    <div className="inline-block h-9 w-9 rounded-full ring-2 ring-white bg-primary text-white flex items-center justify-center text-[11px] font-black shadow-sm">
+                      +{playlist.items.length - 5}
                     </div>
                   )}
                 </div>
               </CardContent>
-              <CardFooter className="px-6 py-4 bg-muted/20 border-t flex items-center justify-between">
+              <CardFooter className="px-6 py-4 bg-muted/20 border-t flex items-center justify-between gap-3">
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => openPreview(playlist)}
-                  className="gap-2 text-primary hover:bg-primary/5"
+                  className="gap-2 text-primary hover:bg-primary/10 rounded-lg flex-1 font-bold h-9"
                 >
-                  <Eye className="w-3.5 h-3.5" /> Quick Preview
+                  <Eye className="w-4 h-4" /> Preview
                 </Button>
                 {isActive ? (
-                  <Badge variant="secondary" className="bg-primary/10 text-primary">In Use</Badge>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black text-[10px] h-9 px-4 rounded-lg flex-1 justify-center">LIVE FEED</Badge>
                 ) : (
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleActivate(playlist.id)}
-                    className="text-xs h-8 border-accent text-primary hover:bg-accent/10"
+                    className="flex-1 text-[11px] h-9 border-accent text-primary hover:bg-accent/20 rounded-lg font-black uppercase tracking-tighter"
                   >
                     Set Live
                   </Button>
@@ -366,110 +365,112 @@ export default function PlaylistsPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle>{dialogMode === "add" ? "New Sequence" : "Modify Sequence"}</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-tight">{dialogMode === "add" ? "Create New Sequence" : "Modify Sequence"}</DialogTitle>
             <DialogDescription>
               Configure sequence name, broadcast schedule, and display overlays.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+          <div className="space-y-8 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-5">
                  <div className="space-y-2">
-                  <Label htmlFor="playlist-name">Sequence Title</Label>
+                  <Label htmlFor="playlist-name" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Sequence Title</Label>
                   <Input 
                     id="playlist-name" 
                     value={newName} 
                     onChange={(e) => setNewName(e.target.value)} 
                     placeholder="e.g. Afternoon Info Loop"
+                    className="h-11 rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="playlist-schedule">Broadcast Window (Schedule)</Label>
+                  <Label htmlFor="playlist-schedule" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Broadcast Window</Label>
                   <Input 
                     id="playlist-schedule" 
                     value={newSchedule} 
                     onChange={(e) => setNewSchedule(e.target.value)} 
                     placeholder="e.g. Mon-Fri, 08:00 - 18:00"
+                    className="h-11 rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="playlist-desc">Internal Description</Label>
+                  <Label htmlFor="playlist-desc" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Internal Description</Label>
                   <Textarea 
                     id="playlist-desc" 
                     value={newDesc} 
                     onChange={(e) => setNewDesc(e.target.value)} 
-                    placeholder="e.g. For library screens only"
-                    className="h-20"
+                    placeholder="Describe the purpose of this sequence..."
+                    className="h-24 rounded-xl resize-none"
                   />
                 </div>
               </div>
 
-              <div className="space-y-4 bg-muted/30 p-4 rounded-xl border border-dashed">
+              <div className="space-y-5 bg-primary/5 p-6 rounded-3xl border border-primary/10">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary mb-2">
-                  <Layout className="w-4 h-4" /> Display Overlay & Layout
+                  <Layout className="w-5 h-5" /> UI Architecture
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Screen Layout</Label>
+                  <Label className="text-xs font-bold text-primary/70">Master Screen Layout</Label>
                   <Select value={layout} onValueChange={(v: any) => setLayout(v)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl bg-white border-primary/10">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl">
                       <SelectItem value="single">Single Rotation</SelectItem>
-                      <SelectItem value="grid-2x2">2x2 Grid</SelectItem>
+                      <SelectItem value="grid-2x2">2x2 Multi-Grid</SelectItem>
                       <SelectItem value="split-v">Split Vertical</SelectItem>
                       <SelectItem value="split-h">Split Horizontal</SelectItem>
-                      <SelectItem value="widget-hub">Widget Hub (Real-time)</SelectItem>
+                      <SelectItem value="widget-hub">Widget Hub (Dynamic)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
-                    <Label className="text-[10px] font-bold">Bottom Ticker</Label>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-primary/5 shadow-sm">
+                    <Label className="text-[11px] font-bold text-primary/80">Ticker</Label>
                     <Switch checked={showTicker} onCheckedChange={setShowTicker} />
                   </div>
-                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
-                    <Label className="text-[10px] font-bold">Info Overlays</Label>
+                  <div className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-primary/5 shadow-sm">
+                    <Label className="text-[11px] font-bold text-primary/80">Info Cards</Label>
                     <Switch checked={showInfoCard} onCheckedChange={setShowInfoCard} />
                   </div>
-                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
-                    <Label className="text-[10px] font-bold">Worship Widget</Label>
+                  <div className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-primary/5 shadow-sm">
+                    <Label className="text-[11px] font-bold text-primary/80">Worship</Label>
                     <Switch checked={showWorship} onCheckedChange={setShowWorship} />
                   </div>
-                  <div className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
-                    <Label className="text-[10px] font-bold">Interactive QR</Label>
+                  <div className="flex items-center justify-between gap-2 p-3 bg-white rounded-2xl border border-primary/5 shadow-sm">
+                    <Label className="text-[11px] font-bold text-primary/80">QR Sync</Label>
                     <Switch checked={showQR} onCheckedChange={setShowQR} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <Separator />
+            <Separator className="opacity-50" />
 
-            <div className="space-y-3">
+            <div className="space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <Label className="text-primary font-bold">Sequential Media Selection ({selectedMediaIds.length})</Label>
-                  <p className="text-[10px] text-muted-foreground italic mt-0.5">Selection order is strictly preserved. Click to add/remove.</p>
+                  <Label className="text-primary font-black text-sm uppercase tracking-tight">Loop Sequence Editor ({selectedMediaIds.length})</Label>
+                  <p className="text-[11px] text-muted-foreground mt-1">Order is preserved based on selection. Tap items to toggle.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                  <Input 
-                    placeholder="Find media..." 
-                    className="w-48 h-8 text-xs"
+                <div className="flex items-center gap-3 bg-muted/40 px-4 py-2 rounded-2xl border">
+                  <Search className="w-4 h-4 text-muted-foreground" />
+                  <input 
+                    placeholder="Find media assets..." 
+                    className="bg-transparent text-sm border-none outline-none w-48"
                     value={mediaSearch}
                     onChange={(e) => setMediaSearch(e.target.value)}
                   />
                 </div>
               </div>
               
-              <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted/10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <ScrollArea className="h-[350px] rounded-3xl border p-5 bg-muted/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {filteredMediaForSelection.map((item) => {
                     const selIndex = getSelectionIndex(item.id);
                     const isSelected = !!selIndex;
@@ -478,30 +479,30 @@ export default function PlaylistsPage() {
                       <div 
                         key={item.id} 
                         className={cn(
-                          "flex flex-col gap-2 p-3 rounded-lg border bg-white transition-all cursor-pointer relative group",
-                          isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:border-primary/30"
+                          "flex flex-col gap-2 p-3 rounded-2xl border bg-white transition-all cursor-pointer relative group",
+                          isSelected ? "border-primary bg-primary/5 ring-4 ring-primary/5" : "hover:border-primary/40 hover:shadow-lg"
                         )}
                         onClick={() => toggleMediaSelection(item.id)}
                       >
                         {isSelected && (
-                          <div className="absolute top-2 left-2 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-black z-20 shadow-lg border-2 border-white animate-in zoom-in-50">
+                          <div className="absolute top-2 left-2 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center text-[11px] font-black z-20 shadow-xl border-2 border-white animate-in zoom-in-75">
                             {selIndex}
                           </div>
                         )}
                         <div className={cn(
-                          "relative aspect-video w-full rounded-md overflow-hidden bg-muted border-2 transition-colors",
+                          "relative aspect-video w-full rounded-xl overflow-hidden bg-muted border-2 transition-all",
                           isSelected ? "border-primary" : "border-transparent"
                         )}>
                           <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
                           {isSelected && (
-                            <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+                            <div className="absolute inset-0 bg-primary/20 pointer-events-none" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold truncate">{item.name}</p>
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-[9px] text-muted-foreground uppercase">{item.type}</p>
-                            {isSelected && <ArrowRightCircle className="w-3.5 h-3.5 text-primary" />}
+                          <p className="text-[11px] font-black truncate text-primary/80">{item.name}</p>
+                          <div className="flex items-center justify-between mt-1 opacity-60">
+                            <p className="text-[10px] uppercase font-bold tracking-widest">{item.type}</p>
+                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
                           </div>
                         </div>
                       </div>
@@ -511,22 +512,22 @@ export default function PlaylistsPage() {
               </ScrollArea>
               
               {selectedMediaIds.length > 0 && (
-                <div className="p-4 bg-primary/5 rounded-xl border border-dashed border-primary/20 space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-                    <Radio className="w-4 h-4 animate-pulse" /> Live Loop Sequence
+                <div className="p-5 bg-primary/5 rounded-[2rem] border border-dashed border-primary/30 space-y-4 animate-in slide-in-from-bottom-4">
+                  <div className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em] text-primary">
+                    <Radio className="w-5 h-5 animate-pulse" /> Final Playback Order
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2.5">
                     {selectedMediaIds.map((id, idx) => {
                       const media = INITIAL_MEDIA.find(m => m.id === id);
                       return (
-                        <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border shadow-sm text-xs font-bold animate-in slide-in-from-left-2">
-                          <span className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
-                          <span className="max-w-[120px] truncate">{media?.name}</span>
+                        <div key={idx} className="flex items-center gap-2.5 bg-white px-4 py-2 rounded-2xl border shadow-sm text-xs font-bold hover:scale-105 transition-transform">
+                          <span className="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
+                          <span className="max-w-[140px] truncate">{media?.name}</span>
                           <button 
                             onClick={(e) => { e.stopPropagation(); toggleMediaSelection(id); }}
-                            className="text-muted-foreground hover:text-red-500 ml-1"
+                            className="text-muted-foreground hover:text-red-500 ml-1 transition-colors"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       );
@@ -537,21 +538,20 @@ export default function PlaylistsPage() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSavePlaylist} className="gap-2 px-8">
-              {dialogMode === "add" ? <Plus className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-              {dialogMode === "add" ? "Create Sequence" : "Confirm Changes"}
+          <DialogFooter className="border-t pt-6 gap-3">
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl h-12 px-6">Cancel</Button>
+            <Button onClick={handleSavePlaylist} className="gap-2 h-12 px-10 rounded-xl bg-primary shadow-xl shadow-primary/20 font-black uppercase tracking-tighter">
+              {dialogMode === "add" ? <Plus className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              {dialogMode === "add" ? "Create Sequence" : "Push Updates"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black">
+        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black rounded-[2rem]">
           <DialogHeader className="sr-only">
-            <DialogTitle>Playlist Preview: {currentPlaylist?.name}</DialogTitle>
-            <DialogDescription>Previewing the media loop for the {currentPlaylist?.name} sequence.</DialogDescription>
+            <DialogTitle>Preview</DialogTitle>
           </DialogHeader>
           <div className="relative group">
             <Carousel className="w-full">
@@ -572,21 +572,25 @@ export default function PlaylistsPage() {
                         ) : (
                           <p className="text-white opacity-50">Media Unavailable</p>
                         )}
-                        <div className="absolute bottom-6 left-6 right-6 p-4 bg-black/60 backdrop-blur-md rounded-xl text-white border border-white/10">
-                          <div className="flex items-center gap-2 mb-2">
-                             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Sequence Step {index + 1} of {currentPlaylist.items.length}</p>
+                        <div className="absolute bottom-8 left-8 right-8 p-6 bg-black/40 backdrop-blur-2xl rounded-3xl text-white border border-white/10 shadow-2xl">
+                          <div className="flex items-center gap-3 mb-3">
+                             <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse shadow-[0_0_10px_var(--accent)]" />
+                             <p className="text-[11px] font-black uppercase tracking-[0.3em] text-accent">Sequence {index + 1} • {currentPlaylist.items.length}</p>
                           </div>
-                          <h4 className="text-2xl font-black tracking-tight">{media?.name}</h4>
-                          <p className="text-xs text-white/60 mt-1 uppercase font-bold tracking-widest">{media?.type} • Standard Duration</p>
+                          <h4 className="text-3xl font-black tracking-tight leading-none">{media?.name}</h4>
+                          <div className="flex items-center gap-4 mt-3 opacity-60">
+                            <span className="text-[10px] uppercase font-bold tracking-widest">{media?.type}</span>
+                            <Separator orientation="vertical" className="h-3 bg-white/20" />
+                            <span className="text-[10px] uppercase font-bold tracking-widest">8 Second Exposure</span>
+                          </div>
                         </div>
                       </div>
                     </CarouselItem>
                   );
                 })}
               </CarouselContent>
-              <CarouselPrevious className="left-4 bg-white/10 border-white/20 text-white hover:bg-white/20" />
-              <CarouselNext className="right-4 bg-white/10 border-white/20 text-white hover:bg-white/20" />
+              <CarouselPrevious className="left-6 bg-white/10 border-white/20 text-white hover:bg-white/30 h-12 w-12" />
+              <CarouselNext className="right-6 bg-white/10 border-white/20 text-white hover:bg-white/30 h-12 w-12" />
             </Carousel>
           </div>
         </DialogContent>

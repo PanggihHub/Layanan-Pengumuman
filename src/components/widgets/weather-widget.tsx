@@ -48,9 +48,8 @@ export function WeatherWidget() {
   }, []);
 
   return (
-    <div className="w-full aspect-square bg-zinc-950 rounded-[2.5rem] p-4 grid grid-cols-2 gap-4 shadow-2xl border border-white/5 overflow-hidden">
-      {/* Primary Location Card (Blue iOS Style) */}
-      <div className="bg-sky-500 rounded-[2rem] p-5 flex flex-col justify-between text-white relative group overflow-hidden">
+    <div className="w-full aspect-square bg-zinc-950 rounded-3xl p-4 grid grid-cols-2 gap-4 shadow-2xl border border-white/5 overflow-hidden">
+      <div className="bg-sky-500 rounded-3xl p-5 flex flex-col justify-between text-white relative group overflow-hidden">
         <div className="relative z-10">
           <p className="text-[10px] font-black uppercase tracking-widest leading-none">Yogyakarta</p>
           <p className="text-4xl font-bold tracking-tighter mt-1">{data?.current || "--"}°</p>
@@ -66,8 +65,7 @@ export function WeatherWidget() {
         <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Secondary Location Card (Dark iOS Style) */}
-      <div className="bg-zinc-900 rounded-[2rem] p-5 flex flex-col justify-between text-white border border-white/5">
+      <div className="bg-zinc-900 rounded-3xl p-5 flex flex-col justify-between text-white border border-white/5">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest opacity-40 leading-none">New York</p>
           <p className="text-4xl font-bold tracking-tighter mt-1">1°</p>

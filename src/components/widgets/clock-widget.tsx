@@ -32,10 +32,7 @@ export function ClockWidget() {
           hour12: false,
         });
 
-        // Get time string
         const timeStr = formatter.format(now);
-        
-        // Calculate offset (rough estimation for display)
         const localTime = new Date();
         const targetTime = new Date(localTime.toLocaleString("en-US", { timeZone: clock.timezone }));
         const diffHrs = Math.floor((targetTime.getTime() - localTime.getTime()) / (1000 * 60 * 60));
@@ -56,7 +53,7 @@ export function ClockWidget() {
   }, []);
 
   return (
-    <div className="w-full aspect-square bg-zinc-900 rounded-[2.5rem] p-8 flex flex-col justify-between shadow-2xl border border-white/5">
+    <div className="w-full aspect-square bg-zinc-900 rounded-3xl p-8 flex flex-col justify-between shadow-2xl border border-white/5">
       <div className="flex flex-col h-full justify-center">
         <div className="grid grid-cols-4 gap-2">
           {CLOCKS.map((clock) => (
