@@ -22,7 +22,9 @@ import {
   Monitor,
   Sparkles,
   CloudSun,
-  MapPin
+  MapPin,
+  Globe,
+  Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
