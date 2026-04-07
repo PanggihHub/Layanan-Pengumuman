@@ -20,7 +20,9 @@ import {
   EyeOff,
   ScreenShare,
   Monitor,
-  Sparkles
+  Sparkles,
+  CloudSun,
+  MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -45,13 +47,28 @@ export default function SystemConfig() {
   // Display Controls (Master Defaults)
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(SCREEN_SETTINGS.displayLayout);
 
+  // Weather Settings
+  const [weatherCity, setWeatherCity] = useState(SCREEN_SETTINGS.weatherCity);
+  const [weatherLat, setWeatherLat] = useState(SCREEN_SETTINGS.weatherLat.toString());
+  const [weatherLng, setWeatherLng] = useState(SCREEN_SETTINGS.weatherLng.toString());
+  const [weatherCitySec, setWeatherCitySec] = useState(SCREEN_SETTINGS.weatherCitySecondary);
+  const [weatherLatSec, setWeatherLatSec] = useState(SCREEN_SETTINGS.weatherLatSecondary.toString());
+  const [weatherLngSec, setWeatherLngSec] = useState(SCREEN_SETTINGS.weatherLngSecondary.toString());
+
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const handleSave = () => {
     setIsSaving(true);
-    // Simulate updating mock DB
+    
+    // Persist to Mock Data
     SCREEN_SETTINGS.displayLayout = displayLayout;
+    SCREEN_SETTINGS.weatherCity = weatherCity;
+    SCREEN_SETTINGS.weatherLat = parseFloat(weatherLat);
+    SCREEN_SETTINGS.weatherLng = parseFloat(weatherLng);
+    SCREEN_SETTINGS.weatherCitySecondary = weatherCitySec;
+    SCREEN_SETTINGS.weatherLatSecondary = parseFloat(weatherLatSec);
+    SCREEN_SETTINGS.weatherLngSecondary = parseFloat(weatherLngSec);
 
     setTimeout(() => {
       setIsSaving(false);
@@ -99,7 +116,7 @@ export default function SystemConfig() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <div>
         <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
           <Settings className="w-8 h-8 text-accent" />
@@ -109,7 +126,8 @@ export default function SystemConfig() {
       </div>
 
       <div className="grid gap-6">
-        <Card className="border-primary/10 shadow-sm overflow-hidden">
+        {/* Signage Layout Card */}
+        <Card className="border-primary/10 shadow-sm overflow-hidden rounded-2xl">
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Layout className="w-5 h-5 text-accent" />
@@ -123,7 +141,7 @@ export default function SystemConfig() {
                 <div className="space-y-2">
                   <Label>Master Fallback Layout</Label>
                   <Select value={displayLayout} onValueChange={(v: any) => setDisplayLayout(v)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select Layout" />
                     </SelectTrigger>
                     <SelectContent>
@@ -152,7 +170,68 @@ export default function SystemConfig() {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10 shadow-sm">
+        {/* Weather Configuration Card */}
+        <Card className="border-primary/10 shadow-sm overflow-hidden rounded-2xl">
+          <CardHeader className="bg-muted/30">
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <CloudSun className="w-5 h-5 text-accent" />
+              Weather & Forecast Settings
+            </CardTitle>
+            <CardDescription>Customize the geographic targets for the real-time weather widgets.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Primary Location */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary">
+                  <MapPin className="w-4 h-4" /> Primary Location (Main)
+                </div>
+                <div className="space-y-2">
+                  <Label>City Name</Label>
+                  <Input value={weatherCity} onChange={e => setWeatherCity(e.target.value)} placeholder="e.g. Yogyakarta" className="rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Latitude</Label>
+                    <Input value={weatherLat} onChange={e => setWeatherLat(e.target.value)} type="number" step="any" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Longitude</Label>
+                    <Input value={weatherLng} onChange={e => setWeatherLng(e.target.value)} type="number" step="any" className="rounded-xl" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Location */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                  <Globe className="w-4 h-4" /> Secondary Location (Global)
+                </div>
+                <div className="space-y-2">
+                  <Label>City Name</Label>
+                  <Input value={weatherCitySec} onChange={e => setWeatherCitySec(e.target.value)} placeholder="e.g. New York" className="rounded-xl" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Latitude</Label>
+                    <Input value={weatherLatSec} onChange={e => setWeatherLatSec(e.target.value)} type="number" step="any" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Longitude</Label>
+                    <Input value={weatherLngSec} onChange={e => setWeatherLngSec(e.target.value)} type="number" step="any" className="rounded-xl" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-primary/5 p-4 rounded-xl border border-dashed text-[10px] text-muted-foreground flex gap-3 items-start">
+              <Info className="w-4 h-4 text-primary shrink-0" />
+              <p>The weather widget uses high-precision GPS coordinates to fetch local conditions. Ensure the City Name matches your administrative location records for consistency.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cloud Infrastructure Card */}
+        <Card className="border-primary/10 shadow-sm rounded-2xl overflow-hidden">
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Server className="w-5 h-5" />
@@ -164,23 +243,23 @@ export default function SystemConfig() {
             <div className="space-y-2">
               <Label>Cloud Sync Endpoint</Label>
               <div className="flex gap-2">
-                <Input value={syncUrl} onChange={e => setSyncUrl(e.target.value)} className="font-mono text-sm" />
-                <Button variant="outline" size="icon"><RefreshCw className="w-4 h-4" /></Button>
+                <Input value={syncUrl} onChange={e => setSyncUrl(e.target.value)} className="font-mono text-sm rounded-xl" />
+                <Button variant="outline" size="icon" className="rounded-xl"><RefreshCw className="w-4 h-4" /></Button>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><Timer className="w-4 h-4 text-accent" /> Device Heartbeat (Sec)</Label>
-                <Input type="number" value={heartbeat} onChange={e => setHeartbeat(e.target.value)} />
+                <Input type="number" value={heartbeat} onChange={e => setHeartbeat(e.target.value)} className="rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><Cloud className="w-4 h-4 text-accent" /> Session Duration (Min)</Label>
-                <Input type="number" value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} />
+                <Input type="number" value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} className="rounded-xl" />
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-dashed">
+            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-dashed">
               <div className="space-y-0.5">
                 <p className="text-sm font-bold">Auto-Publish Updates</p>
                 <p className="text-xs text-muted-foreground">Automatically push changes to screens without manual sync.</p>
@@ -191,8 +270,8 @@ export default function SystemConfig() {
         </Card>
 
         <div className="flex justify-end gap-3 pt-4">
-          <Button variant="ghost" onClick={() => window.location.reload()}>Discard Changes</Button>
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2 px-8">
+          <Button variant="ghost" onClick={() => window.location.reload()} className="rounded-xl">Discard Changes</Button>
+          <Button onClick={handleSave} disabled={isSaving} className="gap-2 px-8 rounded-xl h-11 shadow-lg shadow-primary/20">
             {isSaving ? <RefreshCw className="animate-spin" /> : <Save />}
             Apply Global Config
           </Button>

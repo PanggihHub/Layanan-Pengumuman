@@ -144,6 +144,13 @@ export const SCREEN_SETTINGS = {
   showInfoCard: true,
   showWorship: true,
   showQR: true,
+  // Weather Settings
+  weatherLat: -7.78,
+  weatherLng: 110.38,
+  weatherCity: "Yogyakarta",
+  weatherLatSecondary: 40.71,
+  weatherLngSecondary: -74.00,
+  weatherCitySecondary: "New York",
 };
 
 export const PLAYLISTS: Playlist[] = [
@@ -163,7 +170,7 @@ export const PLAYLISTS: Playlist[] = [
   {
     id: "default-1",
     name: "Standard Campus Loop",
-    description: "Main rotation for general announcements and science facts.",
+    description: "Main rotation for general announcements and science facts across the campus network.",
     items: ['1', '2', '3', '5', '4', '1'],
     schedule: "Mon-Fri, 08:00 - 18:00",
     showTicker: true,
@@ -175,7 +182,7 @@ export const PLAYLISTS: Playlist[] = [
   {
     id: "default-2",
     name: "Quiet Study",
-    description: "Calm visuals and library-specific information for study zones.",
+    description: "Calm visuals and library-specific information for designated study zones and digital quiet areas.",
     items: ['3', '5'],
     schedule: "Mon-Sat, 09:00 - 21:00",
     showTicker: false,
@@ -187,7 +194,7 @@ export const PLAYLISTS: Playlist[] = [
   {
     id: "widget-scene",
     name: "Information Hub (Widgets)",
-    description: "Real-time Clock, Weather, and Market data hub.",
+    description: "Real-time Clock, Weather, and Market data hub designed for high-traffic entry points.",
     items: ['4', '1'],
     schedule: "Daily, 07:00 - 22:00",
     showTicker: true,

@@ -22,7 +22,8 @@ import {
   Search,
   Zap,
   UploadCloud,
-  Edit
+  Edit,
+  Info
 } from "lucide-react";
 import { 
   Select, 
@@ -233,11 +234,11 @@ export default function ScreensManagement() {
           <p className="text-muted-foreground">Manage device-specific configurations and worship loops.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="bg-white" onClick={() => setIsLinkDialogOpen(true)}>
+          <Button variant="outline" className="bg-white rounded-xl" onClick={() => setIsLinkDialogOpen(true)}>
             <Link2 className="w-4 h-4" />
             Link New Unit
           </Button>
-          <Button variant="default" onClick={handleSaveGlobalSettings} disabled={isSyncing}>
+          <Button variant="default" className="rounded-xl px-6" onClick={handleSaveGlobalSettings} disabled={isSyncing}>
             <RefreshCw className={isSyncing ? "animate-spin" : ""} />
             Fleet Sync
           </Button>
@@ -246,7 +247,7 @@ export default function ScreensManagement() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-lg border-primary/10 overflow-hidden">
+          <Card className="shadow-lg border-primary/10 overflow-hidden rounded-2xl">
             <CardHeader className="border-b bg-muted/30 py-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -270,9 +271,9 @@ export default function ScreensManagement() {
                     value={ticker} 
                     onChange={(e) => setTicker(e.target.value)}
                     placeholder="Enter broadcast message..."
-                    className="flex-1"
+                    className="flex-1 rounded-xl"
                   />
-                  <Button variant="secondary" onClick={() => toast({ title: "Ticker Updated" })}>Update</Button>
+                  <Button variant="secondary" className="rounded-xl px-6" onClick={() => toast({ title: "Ticker Updated" })}>Update</Button>
                 </div>
               </div>
 
@@ -280,10 +281,10 @@ export default function ScreensManagement() {
                 <div className="space-y-2">
                   <Label>Master Fleet Playlist</Label>
                   <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select Playlist" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl">
                       {PLAYLISTS.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                       ))}
@@ -291,7 +292,7 @@ export default function ScreensManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2 flex flex-col justify-end">
-                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10">
+                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10 rounded-xl shadow-md">
                     {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap className="w-4 h-4" />}
                     Deploy Fleet Update
                   </Button>
@@ -300,13 +301,13 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm overflow-hidden border-primary/5">
+          <Card className="shadow-sm overflow-hidden border-primary/5 rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4 px-6">
               <div>
                 <CardTitle className="text-lg">Fleet Inventory</CardTitle>
                 <CardDescription>Live telemetry for {fleet.length} provisioned panels.</CardDescription>
               </div>
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border shadow-sm">
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border shadow-sm">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <input type="text" placeholder="Search devices..." className="bg-transparent text-xs border-none outline-none w-32" />
               </div>
@@ -335,7 +336,7 @@ export default function ScreensManagement() {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className={cn(
-                                "p-2 rounded transition-colors",
+                                "p-2 rounded-xl transition-colors",
                                 isDeactivated ? "bg-muted" : "bg-primary/5"
                               )}>
                                 <Monitor className={cn("w-4 h-4", isDeactivated ? "text-muted-foreground" : "text-primary/70")} />
@@ -352,7 +353,7 @@ export default function ScreensManagement() {
                             <Badge 
                               variant={!isDeactivated && !isOffline ? "default" : "destructive"}
                               className={cn(
-                                "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest min-w-[80px] justify-center",
+                                "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest min-w-[80px] justify-center rounded-full",
                                 !isDeactivated && !isOffline ? "bg-emerald-500 hover:bg-emerald-600" : (isDeactivated ? "bg-zinc-500" : "bg-red-400")
                               )}
                             >
@@ -365,31 +366,31 @@ export default function ScreensManagement() {
                           <td className="px-6 py-4 text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
+                                <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white rounded-xl">
                                   <Settings2 className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEdit(screen); }} disabled={isDeactivated}>
+                              <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 shadow-xl border-primary/10">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEdit(screen); }} disabled={isDeactivated} className="rounded-lg py-2">
                                   <Edit className="w-4 h-4 mr-2" /> Configure Node
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id); }} disabled={isDeactivated}>
+                                <DropdownMenuSeparator className="mx-2 my-1" />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id); }} disabled={isDeactivated} className="rounded-lg py-2">
                                   {isOffline ? (
                                     <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Power On</>
                                   ) : (
                                     <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Power Off</>
                                   )}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen.id); }}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen.id); }} className="rounded-lg py-2">
                                   {isDeactivated ? (
                                     <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
                                   ) : (
                                     <><ZapOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate Node</>
                                   )}
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setScreenToDelete(screen.id); }} className="text-red-600">
+                                <DropdownMenuSeparator className="mx-2 my-1" />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setScreenToDelete(screen.id); }} className="text-red-600 rounded-lg py-2 font-bold">
                                   <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -405,46 +406,47 @@ export default function ScreensManagement() {
           </Card>
         </div>
 
+        {/* Live Surveillance Feed Sidebar */}
         <div className="lg:sticky lg:top-8 space-y-6">
-          <Card className="shadow-2xl overflow-hidden rounded-3xl border border-primary/10">
-            <CardHeader className="bg-primary/5 border-b flex flex-row items-center justify-between py-5 px-6">
+          <Card className="shadow-2xl overflow-hidden rounded-2xl border border-primary/10">
+            <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-5 px-6">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-3 h-3 rounded-full",
-                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
                 )} />
                 <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none text-primary">Live Telemetry Proxy</CardTitle>
               </div>
-              <Badge variant="outline" className="text-[10px] font-bold bg-white">
+              <Badge variant="outline" className="text-[10px] font-bold bg-white px-3 rounded-lg border-primary/20">
                 {selectedScreen?.id || "NO_SIGNAL"}
               </Badge>
             </CardHeader>
-            <CardContent className="p-0 relative aspect-video bg-zinc-950">
+            <CardContent className="p-0 relative aspect-video bg-muted/20">
               {previewUrls.length > 0 ? (
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      <Image src={url} alt="Signage View" fill className="object-cover opacity-70" unoptimized />
+                      <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
                     </div>
                   ))}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                   <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-1.5 pointer-events-none">
-                    <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-2">
+                    <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-2 drop-shadow-sm">
                       <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> BROADCASTING: {selectedScreen?.name}
                     </p>
                     <p className="text-base font-black tracking-tight drop-shadow-lg truncate text-white">
                       {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
                     </p>
-                    <p className="text-[9px] font-mono text-white/40 uppercase tracking-tighter">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
+                    <p className="text-[9px] font-mono text-white/60 uppercase tracking-tighter drop-shadow-sm">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
                   </div>
                 </div>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-6 text-white/20 italic animate-pulse py-20">
-                  <div className="p-8 rounded-full bg-white/5 border border-white/10">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-6 text-muted-foreground/40 italic animate-pulse py-20 bg-muted/10">
+                  <div className="p-8 rounded-full bg-white/40 border border-white/20 shadow-inner">
                     <Monitor className="w-20 h-20 opacity-30" />
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-[11px] font-black tracking-[0.3em] uppercase">No Active Link</p>
+                    <p className="text-[11px] font-black tracking-[0.3em] uppercase text-primary/40">No Active Link</p>
                     <p className="text-[9px] font-mono opacity-40">WAITING_FOR_HANDSHAKE...</p>
                   </div>
                 </div>
@@ -452,10 +454,10 @@ export default function ScreensManagement() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-xl border-primary/10 overflow-hidden group rounded-3xl">
+          <Card className="bg-white shadow-xl border-primary/10 overflow-hidden group rounded-2xl">
             <CardHeader className="pb-4 border-b bg-muted/20 px-6">
               <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-3 text-primary">
-                <div className="p-1.5 bg-primary/10 rounded-md">
+                <div className="p-1.5 bg-primary/10 rounded-lg">
                    <Signal className="w-4 h-4" />
                 </div>
                 Network Health Matrix
@@ -463,11 +465,11 @@ export default function ScreensManagement() {
             </CardHeader>
             <CardContent className="space-y-6 pt-5 px-6 pb-8">
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col p-4 rounded-2xl bg-muted/30 border shadow-sm">
+                <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Fleet Scan</span>
                   <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
-                <div className="flex flex-col p-4 rounded-2xl bg-muted/30 border shadow-sm text-right">
+                <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm text-right">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
                   <span className="text-sm font-black text-emerald-600">98.4%</span>
                 </div>
@@ -483,6 +485,32 @@ export default function ScreensManagement() {
           </Card>
         </div>
       </div>
+
+      {/* Linking Dialog */}
+      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Provision New Node</DialogTitle>
+            <DialogDescription>Link physical hardware via pairing code.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Node Label</Label>
+              <Input value={linkUnitName} onChange={e => setLinkUnitName(e.target.value)} placeholder="e.g. Science Wing Entrance" className="rounded-xl h-11" />
+            </div>
+            <div className="space-y-2">
+              <Label>Hardware Pairing Code</Label>
+              <Input value={pairingCode} onChange={e => setPairingCode(e.target.value)} placeholder="000-000" className="text-center text-xl tracking-widest h-14 rounded-xl font-black border-2" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="w-full h-12 rounded-xl text-lg font-black uppercase tracking-tight shadow-lg shadow-primary/20">
+              {isLinking ? <RefreshCw className="animate-spin mr-2" /> : <Link2 className="w-5 h-5 mr-2" />}
+              {isLinking ? "Authenticating..." : "Authorize Node"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
