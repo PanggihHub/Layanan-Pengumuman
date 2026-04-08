@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -61,21 +60,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
-import { SCREEN_STATUS, SCREEN_SETTINGS, PLAYLISTS, INITIAL_MEDIA, ScreenStatus } from "@/lib/mock-data";
+import { ScreenStatus, Playlist, MediaItem } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+
 export default function ScreensManagement() {
-  const [ticker, setTicker] = useState(SCREEN_SETTINGS.tickerMessage);
-  const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
+  const [ticker, setTicker] = useState("");
+  const [activePlaylistId, setActivePlaylistId] = useState("");
+  const [timezone, setTimezone] = useState("Asia/Jakarta");
   const [isSyncing, setIsSyncing] = useState(false);
-  const [previewDeviceId, setPreviewDeviceId] = useState<string | null>(SCREEN_STATUS[0]?.id || null);
+  const [previewDeviceId, setPreviewDeviceId] = useState<string | null>(null);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [scanTime, setScanTime] = useState<string | null>(null);
   
-  const [fleet, setFleet] = useState<ScreenStatus[]>(SCREEN_STATUS);
-  const [deactivatedIds, setDeactivatedIds] = useState<string[]>([]);
+  const [fleet, setFleet] = useState<ScreenStatus[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployProgress, setDeployProgress] = useState(0);
 
@@ -93,16 +97,59 @@ export default function ScreensManagement() {
 
   const { toast } = useToast();
 
+  useEffect(() => {
+    setScanTime(new Date().toLocaleTimeString());
+
+    const unsubFleet = onSnapshot(collection(db, "screens"), (snap) => {
+      const items: ScreenStatus[] = [];
+      snap.forEach((doc) => items.push(doc.data() as ScreenStatus));
+      setFleet(items);
+      if (items.length > 0 && !previewDeviceId) setPreviewDeviceId(items[0].id);
+    });
+
+    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snap) => {
+      const items: Playlist[] = [];
+      snap.forEach((doc) => items.push(doc.data() as Playlist));
+      setPlaylists(items);
+    });
+
+    const unsubMedia = onSnapshot(collection(db, "media"), (snap) => {
+      const items: MediaItem[] = [];
+      snap.forEach((doc) => items.push(doc.data() as MediaItem));
+      setMediaItems(items);
+    });
+
+    const unsubSettings = onSnapshot(doc(db, "settings", "global"), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setTicker(data.tickerMessage || "");
+        setActivePlaylistId(data.activePlaylistId || "");
+        setTimezone(data.timezone || "Asia/Jakarta");
+      }
+    });
+
+    return () => {
+      unsubFleet();
+      unsubPlaylists();
+      unsubMedia();
+      unsubSettings();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const previewUrls = useMemo(() => {
     if (!previewDeviceId) return [];
     const screen = fleet.find(s => s.id === previewDeviceId);
-    if (!screen || deactivatedIds.includes(screen.id) || screen.status === 'Offline') return [];
-    const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
+    if (!screen || screen.status === 'DEACTIVATED' || screen.status === 'Offline') return [];
+    
+    // Fallback logic
+    const pId = screen.playlistId || activePlaylistId;
+    const playlist = playlists.find(p => p.id === pId);
+    
     if (!playlist) return [];
     return playlist.items
-      .map(id => INITIAL_MEDIA.find(m => m.id === id)?.url)
+      .map(id => mediaItems.find(m => m.id === id)?.url)
       .filter((url): url is string => !!url);
-  }, [previewDeviceId, deactivatedIds, fleet]);
+  }, [previewDeviceId, fleet, playlists, mediaItems, activePlaylistId]);
 
   useEffect(() => {
     setScanTime(new Date().toLocaleTimeString());
@@ -114,8 +161,10 @@ export default function ScreensManagement() {
     return () => clearInterval(interval);
   }, [previewUrls]);
 
-  const handleSaveGlobalSettings = () => {
+  const handleSaveGlobalSettings = async () => {
     setIsSyncing(true);
+    await setDoc(doc(db, "settings", "global"), { tickerMessage: ticker, activePlaylistId, timezone }, { merge: true });
+    
     setTimeout(() => {
       setIsSyncing(false);
       setScanTime(new Date().toLocaleTimeString());
@@ -123,7 +172,7 @@ export default function ScreensManagement() {
         title: "Global Publish Successful",
         description: "Settings synced to the entire active screen network.",
       });
-    }, 1500);
+    }, 1000);
   };
 
   const handleOpenEdit = (screen: ScreenStatus) => {
@@ -135,7 +184,7 @@ export default function ScreensManagement() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateSpecificScreen = () => {
+  const handleUpdateSpecificScreen = async () => {
     if (!editingScreen) return;
     
     setIsDeploying(true);
@@ -149,10 +198,13 @@ export default function ScreensManagement() {
       setDeployProgress(progress);
     }, 200);
 
+    await setDoc(doc(db, "screens", editingScreen.id), {
+       ...editingScreen,
+       name: localScreenName,
+       playlistId: localScreenPlaylist 
+    }, { merge: true });
+
     setTimeout(() => {
-      setFleet(prev => prev.map(s => 
-        s.id === editingScreen.id ? { ...s, name: localScreenName, playlistId: localScreenPlaylist } : s
-      ));
       setIsDeploying(false);
       setIsEditDialogOpen(false);
       setScanTime(new Date().toLocaleTimeString());
@@ -163,8 +215,8 @@ export default function ScreensManagement() {
     }, 2000);
   };
 
-  const handleDeleteDevice = (id: string) => {
-    setFleet(prev => prev.filter(s => s.id !== id));
+  const handleDeleteDevice = async (id: string) => {
+    await deleteDoc(doc(db, "screens", id));
     setScreenToDelete(null);
     toast({
       title: "Node Decommissioned",
@@ -173,52 +225,48 @@ export default function ScreensManagement() {
     });
   };
 
-  const handleLinkNewDevice = () => {
+  const handleLinkNewDevice = async () => {
     if (!pairingCode || !linkUnitName) {
       toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
       return;
     }
 
     setIsLinking(true);
+    const newId = `S-${Math.floor(Math.random() * 900) + 100}`;
+    const newScreen: ScreenStatus = {
+      id: newId,
+      name: linkUnitName,
+      status: "Online",
+      playlistId: activePlaylistId || "system-default",
+      uptime: "Just linked",
+      lastSeen: "Just now"
+    };
+
+    await setDoc(doc(db, "screens", newId), newScreen);
+
     setTimeout(() => {
-      const newId = `S-${Math.floor(Math.random() * 900) + 100}`;
-      const newScreen: ScreenStatus = {
-        id: newId,
-        name: linkUnitName,
-        status: "Online",
-        playlistId: "system-default",
-        uptime: "Just linked",
-        lastSeen: "Just now"
-      };
-      setFleet(prev => [...prev, newScreen]);
       setIsLinking(false);
       setIsLinkDialogOpen(false);
       setPairingCode("");
       setLinkUnitName("");
       toast({ title: "Hardware Linked", description: `Device ${newId} is now online.` });
-    }, 2500);
+    }, 1500);
   };
 
-  const handleToggleOnlineStatus = (id: string) => {
-    const screen = fleet.find(s => s.id === id);
-    if (!screen) return;
-    const newStatus = screen.status === 'Online' ? 'Offline' : 'Online';
-    setFleet(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+  const handleToggleOnlineStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Online' ? 'Offline' : 'Online';
+    await setDoc(doc(db, "screens", id), { status: newStatus }, { merge: true });
     toast({
-      title: `Device ${newStatus}`,
-      description: `Connectivity updated for ${screen.name}.`,
+      title: `Device Status Changed`,
+      description: `Device is now ${newStatus}.`,
     });
   };
 
-  const handleToggleDeactivation = (deviceId: string) => {
-    const isDeactivating = !deactivatedIds.includes(deviceId);
-    if (isDeactivating) {
-      setDeactivatedIds(prev => [...prev, deviceId]);
-      toast({ title: "Device Deactivated", variant: "destructive" });
-    } else {
-      setDeactivatedIds(prev => prev.filter(id => id !== deviceId));
-      toast({ title: "Device Reconnected" });
-    }
+  const handleToggleDeactivation = async (screen: ScreenStatus) => {
+    const isDeactivated = screen.status === 'DEACTIVATED';
+    const newStatus = isDeactivated ? 'Online' : 'DEACTIVATED';
+    await setDoc(doc(db, "screens", screen.id), { status: newStatus }, { merge: true });
+    toast({ title: isDeactivated ? "Device Reconnected" : "Device Deactivated" });
   };
 
   const selectedScreen = fleet.find(s => s.id === previewDeviceId);
@@ -258,7 +306,7 @@ export default function ScreensManagement() {
                   <CardDescription>Broadcasting settings for all active nodes.</CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-white border-accent text-primary text-[10px] font-bold">
-                  {fleet.filter(s => !deactivatedIds.includes(s.id) && s.status === 'Online').length} Active Nodes
+                  {fleet.filter(s => s.status === 'Online').length} Active Nodes
                 </Badge>
               </div>
             </CardHeader>
@@ -273,11 +321,27 @@ export default function ScreensManagement() {
                     placeholder="Enter broadcast message..."
                     className="flex-1 rounded-xl"
                   />
-                  <Button variant="secondary" className="rounded-xl px-6" onClick={() => toast({ title: "Ticker Updated" })}>Update</Button>
+                  <Button variant="secondary" className="rounded-xl px-6" onClick={handleSaveGlobalSettings}>Update</Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Display Timezone</Label>
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select Timezone" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Asia/Jakarta">Jakarta (WIB)</SelectItem>
+                      <SelectItem value="Asia/Makassar">Makassar (WITA)</SelectItem>
+                      <SelectItem value="Asia/Jayapura">Jayapura (WIT)</SelectItem>
+                      <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                      <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                      <SelectItem value="America/New_York">New York (EST)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Master Fleet Playlist</Label>
                   <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
@@ -285,7 +349,7 @@ export default function ScreensManagement() {
                       <SelectValue placeholder="Select Playlist" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
-                      {PLAYLISTS.map((p) => (
+                      {playlists.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -324,8 +388,13 @@ export default function ScreensManagement() {
                     </tr>
                   </thead>
                   <tbody>
+                    {fleet.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-center p-8 text-muted-foreground">No devices provisioned in the cloud yet. Click "Link New Unit".</td>
+                      </tr>
+                    )}
                     {fleet.map((screen) => {
-                      const isDeactivated = deactivatedIds.includes(screen.id);
+                      const isDeactivated = screen.status === 'DEACTIVATED';
                       const isOffline = screen.status === 'Offline';
                       const isSelected = previewDeviceId === screen.id;
                       return (
@@ -357,11 +426,11 @@ export default function ScreensManagement() {
                                 !isDeactivated && !isOffline ? "bg-emerald-500 hover:bg-emerald-600" : (isDeactivated ? "bg-zinc-500" : "bg-red-400")
                               )}
                             >
-                              {isDeactivated ? "DEACTIVATED" : screen.status}
+                              {screen.status}
                             </Badge>
                           </td>
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
-                            {isDeactivated || isOffline ? "IDLE" : PLAYLISTS.find(p => p.id === screen.playlistId)?.name}
+                            {isDeactivated || isOffline ? "IDLE" : playlists.find(p => p.id === (screen.playlistId || activePlaylistId))?.name}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <DropdownMenu>
@@ -375,14 +444,14 @@ export default function ScreensManagement() {
                                   <Edit className="w-4 h-4 mr-2" /> Configure Node
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="mx-2 my-1" />
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id); }} disabled={isDeactivated} className="rounded-lg py-2">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id, screen.status); }} disabled={isDeactivated} className="rounded-lg py-2">
                                   {isOffline ? (
                                     <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Power On</>
                                   ) : (
                                     <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Power Off</>
                                   )}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen.id); }} className="rounded-lg py-2">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen); }} className="rounded-lg py-2">
                                   {isDeactivated ? (
                                     <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
                                   ) : (
@@ -426,7 +495,11 @@ export default function ScreensManagement() {
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                      {url.includes("youtube") ? (
+                        <Image src={`https://img.youtube.com/vi/${new URL(url).searchParams.get('v')}/0.jpg`} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                      ) : (
+                        <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                      )}
                     </div>
                   ))}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
@@ -435,7 +508,7 @@ export default function ScreensManagement() {
                       <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> BROADCASTING: {selectedScreen?.name}
                     </p>
                     <p className="text-base font-black tracking-tight drop-shadow-lg truncate text-white">
-                      {PLAYLISTS.find(p => p.id === selectedScreen?.playlistId)?.name}
+                      {playlists.find(p => p.id === (selectedScreen?.playlistId || activePlaylistId))?.name}
                     </p>
                     <p className="text-[9px] font-mono text-white/60 uppercase tracking-tighter drop-shadow-sm">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
                   </div>
@@ -471,7 +544,7 @@ export default function ScreensManagement() {
                 </div>
                 <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm text-right">
                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
-                  <span className="text-sm font-black text-emerald-600">98.4%</span>
+                  <span className="text-sm font-black text-emerald-600">{fleet.length > 0 ? "100%" : "N/A"}</span>
                 </div>
               </div>
               <div className="space-y-2 pt-2">
@@ -510,7 +583,7 @@ export default function ScreensManagement() {
                   <SelectValue placeholder="Choose a playlist" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  {PLAYLISTS.map((p) => (
+                  {playlists.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>

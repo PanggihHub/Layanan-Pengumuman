@@ -2,282 +2,345 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { 
-  Cloud, 
-  MapPin, 
-  Info, 
-  TriangleAlert, 
-  Heart, 
+  CloudSun, 
   Clock, 
-  ChevronRight, 
-  Home, 
-  LayoutDashboard, 
-  X,
-  Maximize2,
-  Sparkles
+  MapPin, 
+  Megaphone,
+  QrCode,
+  CalendarDays,
+  Sparkles,
+  Info,
+  Calendar,
+  Waves
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { INITIAL_MEDIA, PLAYLISTS, SCREEN_SETTINGS, WORSHIP_SCHEDULES } from "@/lib/mock-data";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-// Real-time Widgets
-import { ClockWidget } from "@/components/widgets/clock-widget";
-import { WeatherWidget } from "@/components/widgets/weather-widget";
-import { StocksWidget } from "@/components/widgets/stocks-widget";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc } from "firebase/firestore";
+import { Playlist, MediaItem } from "@/lib/mock-data";
+
+const extractYouTubeId = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+  return match ? match[1] : null;
+};
 
 export default function DisplayClient() {
+  const [tickerMessage, setTickerMessage] = useState("");
+  const [activePlaylistId, setActivePlaylistId] = useState("");
+  const [timezone, setTimezone] = useState("Asia/Jakarta");
+  
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [time, setTime] = useState<Date | null>(null);
-  const [isNavVisible, setIsNavVisible] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Find the active playlist to get its layout and visibility overrides
-  const activePlaylistDef = useMemo(() => {
-    return PLAYLISTS.find(p => p.id === SCREEN_SETTINGS.activePlaylistId);
+  useEffect(() => {
+    // Sync Firestore Database
+    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snap) => {
+      const items: Playlist[] = [];
+      snap.forEach((doc) => items.push(doc.data() as Playlist));
+      setPlaylists(items);
+    });
+
+    const unsubMedia = onSnapshot(collection(db, "media"), (snap) => {
+      const items: MediaItem[] = [];
+      snap.forEach((doc) => items.push(doc.data() as MediaItem));
+      setMediaItems(items);
+    });
+
+    const unsubSettings = onSnapshot(doc(db, "settings", "global"), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setTickerMessage(data.tickerMessage || "");
+        setActivePlaylistId(data.activePlaylistId || "");
+        setTimezone(data.timezone || "Asia/Jakarta");
+      }
+    });
+
+    return () => {
+      unsubPlaylists();
+      unsubMedia();
+      unsubSettings();
+    };
   }, []);
 
-  // Configuration (playlist-specific or fallback to global settings)
-  const displayLayout = activePlaylistDef?.layout || SCREEN_SETTINGS.displayLayout;
-  const showTicker = activePlaylistDef?.showTicker ?? SCREEN_SETTINGS.showTicker;
-  const showInfoCard = activePlaylistDef?.showInfoCard ?? SCREEN_SETTINGS.showInfoCard;
-  const showWorship = activePlaylistDef?.showWorship ?? SCREEN_SETTINGS.showWorship;
-  const showQR = activePlaylistDef?.showQR ?? SCREEN_SETTINGS.showQR;
+  const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+  const loopItems = useMemo(() => {
+    if (!activePlaylist) return [];
+    return activePlaylist.items
+      .map(id => mediaItems.find(m => m.id === id))
+      .filter((m): m is MediaItem => !!m);
+  }, [activePlaylist, mediaItems]);
 
-  const playlistItems = useMemo(() => {
-    if (!activePlaylistDef) return [];
-    
-    return activePlaylistDef.items.map(itemId => {
-      const media = INITIAL_MEDIA.find(m => m.id === itemId);
-      return {
-        id: itemId,
-        src: media?.url || 'https://picsum.photos/seed/placeholder/1920/1080',
-        title: media?.name.replace(/_/g, ' ').replace(/\.[^/.]+$/, "") || 'Campus News',
-        duration: 8000
-      };
-    });
-  }, [activePlaylistDef]);
-
-  const activeSchedules = useMemo(() => {
-    return WORSHIP_SCHEDULES.filter(s => s.active);
+  useEffect(() => {
+    const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timeInterval);
   }, []);
 
   useEffect(() => {
-    setTime(new Date());
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    if (loopItems.length <= 1) return;
     
-    if (playlistItems.length === 0) return () => clearInterval(timer);
-
-    const rotate = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % playlistItems.length);
-    }, 8000);
-
-    return () => {
-      clearInterval(timer);
-      clearInterval(rotate);
-    };
-  }, [playlistItems]);
-
-  // Layout Helper: Select items to show based on layout mode
-  const displayedItems = useMemo(() => {
-    if (playlistItems.length === 0) return [];
-
-    if (displayLayout === 'grid-2x2') {
-      const items = [];
-      for (let i = 0; i < 4; i++) {
-        items.push(playlistItems[(currentIndex + i) % playlistItems.length]);
-      }
-      return items;
-    } else if (displayLayout === 'split-v' || displayLayout === 'split-h') {
-      return [
-        playlistItems[currentIndex % playlistItems.length],
-        playlistItems[(currentIndex + 1) % playlistItems.length]
-      ];
+    // Default loop time is 8 seconds, but video config allows overriding via DB (future feature)
+    // Here we check if the current media enforces a duration. For now, 8s baseline.
+    const currentMedia = loopItems[currentIndex];
+    
+    // If it's a video with timeline trims, play for that long length.
+    let duration = 8000;
+    if (currentMedia?.type === 'video' && currentMedia?.startTime !== undefined && currentMedia?.endTime !== undefined) {
+      duration = (currentMedia.endTime - currentMedia.startTime) * 1000;
     }
-    return [playlistItems[currentIndex % playlistItems.length]];
-  }, [playlistItems, currentIndex, displayLayout]);
 
-  if (playlistItems.length === 0) {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % loopItems.length);
+    }, duration);
+    return () => clearInterval(interval);
+  }, [loopItems, currentIndex]);
+
+  if (!activePlaylist || loopItems.length === 0) {
     return (
-      <div className="signage-full bg-black flex items-center justify-center text-white">
-        <p className="text-2xl animate-pulse font-bold tracking-widest uppercase">Initializing Telemetry...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-8">
+        <Sparkles className="w-16 h-16 text-accent mb-6 animate-pulse" />
+        <h1 className="text-4xl font-black uppercase tracking-widest text-primary">Standby Mode</h1>
+        <p className="text-muted-foreground mt-4 text-xl">Awaiting playlist configuration from network...</p>
+        <div className="absolute bottom-8 left-8 text-xs font-mono opacity-30">
+          NODE: OFFLINE | WAITING FOR HANDSHAKE
+        </div>
       </div>
     );
   }
 
+  const currentMedia = loopItems[currentIndex];
+  const layout = activePlaylist.layout || 'single';
+
+  // Extract location name gracefully (e.g. Asia/Makassar => Makassar)
+  const locationName = timezone.split('/')[1]?.replace('_', ' ') || 'Jakarta';
+
+  const renderMediaContent = (mediaCls: string) => {
+    if (!currentMedia) return null;
+    const youtubeId = currentMedia.source === "external" ? extractYouTubeId(currentMedia.url) : null;
+    
+    if (currentMedia.type === "video" || youtubeId) {
+      if (youtubeId) {
+        return (
+          <iframe 
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}`} 
+            className={cn("w-full h-full object-cover pointer-events-none", mediaCls)} 
+            frameBorder="0" 
+            allow="autoplay; fullscreen" 
+          />
+        );
+      } else {
+        // Render raw video
+        return (
+          <video 
+            src={currentMedia.url} 
+            className={cn("w-full h-full object-cover", mediaCls)} 
+            autoPlay 
+            muted 
+            loop 
+          />
+        );
+      }
+    } else {
+      return (
+        <Image 
+          src={currentMedia.url} 
+          alt={currentMedia.name} 
+          fill 
+          className={cn("object-cover", mediaCls)}
+          unoptimized 
+        />
+      );
+    }
+  };
+
   return (
-    <div 
-      className="signage-full bg-black group transition-all" 
-      onMouseMove={() => {
-        setIsNavVisible(true);
-        const timeout = setTimeout(() => setIsNavVisible(false), 3000);
-        return () => clearTimeout(timeout);
-      }}
-    >
-      {/* Main Content Area - Layout Engine */}
-      <div className={cn(
-        "flex-1 relative overflow-hidden transition-all duration-700",
-        displayLayout === 'grid-2x2' && "grid grid-cols-2 grid-rows-2",
-        displayLayout === 'split-v' && "grid grid-cols-2",
-        displayLayout === 'split-h' && "grid grid-rows-2",
-        displayLayout === 'widget-hub' && "bg-zinc-900 flex items-center justify-center p-12"
-      )}>
-        {displayLayout === 'widget-hub' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 w-full max-w-7xl animate-in zoom-in-95 duration-700">
-            <ClockWidget />
-            <WeatherWidget />
-            <StocksWidget />
-          </div>
-        ) : (
-          displayedItems.map((item, idx) => (
-            <div
-              key={`${item?.id}-${idx}`}
-              className={cn(
-                "relative w-full h-full overflow-hidden border-black transition-opacity duration-1000",
-                displayLayout === 'single' ? "absolute inset-0" : "relative border-2"
-              )}
-            >
-              {item && (
-                <Image
-                  src={item.src}
-                  alt={item.title}
-                  fill
-                  priority
-                  className="object-cover"
-                  unoptimized
-                />
-              )}
-              
-              {showInfoCard && displayLayout === 'single' && (
-                <div className="absolute bottom-24 left-12 p-8 bg-black/30 backdrop-blur-xl rounded-2xl border border-white/10 text-white max-w-xl shadow-2xl animate-in slide-in-from-left-4 duration-700">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Info className="text-accent w-6 h-6" />
-                    <span className="text-accent font-bold tracking-widest uppercase text-xs">Broadcast Feature</span>
-                  </div>
-                  <h2 className="text-4xl font-extrabold leading-tight drop-shadow-lg">
-                    {item?.title}
-                  </h2>
-                </div>
-              )}
-            </div>
-          ))
+    <div className="w-screen h-screen bg-black overflow-hidden relative font-sans text-white">
+      
+      {/* Dynamic Background Blur */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl z-10" />
+        {currentMedia?.type !== 'video' && currentMedia?.source !== 'external' && currentMedia && (
+             <Image 
+             src={currentMedia.url || '/placeholder.png'} 
+             alt="" 
+             fill 
+             className="object-cover opacity-30 blur-2xl scale-110"
+             unoptimized 
+           />
         )}
-
-        {/* Floating Navigator (Stealth mode) */}
-        <div className={cn(
-          "absolute top-6 left-6 z-[60] transition-all duration-500",
-          isNavVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-12"
-        )}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 hover:bg-black/80">
-                <Maximize2 className="w-6 h-6 text-white" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-48 bg-black/90 text-white border-white/10 backdrop-blur-xl">
-              <DropdownMenuItem asChild className="gap-3 py-3 cursor-pointer">
-                <Link href="/">
-                  <Home className="w-4 h-4 text-accent" />
-                  <span>Return Home</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="gap-3 py-3 cursor-pointer">
-                <Link href="/admin">
-                  <LayoutDashboard className="w-4 h-4 text-accent" />
-                  <span>Admin Panel</span>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Dynamic Overlays */}
-        <div className="absolute top-12 right-12 z-20 flex flex-col items-end gap-6 pointer-events-none">
-          <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-6 rounded-3xl text-white flex flex-col items-end min-w-[280px] shadow-2xl">
-            <div className="flex items-center gap-2 text-accent mb-1 font-bold">
-              <MapPin className="w-4 h-4" />
-              <span>{SCREEN_SETTINGS.locationName}</span>
-            </div>
-            <div className="text-7xl font-bold tracking-tighter">
-              {time ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"}
-            </div>
-            <div className="text-lg opacity-80 font-medium">
-              {time ? time.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) : "Loading..."}
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4 w-full justify-between">
-              <div className="flex items-center gap-2">
-                <Cloud className="text-blue-300 w-8 h-8" />
-                <div>
-                  <div className="text-2xl font-bold">28°C</div>
-                  <div className="text-[10px] uppercase tracking-widest opacity-60 font-bold">Partly Cloudy</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] opacity-60 font-bold uppercase">AQI Index</div>
-                <div className="text-green-400 font-bold">42 (Good)</div>
-              </div>
-            </div>
-          </div>
-          
-          {showWorship && activeSchedules.length > 0 && (
-            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-5 rounded-3xl text-white min-w-[280px] shadow-2xl animate-in fade-in slide-in-from-right-4 duration-1000">
-              <div className="flex items-center gap-2 text-accent mb-4 border-b border-white/10 pb-2">
-                <Heart className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Worship Rotation</span>
-              </div>
-              <div className="space-y-4">
-                {activeSchedules.slice(0, 2).map((schedule) => (
-                  <div key={schedule.id} className="group">
-                    <div className="flex justify-between items-start">
-                      <p className="font-bold text-sm text-white/90">{schedule.name}</p>
-                      <span className="text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded-full">{schedule.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-white/60 mt-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{schedule.frequency}</span>
-                      <span className="mx-1">•</span>
-                      <MapPin className="w-3 h-3" />
-                      <span className="truncate">{schedule.location}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {showQR && (
-            <div className="bg-white/95 backdrop-blur p-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-white">
-              <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border-2 border-primary/20 relative">
-                 <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
-                    <span className="text-[6px] font-black text-primary text-center leading-none uppercase">Scan for<br/>Details</span>
-                 </div>
-              </div>
-              <div className="text-primary pr-2">
-                <p className="font-bold text-sm tracking-tight">Interactive Hub</p>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Campus Companion</p>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Ticker System */}
-      {showTicker && (
-        <div className="ticker-wrap border-t border-white/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] bg-primary/90 backdrop-blur-md">
-          <div className="ticker-content flex gap-24 items-center">
-            <span className="font-black bg-white text-primary px-3 py-1 rounded text-xs uppercase tracking-widest">Broadcast</span>
-            <span className="text-lg font-medium">{SCREEN_SETTINGS.tickerMessage}</span>
-            <span className="text-accent text-2xl">•</span>
-            <span className="text-lg font-medium">Universitas Negeri Yogyakarta: Excellence in Education</span>
+      <div className="relative z-10 w-full h-full flex flex-col p-6 gap-6">
+        
+        {/* Main Content Area */}
+        <div className="flex-1 flex gap-6 min-h-0">
+          
+          {/* Main Display Grid */}
+          <div className={cn(
+            "flex-1 relative rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-black/50 backdrop-blur-sm",
+            layout === 'grid-2x2' ? 'grid grid-cols-2 grid-rows-2 gap-1 p-1' :
+            layout === 'split-v' ? 'grid grid-cols-2 gap-1 p-1' :
+            layout === 'split-h' ? 'grid grid-rows-2 gap-1 p-1' : 'block'
+          )}>
+            
+            {/* SINGLE LAYOUT */}
+            {layout === 'single' && (
+              <div className="absolute inset-0 animate-in fade-in zoom-in-95 duration-1000">
+                {renderMediaContent("")}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+                <div className="absolute bottom-8 left-8 right-8">
+                  <Badge className="bg-accent text-primary px-3 py-1 text-sm font-black uppercase tracking-widest mb-3 border-none">
+                    {currentMedia?.category}
+                  </Badge>
+                  <h2 className="text-6xl font-black tracking-tighter drop-shadow-2xl capitalize leading-none">
+                    {currentMedia?.name}
+                  </h2>
+                  {currentMedia?.description && (
+                    <p className="text-xl font-medium text-white/80 mt-4 max-w-3xl leading-relaxed">
+                      {currentMedia.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SPLITS / GRID LAYOUTS (Mocked secondary units for demo) */}
+            {layout !== 'single' && (
+              <>
+                <div className="relative w-full h-full rounded-2xl overflow-hidden bg-black/50">
+                  {renderMediaContent("")}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex items-end p-6">
+                    <h3 className="text-3xl font-black leading-tight drop-shadow-xl">{currentMedia?.name}</h3>
+                  </div>
+                </div>
+                {layout.includes('split') && (
+                  <div className="relative w-full h-full rounded-2xl overflow-hidden bg-white/5 p-6 flex flex-col justify-center">
+                    <Badge className="w-fit bg-primary text-white border-none mb-4">Network Feed</Badge>
+                    <h3 className="text-4xl font-black">Secondary Information Stream Active</h3>
+                    <p className="text-white/60 mt-2 text-xl">Lorem ipsum dolor sit amet constrectur adipscing.</p>
+                  </div>
+                )}
+                {layout === 'grid-2x2' && [1, 2, 3].map(i => (
+                  <div key={i} className="relative w-full h-full rounded-2xl overflow-hidden bg-white/5 border border-white/5 flex items-center justify-center p-8">
+                     <p className="text-white/30 font-black uppercase tracking-widest text-center">Auxiliary Content {i}<br/>Network Provisioned</p>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
+
+          {/* Right Sidebar Widgets */}
+          {(activePlaylist.showInfoCard || activePlaylist.showWorship || activePlaylist.showQR) && (
+            <div className="w-96 flex flex-col gap-6 shrink-0">
+              
+              {/* Time & Weather */}
+              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-2xl">
+                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                   <Clock className="w-48 h-48" />
+                 </div>
+                 <h2 className="text-7xl font-black tracking-tighter tabular-nums drop-shadow-lg">
+                  {currentTime.toLocaleTimeString('id-ID', { timeZone: timezone, hour: '2-digit', minute: '2-digit' }).replace('.', ':')}
+                 </h2>
+                 <p className="text-accent text-lg font-bold tracking-widest uppercase mt-2">
+                  {currentTime.toLocaleDateString('id-ID', { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric' })}
+                 </p>
+                 <div className="flex items-center gap-6 mt-8 pt-8 border-t border-white/10 w-full justify-center">
+                    <div className="flex items-center gap-3">
+                      <CloudSun className="w-10 h-10 text-yellow-400" />
+                      <div className="flex flex-col">
+                        <span className="text-3xl font-black leading-none text-white">28°</span>
+                        <span className="text-xs font-bold text-white/50 uppercase tracking-widest mt-1">{locationName}</span>
+                      </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Islamic/Worship Widget */}
+              {activePlaylist.showWorship && (
+                <div className="bg-primary/90 text-white rounded-3xl p-6 border border-primary/20 shadow-2xl flex-1 flex flex-col relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 opacity-10">
+                    <Waves className="w-40 h-40" />
+                  </div>
+                  <div className="flex items-center gap-2 text-accent/80 mb-6">
+                    <Calendar className="w-5 h-5" />
+                    <span className="text-xs font-black uppercase tracking-widest">Jadwal Shalat</span>
+                  </div>
+                  <div className="space-y-4 flex-1">
+                    {[
+                      { name: "Subuh", time: "04:30" },
+                      { name: "Dzuhur", time: "11:55", active: true },
+                      { name: "Ashar", time: "15:15" },
+                      { name: "Maghrib", time: "17:50" },
+                      { name: "Isya", time: "19:05" }
+                    ].map(s => (
+                      <div key={s.name} className={cn(
+                        "flex items-center justify-between p-3 rounded-xl transition-all",
+                        s.active ? "bg-white text-primary scale-105 shadow-xl font-black" : "font-medium text-white/80 border border-white/10"
+                      )}>
+                        <span className="uppercase tracking-widest text-sm">{s.name}</span>
+                        <span className="text-lg">{s.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Event Info */}
+              {activePlaylist.showInfoCard && (
+                <div className="bg-white text-primary rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+                   <div className="flex items-center gap-2 text-muted-foreground/50 mb-4 text-xs font-black uppercase tracking-widest">
+                      <Info className="w-5 h-5 text-accent" />
+                      Pengumuman
+                   </div>
+                   <h3 className="font-black text-xl leading-tight text-primary">Briefing Mingguan Staf & Pengajar</h3>
+                   <div className="flex items-center gap-2 text-sm font-bold text-primary/60 mt-3 bg-primary/5 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4" /> Ruang Rapat Utama
+                   </div>
+                </div>
+              )}
+
+              {/* QR Code Sync */}
+              {activePlaylist.showQR && (
+                <div className="bg-accent/10 backdrop-blur-md rounded-3xl p-6 border border-accent/20 flex items-center gap-4">
+                  <div className="bg-white p-2 rounded-xl shrink-0">
+                    <QrCode className="w-16 h-16 text-black" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase text-accent tracking-tighter">Scan for Details</h4>
+                    <p className="text-[10px] text-white/70 leading-tight mt-1 font-medium">Get the document attachments for today's sessions instantly.</p>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
         </div>
-      )}
+
+        {/* Global Ticker */}
+        {activePlaylist.showTicker && tickerMessage && (
+          <div className="h-16 shrink-0 bg-primary/80 backdrop-blur-md border border-white/20 rounded-2xl flex items-center px-6 overflow-hidden relative shadow-2xl">
+            <div className="bg-accent text-primary h-full absolute left-0 flex items-center px-6 z-20 shadow-[10px_0_20px_rgba(0,0,0,0.5)]">
+               <Megaphone className="w-5 h-5 mr-3" />
+               <span className="font-black uppercase tracking-widest text-sm">INFO AKTUAL</span>
+            </div>
+            {/* Ticker Animation */}
+            <div className="whitespace-nowrap pl-[200px] animate-[ticker_20s_linear_infinite] z-10">
+              <span className="text-2xl font-bold tracking-tight text-white drop-shadow-md flex items-center gap-8">
+                {tickerMessage}
+                <Sparkles className="w-5 h-5 text-accent" />
+                {tickerMessage}
+              </span>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ export interface MediaItem {
 export interface ScreenStatus {
   id: string;
   name: string;
-  status: 'Online' | 'Offline';
+  status: 'Online' | 'Offline' | 'DEACTIVATED';
   playlistId: string;
   uptime: string;
   lastSeen: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -55,11 +55,20 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+
+const extractYouTubeId = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+  return match ? match[1] : null;
+};
+
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>(INITIAL_MEDIA);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const { toast } = useToast();
 
   // Dialog states
@@ -77,6 +86,19 @@ export default function MediaLibrary() {
   const [endTime, setEndTime] = useState<number>(30);
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "media"), (snapshot) => {
+      const items: MediaItem[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as MediaItem);
+      });
+      // Sort items randomly or by date if preferred
+      setMediaItems(items);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const filteredMedia = useMemo(() => {
     return mediaItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -86,15 +108,19 @@ export default function MediaLibrary() {
     });
   }, [mediaItems, searchQuery, filterType]);
 
-  const handleDelete = (id: string) => {
-    setMediaItems(prev => prev.filter(item => item.id !== id));
-    toast({
-      title: "Asset Removed",
-      description: "Media has been deleted from the cloud library.",
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "media", id));
+      toast({
+        title: "Asset Removed",
+        description: "Media has been deleted from the cloud library.",
+      });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to delete.", variant: "destructive" });
+    }
   };
 
-  const handleSaveMedia = () => {
+  const handleSaveMedia = async () => {
     if (!newName) {
       toast({ title: "Title Required", description: "Please enter a name for the asset.", variant: "destructive" });
       return;
@@ -116,8 +142,9 @@ export default function MediaLibrary() {
     }
 
     if (dialogMode === "add") {
+      const newId = Math.random().toString(36).substr(2, 9);
       const newItem: MediaItem = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: newId,
         name: newName,
         description: newDescription,
         type: newType,
@@ -129,21 +156,20 @@ export default function MediaLibrary() {
         startTime: newType === 'video' ? startTime : undefined,
         endTime: newType === 'video' ? endTime : undefined,
       };
-      setMediaItems(prev => [newItem, ...prev]);
+      await setDoc(doc(db, "media", newId), newItem);
       toast({ title: "Media Created", description: `${newName} has been added to the library.` });
     } else if (currentItem) {
-      setMediaItems(prev => prev.map(item => 
-        item.id === currentItem.id ? { 
-          ...item, 
-          name: newName, 
-          description: newDescription, 
-          url: finalUrl, 
-          type: newType,
-          source: sourceOrigin,
-          startTime: newType === 'video' ? startTime : undefined,
-          endTime: newType === 'video' ? endTime : undefined,
-        } : item
-      ));
+      const updatedItem = { 
+        ...currentItem, 
+        name: newName, 
+        description: newDescription, 
+        url: finalUrl, 
+        type: newType,
+        source: sourceOrigin,
+        startTime: newType === 'video' ? startTime : undefined,
+        endTime: newType === 'video' ? endTime : undefined,
+      };
+      await setDoc(doc(db, "media", currentItem.id), updatedItem);
       toast({ title: "Media Updated", description: "All changes synchronized successfully." });
     }
 
@@ -270,13 +296,17 @@ export default function MediaLibrary() {
           {filteredMedia.map((media) => (
             <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all flex flex-col rounded-2xl border-primary/5 shadow-sm">
               <div className="relative aspect-video bg-muted shrink-0">
-                <Image 
-                  src={media.url} 
-                  alt={media.name} 
-                  fill 
-                  className="object-cover"
-                  unoptimized 
-                />
+                {media.source === "external" && extractYouTubeId(media.url) ? (
+                   <Image src={`https://img.youtube.com/vi/${extractYouTubeId(media.url)}/hqdefault.jpg`} alt={media.name} fill className="object-cover" unoptimized/>
+                ) : (
+                  <Image 
+                    src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} 
+                    alt={media.name} 
+                    fill 
+                    className="object-cover"
+                    unoptimized 
+                  />
+                )}
                 <div className="absolute top-2 right-2 flex gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -356,7 +386,7 @@ export default function MediaLibrary() {
                   <tr key={media.id} className="border-b hover:bg-primary/5 transition-colors">
                     <td className="px-6 py-4">
                       <div className="w-14 h-9 rounded-lg relative overflow-hidden bg-muted border">
-                        <Image src={media.url} alt={media.name} fill className="object-cover" unoptimized />
+                        <Image src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt={media.name} fill className="object-cover" unoptimized />
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -483,7 +513,7 @@ export default function MediaLibrary() {
                       id="url" 
                       value={newUrl} 
                       onChange={(e) => setNewUrl(e.target.value)} 
-                      placeholder="https://content.provider.com/stream.mp4"
+                      placeholder="https://www.youtube.com/watch?v=XXXXX"
                       className="h-11 rounded-xl border-muted-foreground/20 font-mono text-xs"
                     />
                   </div>
@@ -532,13 +562,23 @@ export default function MediaLibrary() {
               </Label>
               <div className="relative aspect-square lg:aspect-video bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-2xl">
                 <div className="w-full h-full relative group">
-                  <Image 
-                    src={newUrl || (currentItem?.url || 'https://picsum.photos/seed/preview/1920/1080')} 
-                    alt="Source View" 
-                    fill 
-                    className="object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700"
-                    unoptimized
-                  />
+                  {extractYouTubeId(newUrl || (currentItem?.url || '')) ? (
+                    <Image 
+                      src={`https://img.youtube.com/vi/${extractYouTubeId(newUrl || (currentItem?.url || ''))}/hqdefault.jpg`} 
+                      alt="Source View" 
+                      fill 
+                      className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" 
+                      unoptimized
+                    />
+                  ) : (
+                    <Image 
+                      src={newUrl || (currentItem?.url || 'https://picsum.photos/seed/preview/1920/1080')} 
+                      alt="Source View" 
+                      fill 
+                      className="object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700"
+                      unoptimized
+                    />
+                  )}
                   {newType === 'video' ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
                       <PlayCircle className="w-12 h-12 text-white/40" />

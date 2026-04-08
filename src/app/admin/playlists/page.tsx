@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -53,16 +53,20 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { PLAYLISTS, INITIAL_MEDIA, SCREEN_SETTINGS, Playlist, DisplayLayout } from "@/lib/mock-data";
+import { Playlist, DisplayLayout, MediaItem } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+
 export default function PlaylistsPage() {
-  const [playlists, setPlaylists] = useState<Playlist[]>(PLAYLISTS);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activePlaylistId, setActivePlaylistId] = useState(SCREEN_SETTINGS.activePlaylistId);
+  const [activePlaylistId, setActivePlaylistId] = useState("");
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -82,15 +86,41 @@ export default function PlaylistsPage() {
   const [showQR, setShowQR] = useState(true);
   const [layout, setLayout] = useState<DisplayLayout>('single');
 
+  useEffect(() => {
+    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snapshot) => {
+      const items: Playlist[] = [];
+      snapshot.forEach((doc) => items.push(doc.data() as Playlist));
+      setPlaylists(items);
+    });
+
+    const unsubMedia = onSnapshot(collection(db, "media"), (snapshot) => {
+      const items: MediaItem[] = [];
+      snapshot.forEach((doc) => items.push(doc.data() as MediaItem));
+      setMediaItems(items);
+    });
+
+    const unsubSettings = onSnapshot(doc(db, "settings", "global"), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        setActivePlaylistId(docSnapshot.data().activePlaylistId || "");
+      }
+    });
+
+    return () => {
+      unsubPlaylists();
+      unsubMedia();
+      unsubSettings();
+    };
+  }, []);
+
   const filteredPlaylists = useMemo(() => {
     return playlists.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [playlists, searchQuery]);
 
   const filteredMediaForSelection = useMemo(() => {
-    return INITIAL_MEDIA.filter(m => m.name.toLowerCase().includes(mediaSearch.toLowerCase()));
-  }, [mediaSearch]);
+    return mediaItems.filter(m => m.name.toLowerCase().includes(mediaSearch.toLowerCase()));
+  }, [mediaItems, mediaSearch]);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const pl = playlists.find(p => p.id === id);
     if (pl?.isSystem) {
       toast({ title: "Operation Denied", description: "System default playlists cannot be deleted.", variant: "destructive" });
@@ -100,16 +130,16 @@ export default function PlaylistsPage() {
       toast({ title: "Cannot Delete", description: "Switch to another playlist before deleting the active one.", variant: "destructive" });
       return;
     }
-    setPlaylists(prev => prev.filter(p => p.id !== id));
+    await deleteDoc(doc(db, "playlists", id));
     toast({ title: "Playlist Deleted", description: "Playlist removed from system." });
   };
 
-  const handleActivate = (id: string) => {
-    setActivePlaylistId(id);
+  const handleActivate = async (id: string) => {
+    await setDoc(doc(db, "settings", "global"), { activePlaylistId: id }, { merge: true });
     toast({ title: "Broadcast Updated", description: "New sequence is now live." });
   };
 
-  const handleSavePlaylist = () => {
+  const handleSavePlaylist = async () => {
     if (!newName) {
       toast({ title: "Name Required", description: "Please provide a playlist name.", variant: "destructive" });
       return;
@@ -128,11 +158,11 @@ export default function PlaylistsPage() {
       layout,
     };
 
+    await setDoc(doc(db, "playlists", payload.id), payload);
+
     if (dialogMode === "add") {
-      setPlaylists(prev => [payload, ...prev]);
       toast({ title: "Playlist Created", description: "New sequence added to library." });
     } else if (currentPlaylist) {
-      setPlaylists(prev => prev.map(p => p.id === currentPlaylist.id ? payload : p));
       toast({ title: "Playlist Updated", description: "Changes saved." });
     }
 
@@ -319,11 +349,15 @@ export default function PlaylistsPage() {
 
                 <div className="flex -space-x-3 overflow-hidden py-1">
                   {playlist.items.slice(0, 5).map((itemId, i) => {
-                    const media = INITIAL_MEDIA.find(m => m.id === itemId);
+                    const media = mediaItems.find(m => m.id === itemId);
                     return (
                       <div key={i} className="inline-block h-9 w-9 rounded-full ring-2 ring-white bg-muted overflow-hidden relative shadow-sm">
                         {media ? (
-                          <Image src={media.url} alt="" fill className="object-cover" unoptimized />
+                          media.source === "external" && media.url.includes("youtube") ? (
+                            <Image src={`https://img.youtube.com/vi/${new URL(media.url).searchParams.get('v')}/0.jpg`} alt="" fill className="object-cover" unoptimized/>
+                          ) : (
+                            <Image src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt="" fill className="object-cover" unoptimized />
+                          )
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-[8px]">?</div>
                         )}
@@ -493,7 +527,11 @@ export default function PlaylistsPage() {
                           "relative aspect-video w-full rounded-xl overflow-hidden bg-muted border-2 transition-all",
                           isSelected ? "border-primary" : "border-transparent"
                         )}>
-                          <Image src={item.url} alt={item.name} fill className="object-cover" unoptimized />
+                          {item.source === "external" && item.url.includes("youtube") ? (
+                            <Image src={`https://img.youtube.com/vi/${new URL(item.url).searchParams.get('v')}/0.jpg`} alt={item.name} fill className="object-cover" unoptimized/>
+                          ) : (
+                            <Image src={item.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt={item.name} fill className="object-cover" unoptimized />
+                          )}
                           {isSelected && (
                             <div className="absolute inset-0 bg-primary/20 pointer-events-none" />
                           )}
@@ -518,7 +556,7 @@ export default function PlaylistsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2.5">
                     {selectedMediaIds.map((id, idx) => {
-                      const media = INITIAL_MEDIA.find(m => m.id === id);
+                      const media = mediaItems.find(m => m.id === id);
                       return (
                         <div key={idx} className="flex items-center gap-2.5 bg-white px-4 py-2 rounded-2xl border shadow-sm text-xs font-bold hover:scale-105 transition-transform">
                           <span className="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
@@ -557,18 +595,22 @@ export default function PlaylistsPage() {
             <Carousel className="w-full">
               <CarouselContent>
                 {currentPlaylist?.items.map((itemId, index) => {
-                  const media = INITIAL_MEDIA.find(m => m.id === itemId);
+                  const media = mediaItems.find(m => m.id === itemId);
                   return (
                     <CarouselItem key={index}>
                       <div className="relative aspect-video w-full flex items-center justify-center bg-black">
                         {media ? (
-                          <Image 
-                            src={media.url} 
-                            alt={media.name} 
-                            fill 
-                            className="object-contain" 
-                            unoptimized 
-                          />
+                           media.source === "external" && media.url.includes("youtube") ? (
+                            <Image src={`https://img.youtube.com/vi/${new URL(media.url).searchParams.get('v')}/0.jpg`} alt={media.name} fill className="object-cover" unoptimized/>
+                          ) : (
+                            <Image 
+                              src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} 
+                              alt={media.name} 
+                              fill 
+                              className="object-contain" 
+                              unoptimized 
+                            />
+                          )
                         ) : (
                           <p className="text-white opacity-50">Media Unavailable</p>
                         )}
