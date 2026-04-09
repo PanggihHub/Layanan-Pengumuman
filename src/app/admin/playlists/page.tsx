@@ -23,7 +23,11 @@ import {
   Columns2,
   Rows2,
   ArrowRightCircle,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  PlusCircle,
+  MinusCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -55,12 +59,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Playlist, DisplayLayout, MediaItem } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, extractYouTubeId, getMediaThumbnail } from "@/lib/utils";
 import Image from "next/image";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+import { useRef } from "react";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, query, where, getDoc } from "firebase/firestore";
+
+// Logic moved to @/lib/utils.ts
 
 export default function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -79,6 +87,18 @@ export default function PlaylistsPage() {
   const [newSchedule, setNewSchedule] = useState("");
   const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
   const [mediaSearch, setMediaSearch] = useState("");
+  
+  // Advanced Multi-Window Schedule
+  const DEFAULT_DAY_SCHEDULE = { active: true, windows: [{ start: "00:00", end: "23:59" }] };
+  const [weeklySchedule, setWeeklySchedule] = useState<PlaylistSchedule>({
+    monday: { ...DEFAULT_DAY_SCHEDULE },
+    tuesday: { ...DEFAULT_DAY_SCHEDULE },
+    wednesday: { ...DEFAULT_DAY_SCHEDULE },
+    thursday: { ...DEFAULT_DAY_SCHEDULE },
+    friday: { ...DEFAULT_DAY_SCHEDULE },
+    saturday: { ...DEFAULT_DAY_SCHEDULE },
+    sunday: { ...DEFAULT_DAY_SCHEDULE },
+  });
   
   const [showTicker, setShowTicker] = useState(true);
   const [showInfoCard, setShowInfoCard] = useState(true);
@@ -104,6 +124,61 @@ export default function PlaylistsPage() {
         setActivePlaylistId(docSnapshot.data().activePlaylistId || "");
       }
     });
+
+    // System Initialization: Logic to ensure default content exists
+    const initializeSystemContent = async () => {
+      // 1. Check/Create Default Widgets
+      const widgets = [
+        { id: 'w-clock', name: 'Digital Clock Widget', type: 'clock' as const, source: 'internal' as const, size: '0.1 MB', date: new Date().toISOString().split('T')[0], url: 'widget://clock', category: 'campus' as const, description: 'System-wide digital clock with date overlay.' },
+        { id: 'w-weather', name: 'Smart Weather Widget', type: 'weather' as const, source: 'internal' as const, size: '0.2 MB', date: new Date().toISOString().split('T')[0], url: 'widget://weather', category: 'science' as const, description: 'Real-time weather forecast and temperature display.' }
+      ];
+
+      for (const widget of widgets) {
+        const widgetRef = doc(db, "media", widget.id);
+        const widgetSnap = await getDoc(widgetRef);
+        if (!widgetSnap.exists()) {
+          await setDoc(widgetRef, widget);
+        }
+      }
+
+      // 2. Check/Create Default Playlist
+      const defaultId = "default-info-hub";
+      const playlistRef = doc(db, "playlists", defaultId);
+      const playlistSnap = await getDoc(playlistRef);
+      if (!playlistSnap.exists()) {
+        const defaultPlaylist: Playlist = {
+          id: defaultId,
+          name: "Default Info Hub (Clock & Weather)",
+          description: "Initial system playlist containing Clock and Weather widgets. Automatically active if no other content is set.",
+          items: ['w-clock', 'w-weather'],
+          isSystem: true,
+          showTicker: true,
+          showInfoCard: true,
+          showWorship: true,
+          showQR: true,
+          layout: 'split-h',
+          structuredSchedule: {
+            monday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            tuesday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            wednesday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            thursday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            friday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            saturday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+            sunday: { active: true, windows: [{ start: "00:00", end: "23:59" }] },
+          }
+        };
+        await setDoc(playlistRef, defaultPlaylist);
+        
+        // Ensure this is set as the active playlist if none exists
+        const settingsRef = doc(db, "settings", "global");
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists() || !settingsSnap.data().activePlaylistId) {
+          await setDoc(settingsRef, { activePlaylistId: defaultId }, { merge: true });
+        }
+      }
+    };
+
+    initializeSystemContent();
 
     return () => {
       unsubPlaylists();
@@ -149,13 +224,13 @@ export default function PlaylistsPage() {
       id: currentPlaylist?.id || Math.random().toString(36).substr(2, 9),
       name: newName,
       description: newDesc,
-      schedule: newSchedule,
       items: selectedMediaIds,
       showTicker,
       showInfoCard,
       showWorship,
       showQR,
       layout,
+      structuredSchedule: weeklySchedule
     };
 
     await setDoc(doc(db, "playlists", payload.id), payload);
@@ -181,6 +256,16 @@ export default function PlaylistsPage() {
     setShowWorship(true);
     setShowQR(true);
     setLayout('single');
+    setScheduledDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    setWeeklySchedule({
+      monday: { ...DEFAULT_DAY_SCHEDULE },
+      tuesday: { ...DEFAULT_DAY_SCHEDULE },
+      wednesday: { ...DEFAULT_DAY_SCHEDULE },
+      thursday: { ...DEFAULT_DAY_SCHEDULE },
+      friday: { ...DEFAULT_DAY_SCHEDULE },
+      saturday: { ...DEFAULT_DAY_SCHEDULE },
+      sunday: { ...DEFAULT_DAY_SCHEDULE },
+    });
     setCurrentPlaylist(null);
   };
 
@@ -202,6 +287,9 @@ export default function PlaylistsPage() {
     setShowWorship(playlist.showWorship ?? true);
     setShowQR(playlist.showQR ?? true);
     setLayout(playlist.layout ?? 'single');
+    if (playlist.structuredSchedule) {
+      setWeeklySchedule(playlist.structuredSchedule);
+    }
     setIsDialogOpen(true);
   };
 
@@ -319,9 +407,19 @@ export default function PlaylistsPage() {
               </CardHeader>
               <CardContent className="space-y-5 flex-1 pt-2">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[11px] text-primary/70 bg-primary/5 p-2.5 rounded-xl border border-primary/10">
-                    <CalendarDays className="w-4 h-4" />
-                    <span className="font-bold truncate">{playlist.schedule || "No schedule set"}</span>
+                  <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/10">
+                    <div className="flex items-center gap-2 text-[11px] text-primary/70">
+                      <CalendarDays className="w-4 h-4" />
+                      <span className="font-black truncate flex items-center gap-1">
+                        {playlist.structuredSchedule 
+                          ? Object.entries(playlist.structuredSchedule)
+                              .filter(([_, data]) => data.active)
+                              .map(([day]) => day.substring(0, 2))
+                              .join(", ")
+                          : "No active schedule"}
+                        <Badge variant="outline" className="ml-1 text-[8px] h-3 px-1">DETAILS</Badge>
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="flex items-center gap-6 text-[11px] font-bold text-muted-foreground/80 px-1">
@@ -353,11 +451,7 @@ export default function PlaylistsPage() {
                     return (
                       <div key={i} className="inline-block h-9 w-9 rounded-full ring-2 ring-white bg-muted overflow-hidden relative shadow-sm">
                         {media ? (
-                          media.source === "external" && media.url.includes("youtube") ? (
-                            <Image src={`https://img.youtube.com/vi/${new URL(media.url).searchParams.get('v')}/0.jpg`} alt="" fill className="object-cover" unoptimized/>
-                          ) : (
-                            <Image src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt="" fill className="object-cover" unoptimized />
-                          )
+                          <Image src={getMediaThumbnail(media.url, media.type)} alt="" fill className="object-cover" unoptimized />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-[8px]">?</div>
                         )}
@@ -420,16 +514,110 @@ export default function PlaylistsPage() {
                     className="h-11 rounded-xl"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="playlist-schedule" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Broadcast Window</Label>
-                  <Input 
-                    id="playlist-schedule" 
-                    value={newSchedule} 
-                    onChange={(e) => setNewSchedule(e.target.value)} 
-                    placeholder="e.g. Mon-Fri, 08:00 - 18:00"
-                    className="h-11 rounded-xl"
-                  />
-                </div>
+                <div className="space-y-4">
+
+                    <Label className="text-xs font-black uppercase tracking-widest text-primary">Weekly Broadcast Matrix</Label>
+                    <ScrollArea className="h-[280px] pr-4">
+                      <div className="space-y-3">
+                        {Object.entries(weeklySchedule).map(([day, data]) => (
+                          <div key={day} className={cn(
+                            "p-3 rounded-2xl border transition-all",
+                            data.active ? "bg-white border-primary/20 shadow-sm" : "bg-muted/50 opacity-60"
+                          )}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Switch 
+                                  checked={data.active} 
+                                  onCheckedChange={(val) => setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof PlaylistSchedule], active: val } }))} 
+                                />
+                                <span className="text-xs font-black uppercase tracking-tight">{day}</span>
+                              </div>
+                              {data.active && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 text-[9px] font-bold uppercase tracking-widest text-primary"
+                                  onClick={() => setWeeklySchedule(prev => ({
+                                    ...prev,
+                                    [day]: { 
+                                      ...prev[day as keyof PlaylistSchedule], 
+                                      windows: [...prev[day as keyof PlaylistSchedule].windows, { start: "09:00", end: "17:00" }] 
+                                    }
+                                  }))}
+                                >
+                                  <PlusCircle className="w-3 h-3 mr-1" /> Add Window
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {data.active && (
+                              <div className="space-y-2">
+                                {data.windows.map((window, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <div className="grid grid-cols-2 gap-2 flex-1">
+                                      <Input 
+                                        type="time" 
+                                        value={window.start} 
+                                        onChange={(e) => {
+                                          const newWindows = [...data.windows];
+                                          newWindows[idx].start = e.target.value;
+                                          setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof PlaylistSchedule], windows: newWindows } }));
+                                        }}
+                                        className="h-8 text-[11px] rounded-lg"
+                                      />
+                                      <Input 
+                                        type="time" 
+                                        value={window.end} 
+                                        onChange={(e) => {
+                                          const newWindows = [...data.windows];
+                                          newWindows[idx].end = e.target.value;
+                                          setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof PlaylistSchedule], windows: newWindows } }));
+                                        }}
+                                        className="h-8 text-[11px] rounded-lg"
+                                      />
+                                    </div>
+                                    {data.windows.length > 1 && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-7 w-7 text-red-400 hover:text-red-500 hover:bg-red-50"
+                                        onClick={() => {
+                                          const newWindows = data.windows.filter((_, i) => i !== idx);
+                                          setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof PlaylistSchedule], windows: newWindows } }));
+                                        }}
+                                      >
+                                        <MinusCircle className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-10 rounded-xl text-[10px] font-black uppercase tracking-widest border-dashed border-primary/30"
+                      onClick={() => {
+                        const firstDay = weeklySchedule.monday;
+                        setWeeklySchedule({
+                          monday: { ...firstDay },
+                          tuesday: { ...firstDay },
+                          wednesday: { ...firstDay },
+                          thursday: { ...firstDay },
+                          friday: { ...firstDay },
+                          saturday: { ...firstDay },
+                          sunday: { ...firstDay },
+                        });
+                        toast({ title: "Sync Complete", description: "Monday's schedule applied to all days." });
+                      }}
+                    >
+                      Apply Monday To All days
+                    </Button>
+                  </div>
+iv>
                 <div className="space-y-2">
                   <Label htmlFor="playlist-desc" className="text-xs font-black uppercase tracking-widest text-muted-foreground">Internal Description</Label>
                   <Textarea 
@@ -527,13 +715,11 @@ export default function PlaylistsPage() {
                           "relative aspect-video w-full rounded-xl overflow-hidden bg-muted border-2 transition-all",
                           isSelected ? "border-primary" : "border-transparent"
                         )}>
-                          {item.source === "external" && item.url.includes("youtube") ? (
-                            <Image src={`https://img.youtube.com/vi/${new URL(item.url).searchParams.get('v')}/0.jpg`} alt={item.name} fill className="object-cover" unoptimized/>
-                          ) : (
-                            <Image src={item.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt={item.name} fill className="object-cover" unoptimized />
-                          )}
+                          <Image src={getMediaThumbnail(item.url, item.type)} alt={item.name} fill className="object-cover" unoptimized />
                           {isSelected && (
-                            <div className="absolute inset-0 bg-primary/20 pointer-events-none" />
+                            <div className="absolute inset-0 bg-primary/20 pointer-events-none flex items-center justify-center">
+                              <CheckCircle2 className="w-8 h-8 text-white drop-shadow-lg" />
+                            </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -587,52 +773,109 @@ export default function PlaylistsPage() {
       </Dialog>
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden border-none bg-black rounded-[2rem]">
+        <DialogContent className="sm:max-w-5xl p-0 overflow-hidden border-none bg-black rounded-[2rem] relative shadow-2xl">
+          {/* Decoupled Exit Button - Always on Top */}
+          <div className="absolute top-6 right-6 z-[100] flex items-center gap-2 group/close pointer-events-auto">
+            <Badge className="bg-white/10 text-white/80 border-white/20 backdrop-blur-md px-3 py-1 font-mono text-[10px] opacity-0 group-hover/close:opacity-100 transition-opacity">ESC TO EXIT</Badge>
+            <Button 
+              variant="secondary" 
+              size="icon" 
+              className="bg-black/60 text-white hover:bg-black/80 backdrop-blur-xl border-2 border-white/20 rounded-full h-12 w-12 shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-transform hover:scale-110"
+              onClick={() => setIsPreviewOpen(false)}
+            >
+              <X className="w-7 h-7" />
+            </Button>
+          </div>
           <DialogHeader className="sr-only">
-            <DialogTitle>Preview</DialogTitle>
+            <DialogTitle>Broadcast Preview</DialogTitle>
           </DialogHeader>
           <div className="relative group">
-            <Carousel className="w-full">
+            <Carousel 
+              key={`${currentPlaylist?.id}-${isPreviewOpen}`} // Force refresh on open
+              className="w-full"
+              opts={{
+                loop: true,
+              }}
+              plugins={[
+                Autoplay({
+                  delay: 8000,
+                  stopOnInteraction: false,
+                })
+              ]}
+            >
               <CarouselContent>
                 {currentPlaylist?.items.map((itemId, index) => {
                   const media = mediaItems.find(m => m.id === itemId);
+                  const youtubeId = media ? extractYouTubeId(media.url) : null;
+                  
                   return (
                     <CarouselItem key={index}>
-                      <div className="relative aspect-video w-full flex items-center justify-center bg-black">
+                      <div className="relative aspect-video w-full flex items-center justify-center bg-black overflow-hidden">
                         {media ? (
-                           media.source === "external" && media.url.includes("youtube") ? (
-                            <Image src={`https://img.youtube.com/vi/${new URL(media.url).searchParams.get('v')}/0.jpg`} alt={media.name} fill className="object-cover" unoptimized/>
-                          ) : (
-                            <Image 
-                              src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} 
-                              alt={media.name} 
-                              fill 
-                              className="object-contain" 
-                              unoptimized 
+                           youtubeId ? (
+                            <iframe 
+                              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&vq=hd1080`}
+                              className="w-full h-full border-none pointer-events-none"
+                              allow="autoplay; fullscreen"
                             />
+                          ) : media.type === 'website' ? (
+                            <iframe src={media.url} className="w-full h-full border-none pointer-events-none" />
+                          ) : (
+                            <div className="relative w-full h-full">
+                              <Image 
+                                src={getMediaThumbnail(media.url, media.type)} 
+                                alt={media.name} 
+                                fill 
+                                className="object-cover opacity-80 blur-2xl scale-110" 
+                                unoptimized 
+                              />
+                              <Image 
+                                src={getMediaThumbnail(media.url, media.type)} 
+                                alt={media.name} 
+                                fill 
+                                className="object-contain relative z-10 drop-shadow-2xl" 
+                                unoptimized 
+                              />
+                            </div>
                           )
                         ) : (
                           <p className="text-white opacity-50">Media Unavailable</p>
                         )}
-                        <div className="absolute bottom-8 left-8 right-8 p-6 bg-black/40 backdrop-blur-2xl rounded-3xl text-white border border-white/10 shadow-2xl">
-                          <div className="flex items-center gap-3 mb-3">
-                             <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse shadow-[0_0_10px_var(--accent)]" />
-                             <p className="text-[11px] font-black uppercase tracking-[0.3em] text-accent">Sequence {index + 1} • {currentPlaylist.items.length}</p>
-                          </div>
-                          <h4 className="text-3xl font-black tracking-tight leading-none">{media?.name}</h4>
-                          <div className="flex items-center gap-4 mt-3 opacity-60">
-                            <span className="text-[10px] uppercase font-bold tracking-widest">{media?.type}</span>
-                            <Separator orientation="vertical" className="h-3 bg-white/20" />
-                            <span className="text-[10px] uppercase font-bold tracking-widest">8 Second Exposure</span>
-                          </div>
+                        <div className="absolute inset-x-0 bottom-0 p-12 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none z-20">
+                           <div className="max-w-3xl">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="px-3 py-1 bg-accent text-primary rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                  LIVE PREVIEW
+                                </div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">Asset {index + 1} of {currentPlaylist.items.length}</p>
+                            </div>
+                            <h4 className="text-5xl font-black tracking-tighter leading-none uppercase text-white drop-shadow-2xl">{media?.name}</h4>
+                            <div className="flex items-center gap-6 mt-6">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="bg-white/20 text-white border-none rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
+                                  {media?.type}
+                                </Badge>
+                              </div>
+                              <Separator orientation="vertical" className="h-4 bg-white/20" />
+                              <div className="flex items-center gap-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                                <Clock className="w-4 h-4" /> 8S Sequence
+                              </div>
+                            </div>
+                           </div>
                         </div>
                       </div>
                     </CarouselItem>
                   );
                 })}
               </CarouselContent>
-              <CarouselPrevious className="left-6 bg-white/10 border-white/20 text-white hover:bg-white/30 h-12 w-12" />
-              <CarouselNext className="right-6 bg-white/10 border-white/20 text-white hover:bg-white/30 h-12 w-12" />
+              
+              {/* Manual Nav Controls */}
+              <div className="absolute inset-y-0 left-0 flex items-center justify-center p-8 z-30 pointer-events-none">
+                <CarouselPrevious className="relative left-0 bg-black/40 border-white/20 text-white hover:bg-black/60 h-16 w-16 rounded-[2rem] backdrop-blur-xl hover:scale-110 transition-all pointer-events-auto border-2 shadow-2xl" />
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center justify-center p-8 z-30 pointer-events-none">
+                <CarouselNext className="relative right-0 bg-black/40 border-white/20 text-white hover:bg-black/60 h-16 w-16 rounded-[2rem] backdrop-blur-xl hover:scale-110 transition-all pointer-events-auto border-2 shadow-2xl" />
+              </div>
             </Carousel>
           </div>
         </DialogContent>

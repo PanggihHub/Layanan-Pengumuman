@@ -55,6 +55,11 @@
       "source": "firebase/agent-skills",
       "sourceType": "github",
       "computedHash": "0688a8ad6cb72149924352cc47e6cc8bf815e944b636a67b9da225cc9b025afc"
+    },
+    "firestore-security-rules-auditor": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "173b38a87198e9ac1a2ffc62a4a9525f444a98ead46bdb255395fd81499d33b3"
     }
   }
 }

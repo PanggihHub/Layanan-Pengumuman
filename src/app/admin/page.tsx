@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
+import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -37,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { INITIAL_MEDIA, PLAYLISTS, SCREEN_STATUS, ScreenStatus } from "@/lib/mock-data";
+import { ScreenStatus, MediaItem, Playlist, SecurityAuditLog } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -57,7 +60,10 @@ const engagementData = [
 ];
 
 export default function AdminOverview() {
-  const [screens] = useState<ScreenStatus[]>(SCREEN_STATUS);
+  const [screens, setScreens] = useState<ScreenStatus[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [auditLogs, setAuditLogs] = useState<SecurityAuditLog[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
@@ -65,6 +71,44 @@ export default function AdminOverview() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [monitorScreen, setMonitorScreen] = useState<ScreenStatus | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // 1. Listen to Screens
+    const unsubScreens = onSnapshot(collection(db, "screens"), (snap) => {
+      const items: ScreenStatus[] = [];
+      snap.forEach(doc => items.push(doc.data() as ScreenStatus));
+      setScreens(items);
+    });
+
+    // 2. Listen to Media
+    const unsubMedia = onSnapshot(collection(db, "media"), (snap) => {
+      const items: MediaItem[] = [];
+      snap.forEach(doc => items.push(doc.data() as MediaItem));
+      setMediaItems(items);
+    });
+
+    // 3. Listen to Playlists
+    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snap) => {
+      const items: Playlist[] = [];
+      snap.forEach(doc => items.push(doc.data() as Playlist));
+      setPlaylists(items);
+    });
+
+    // 4. Listen to Audit Logs
+    const qLogs = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(20));
+    const unsubLogs = onSnapshot(qLogs, (snap) => {
+      const items: SecurityAuditLog[] = [];
+      snap.forEach(doc => items.push({ id: doc.id, ...doc.data() } as SecurityAuditLog));
+      setAuditLogs(items);
+    });
+
+    return () => {
+      unsubScreens();
+      unsubMedia();
+      unsubPlaylists();
+      unsubLogs();
+    };
+  }, []);
   
   // Simulated activity history
   const [history] = useState([
@@ -77,18 +121,23 @@ export default function AdminOverview() {
   ]);
 
   const stats = useMemo(() => {
-    const totalMedia = INITIAL_MEDIA.length;
-    const totalPlaylists = PLAYLISTS.length;
-    const onlineScreens = screens.filter(s => s.status === "Online").length;
-    const weeklyViews = engagementData.reduce((acc, curr) => acc + curr.engagement, 0);
+    const totalMedia = mediaItems.length;
+    const totalPlaylists = playlists.length;
+    const onlineScreens = screens.filter(s => {
+      const lastSeenDate = s.lastSeen ? new Date(s.lastSeen) : null;
+      return lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000) && s.status !== 'DEACTIVATED' && s.status !== 'Offline';
+    }).length;
+    
+    // Engagement proxy: frequency of administrative actions + active screen ratio
+    const engagementScore = screens.length > 0 ? (onlineScreens / screens.length) * 1000 : 0;
     
     return {
       totalMedia,
       totalPlaylists,
       onlineScreens,
-      weeklyViews: weeklyViews.toLocaleString()
+      weeklyViews: Math.round(engagementScore).toLocaleString()
     };
-  }, [screens]);
+  }, [screens, mediaItems, playlists]);
 
   const handleSyncAll = () => {
     setIsSyncing(true);
@@ -108,18 +157,47 @@ export default function AdminOverview() {
 
   const handleExport = () => {
     setIsExporting(true);
-    toast({ title: "Generating Report", description: "Compiling system telemetry..." });
+    toast({ title: "Generating System Report", description: "Compiling telemetry and audit history..." });
+    
     setTimeout(() => {
+      // 1. Generate JSON
+      const jsonContent = JSON.stringify({
+        timestamp: new Date().toISOString(),
+        fleet: screens,
+        media: mediaItems,
+        logs: auditLogs
+      }, null, 2);
+      
+      const jsonBlob = new Blob([jsonContent], { type: 'application/json' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = `ScreenSense_Report_${new Date().getTime()}.json`;
+      jsonLink.click();
+
+      // 2. Generate CSV
+      const csvRows = [
+        ["Device ID", "Name", "Status", "Last Seen"],
+        ...screens.map(s => [s.id, s.name, s.status, s.lastSeen])
+      ];
+      const csvContent = csvRows.map(row => row.join(",")).join("\n");
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      const csvUrl = URL.createObjectURL(csvBlob);
+      const csvLink = document.createElement('a');
+      csvLink.href = csvUrl;
+      csvLink.download = `ScreenSense_Fleet_${new Date().getTime()}.csv`;
+      csvLink.click();
+
       setIsExporting(false);
-      toast({ title: "Export Ready", description: "System_Report.pdf downloaded." });
-    }, 3000);
+      toast({ title: "Export Ready", description: "Telemetry reports (CSV & JSON) downloaded." });
+    }, 2000);
   };
 
   const getActiveMediaForScreen = (screen: ScreenStatus | null) => {
     if (!screen) return [];
-    const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
+    const playlist = playlists.find(p => p.id === screen.playlistId);
     if (!playlist) return [];
-    return playlist.items.map(id => INITIAL_MEDIA.find(m => m.id === id)).filter(Boolean);
+    return playlist.items.map(id => mediaItems.find(m => m.id === id)).filter(Boolean);
   };
 
   return (
@@ -257,20 +335,23 @@ export default function AdminOverview() {
           <CardContent>
             <ScrollArea className="h-[320px] pr-4">
               <div className="space-y-6 pt-2">
-                {history.map((log) => (
+                {auditLogs.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-10 italic">No administrative events recorded.</p>
+                )}
+                {auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-4 relative group">
                     <div className={cn(
                       "w-2 h-2 rounded-full mt-1.5 shrink-0 z-10 ring-4 ring-white transition-all group-hover:scale-125",
-                      log.type === 'sync' ? 'bg-primary' : 
-                      log.type === 'genai' ? 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]' : 
-                      log.type === 'alert' ? 'bg-red-500 animate-pulse' :
+                      log.status === 'Success' ? 'bg-primary' : 
+                      log.status === 'Blocked' ? 'bg-red-500 animate-pulse' : 
+                      log.status === 'Warning' ? 'bg-amber-500' :
                       'bg-muted-foreground'
                     )}></div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold leading-snug text-primary/90">{log.text}</p>
+                      <p className="text-sm font-semibold leading-snug text-primary/90">{log.event}</p>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
                         <History className="w-3 h-3" />
-                        {log.time}
+                        {log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : "Unknown"}
                       </p>
                     </div>
                   </div>
@@ -315,24 +396,43 @@ export default function AdminOverview() {
                 </tr>
               </thead>
               <tbody>
+                {screens.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground italic text-xs">No devices provisioned in the cloud yet.</td>
+                  </tr>
+                )}
                 {screens.map((screen) => {
-                  const playlist = PLAYLISTS.find(p => p.id === screen.playlistId);
+                  const playlist = playlists.find(p => p.id === screen.playlistId);
+                  const lastSeenDate = screen.lastSeen ? new Date(screen.lastSeen) : null;
+                  const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000);
+                  
+                  let color = "bg-zinc-400"; // Grey
+                  let label = "No Signal";
+                  
+                  if (isRecent && screen.status !== 'DEACTIVATED' && screen.status !== 'Offline') {
+                    color = "bg-emerald-500";
+                    label = "Active";
+                  } else if (screen.lastSeen) {
+                    color = "bg-red-500";
+                    label = screen.status === 'DEACTIVATED' ? "Deactivated" : "Inactive";
+                  }
+
                   return (
                     <tr key={screen.id} className="border-b hover:bg-primary/5 transition-colors group">
                       <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{screen.id}</td>
                       <td className="px-6 py-4 font-bold text-primary">{screen.name}</td>
                       <td className="px-6 py-4 text-center">
                         <Badge className={cn(
-                          "min-w-[70px] justify-center text-[10px] font-black uppercase border-none",
-                          screen.status === "Online" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500"
+                          "min-w-[80px] justify-center text-[10px] font-black uppercase border-none text-white",
+                          color
                         )}>
-                          {screen.status}
+                          {label}
                         </Badge>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-muted-foreground">{playlist?.name}</span>
-                          <span className="text-[9px] text-muted-foreground/60 italic">{playlist?.schedule}</span>
+                          <span className="text-xs font-bold text-muted-foreground">{playlist?.name || "System Loop"}</span>
+                          <span className="text-[9px] text-muted-foreground/60 italic">{playlist?.schedule || "Standard"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -407,7 +507,7 @@ export default function AdminOverview() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Surveillance</span>
                   </div>
                   <h3 className="text-4xl font-black tracking-tighter leading-none">{monitorScreen?.name}</h3>
-                  <p className="text-lg opacity-70 font-medium mt-2">Looping: {PLAYLISTS.find(p => p.id === monitorScreen?.playlistId)?.name}</p>
+                  <p className="text-lg opacity-70 font-medium mt-2">Looping: {playlists.find(p => p.id === monitorScreen?.playlistId)?.name}</p>
                 </div>
               </div>
             ) : (

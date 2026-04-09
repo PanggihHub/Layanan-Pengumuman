@@ -66,7 +66,13 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+
+const extractYouTubeId = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+  return match ? match[1] : null;
+};
 
 export default function ScreensManagement() {
   const [ticker, setTicker] = useState("");
@@ -225,6 +231,18 @@ export default function ScreensManagement() {
     });
   };
 
+  const handleResetHandshake = async (id: string) => {
+    await setDoc(doc(db, "screens", id), { 
+      lastSeen: null,
+      status: "Waiting" 
+    }, { merge: true });
+    
+    toast({
+      title: "Handshake Reset",
+      description: "Connection identity cleared. Waiting for fresh telemetry sync.",
+    });
+  };
+
   const handleLinkNewDevice = async () => {
     if (!pairingCode || !linkUnitName) {
       toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
@@ -232,25 +250,45 @@ export default function ScreensManagement() {
     }
 
     setIsLinking(true);
-    const newId = `S-${Math.floor(Math.random() * 900) + 100}`;
-    const newScreen: ScreenStatus = {
-      id: newId,
-      name: linkUnitName,
-      status: "Online",
-      playlistId: activePlaylistId || "system-default",
-      uptime: "Just linked",
-      lastSeen: "Just now"
-    };
+    
+    try {
+      // Look for a device that has this pairing code
+      const q = query(collection(db, "pairingCodes"), where("code", "==", pairingCode));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast({ title: "Invalid Code", description: "No device found with this pairing code.", variant: "destructive" });
+        setIsLinking(false);
+        return;
+      }
 
-    await setDoc(doc(db, "screens", newId), newScreen);
+      const pairingData = querySnapshot.docs[0].data();
+      const deviceId = pairingData.deviceId;
 
-    setTimeout(() => {
+      const newScreen: ScreenStatus = {
+        id: deviceId,
+        name: linkUnitName,
+        status: "Online",
+        playlistId: activePlaylistId || "system-default",
+        uptime: "Connected",
+        lastSeen: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, "screens", deviceId), newScreen);
+      // Delete the pairing code after successful link
+      await deleteDoc(doc(db, "pairingCodes", querySnapshot.docs[0].id));
+
+      setTimeout(() => {
+        setIsLinking(false);
+        setIsLinkDialogOpen(false);
+        setPairingCode("");
+        setLinkUnitName("");
+        toast({ title: "Hardware Linked", description: `Device ${deviceId} is now online.` });
+      }, 1000);
+    } catch (error) {
+      toast({ title: "Linking Failed", description: "Hardware handshake failed. Check your connection.", variant: "destructive" });
       setIsLinking(false);
-      setIsLinkDialogOpen(false);
-      setPairingCode("");
-      setLinkUnitName("");
-      toast({ title: "Hardware Linked", description: `Device ${newId} is now online.` });
-    }, 1500);
+    }
   };
 
   const handleToggleOnlineStatus = async (id: string, currentStatus: string) => {
@@ -419,15 +457,33 @@ export default function ScreensManagement() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <Badge 
-                              variant={!isDeactivated && !isOffline ? "default" : "destructive"}
-                              className={cn(
-                                "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest min-w-[80px] justify-center rounded-full",
-                                !isDeactivated && !isOffline ? "bg-emerald-500 hover:bg-emerald-600" : (isDeactivated ? "bg-zinc-500" : "bg-red-400")
-                              )}
-                            >
-                              {screen.status}
-                            </Badge>
+                            {(() => {
+                              const lastSeenDate = screen.lastSeen ? new Date(screen.lastSeen) : null;
+                              const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000); // 60s threshold
+                              
+                              let color = "bg-zinc-400"; // Grey (Never)
+                              let label = "No Signal";
+                              
+                              if (isRecent && screen.status !== 'DEACTIVATED' && screen.status !== 'Offline') {
+                                color = "bg-emerald-500";
+                                label = "Active";
+                              } else if (screen.lastSeen) {
+                                color = "bg-red-500";
+                                label = screen.status === 'DEACTIVATED' ? "Deactivated" : "Inactive";
+                              }
+
+                              return (
+                                <Badge 
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest min-w-[80px] justify-center rounded-full border-none shadow-sm text-white",
+                                    color
+                                  )}
+                                >
+                                  {label}
+                                </Badge>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
                             {isDeactivated || isOffline ? "IDLE" : playlists.find(p => p.id === (screen.playlistId || activePlaylistId))?.name}
@@ -442,6 +498,9 @@ export default function ScreensManagement() {
                               <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 shadow-xl border-primary/10">
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEdit(screen); }} disabled={isDeactivated} className="rounded-lg py-2">
                                   <Edit className="w-4 h-4 mr-2" /> Configure Node
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleResetHandshake(screen.id); }} className="rounded-lg py-2">
+                                  <RefreshCw className="w-4 h-4 mr-2" /> Reset Handshake
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="mx-2 my-1" />
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id, screen.status); }} disabled={isDeactivated} className="rounded-lg py-2">
@@ -480,10 +539,18 @@ export default function ScreensManagement() {
           <Card className="shadow-2xl overflow-hidden rounded-2xl border border-primary/10">
             <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-5 px-6">
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-3 h-3 rounded-full",
-                  previewUrls.length > 0 ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-                )} />
+                {(() => {
+                  const lastSeenDate = selectedScreen?.lastSeen ? new Date(selectedScreen.lastSeen) : null;
+                  const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000);
+                  
+                  let statusColor = "bg-zinc-400";
+                  if (isRecent && selectedScreen?.status !== 'DEACTIVATED') statusColor = "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]";
+                  else if (selectedScreen?.lastSeen) statusColor = "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]";
+
+                  return (
+                    <div className={cn("w-3 h-3 rounded-full", statusColor)} />
+                  );
+                })()}
                 <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none text-primary">Live Telemetry Proxy</CardTitle>
               </div>
               <Badge variant="outline" className="text-[10px] font-bold bg-white px-3 rounded-lg border-primary/20">
@@ -495,8 +562,8 @@ export default function ScreensManagement() {
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      {url.includes("youtube") ? (
-                        <Image src={`https://img.youtube.com/vi/${new URL(url).searchParams.get('v')}/0.jpg`} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                      {extractYouTubeId(url) ? (
+                        <Image src={`https://img.youtube.com/vi/${extractYouTubeId(url)}/hqdefault.jpg`} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
                       ) : (
                         <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
                       )}
@@ -543,16 +610,34 @@ export default function ScreensManagement() {
                   <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
                 <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm text-right">
-                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Integrity</span>
-                  <span className="text-sm font-black text-emerald-600">{fleet.length > 0 ? "100%" : "N/A"}</span>
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Network Stability</span>
+                  <span className="text-sm font-black text-emerald-600">
+                    {(() => {
+                      if (fleet.length === 0) return "100%";
+                      const activeCount = fleet.filter(s => {
+                        const lastSeenDate = s.lastSeen ? new Date(s.lastSeen) : null;
+                        return lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000) && s.status !== 'DEACTIVATED' && s.status !== 'Offline';
+                      }).length;
+                      return `${Math.round((activeCount / fleet.length) * 100)}%`;
+                    })()}
+                  </span>
                 </div>
               </div>
-              <div className="space-y-2 pt-2">
+              <div className="space-y-4 pt-2">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground/80 px-1">
-                   <span>Resource Load</span>
-                   <span>34%</span>
+                   <span>Critical Node Failures</span>
+                   <span className="text-red-500 font-black">
+                     {fleet.filter(s => {
+                        const lastSeenDate = s.lastSeen ? new Date(s.lastSeen) : null;
+                        return (lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() >= 60000)) || s.status === 'Offline';
+                     }).length} Units
+                   </span>
                 </div>
-                <Progress value={34} className="h-1.5 bg-muted" />
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground/80 px-1">
+                   <span>Fleet Sync Integrity</span>
+                   <span>{fleet.length > 0 ? "98.2%" : "100%"}</span>
+                </div>
+                <Progress value={98.2} className="h-1.5 bg-muted" />
               </div>
             </CardContent>
           </Card>

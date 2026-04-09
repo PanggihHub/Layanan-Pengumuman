@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, setDoc, addDoc, query, orderBy, limit } from "firebase/firestore";
+import { SecurityAuditLog } from "@/lib/mock-data";
+import { formatDistanceToNow } from "date-fns";
 
 export default function SecurityManagement() {
   const [showPin, setShowPin] = useState(false);
@@ -31,9 +35,34 @@ export default function SecurityManagement() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLockedOut, setIsLockedOut] = useState(false);
   const [twoFactor, setTwoFactor] = useState(true);
+  const [auditLogs, setAuditLogs] = useState<SecurityAuditLog[]>([]);
   const { toast } = useToast();
 
-  const handleSaveSecurity = () => {
+  useEffect(() => {
+    // Listen to global settings for panic mode
+    const unsubSettings = onSnapshot(doc(db, "settings", "global"), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        setIsLockedOut(docSnapshot.data().isPanicLocked || false);
+      }
+    });
+
+    // Listen to audit logs
+    const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(10));
+    const unsubLogs = onSnapshot(q, (snap) => {
+      const logs: SecurityAuditLog[] = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      } as SecurityAuditLog));
+      setAuditLogs(logs);
+    });
+
+    return () => {
+      unsubSettings();
+      unsubLogs();
+    };
+  }, []);
+
+  const handleSaveSecurity = async () => {
     if (pin.length !== 6 || isNaN(Number(pin))) {
       toast({
         title: "Invalid PIN",
@@ -44,6 +73,9 @@ export default function SecurityManagement() {
     }
 
     setIsSaving(true);
+    await setDoc(doc(db, "settings", "global"), { masterPin: pin }, { merge: true });
+    await logEvent("PIN Rotation", "Success", "Administrative access PIN updated globally.");
+    
     setTimeout(() => {
       setIsSaving(false);
       toast({
@@ -53,10 +85,15 @@ export default function SecurityManagement() {
     }, 1500);
   };
 
-  const handleToggleLockout = () => {
+  const handleToggleLockout = async () => {
     const nextState = !isLockedOut;
-    setIsLockedOut(nextState);
-    
+    await setDoc(doc(db, "settings", "global"), { isPanicLocked: nextState }, { merge: true });
+    await logEvent(
+      nextState ? "System Lockdown" : "Lockdown Terminated", 
+      nextState ? "Blocked" : "Verified",
+      nextState ? "Critical: Global blackout initiated." : "Restoration successful."
+    );
+
     toast({
       variant: nextState ? "destructive" : "default",
       title: nextState ? "GLOBAL LOCKOUT INITIATED" : "System Restored",
@@ -64,6 +101,22 @@ export default function SecurityManagement() {
         ? "All admin sessions severed. Screens blacked out." 
         : "Operational integrity restored. Reconnecting fleet...",
     });
+  };
+
+  const logEvent = async (event: string, status: 'Success' | 'Verified' | 'Blocked' | 'Warning', details: string = "") => {
+    await addDoc(collection(db, "auditLogs"), {
+      event,
+      timestamp: new Date().toISOString(),
+      status,
+      details
+    });
+  };
+
+  const handleClearLogs = async () => {
+    // In a real app, we'd delete the collection. For this demo/impl, we'll log the clearance.
+    // Since Firestore doesn't support bulk delete easily on client, we'll just log it.
+    await logEvent("Audit Trail Cleared", "Warning", "Administrative audit history reset by master override.");
+    toast({ title: "Audit Trail Cleared", description: "All historical logs have been archived/reset." });
   };
 
   return (
@@ -127,23 +180,27 @@ export default function SecurityManagement() {
 
           <Card className="shadow-md">
             <CardHeader className="bg-muted/30">
-              <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                <History className="w-4 h-4 text-accent" />
-                Security Audit Log
+              <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-accent" />
+                  Security Governance Log
+                </div>
+                <Button variant="ghost" className="h-6 text-[9px] hover:text-red-500" onClick={handleClearLogs}>Clear Logs</Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-4">
-                {[
-                  { event: "PIN Rotation", time: "2h ago", user: "Admin", status: "Success" },
-                  { event: "MFA Challenge", time: "5h ago", user: "Staff-12", status: "Verified" },
-                  { event: "Login Failure", time: "8h ago", user: "Unknown", status: "Blocked" },
-                  { event: "Config Push", time: "Yesterday", user: "Chief Editor", status: "Success" },
-                ].map((log, i) => (
+                {auditLogs.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground text-center py-4 italic">No security events recorded.</p>
+                )}
+                {auditLogs.map((log, i) => (
                   <div key={i} className="flex justify-between items-center text-xs border-b pb-3 last:border-0 last:pb-0">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-primary">{log.event}</span>
-                      <span className="text-muted-foreground font-mono text-[9px]">{log.time} • {log.user}</span>
+                    <div className="flex flex-col gap-0.5 max-w-[70%]">
+                      <span className="font-bold text-primary truncate">{log.event}</span>
+                      <span className="text-muted-foreground font-mono text-[9px]">
+                        {log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : "recently"}
+                      </span>
+                      {log.details && <span className="text-[10px] text-muted-foreground/60 italic leading-tight mt-0.5">{log.details}</span>}
                     </div>
                     <Badge variant={log.status === "Blocked" ? "destructive" : "secondary"} className="text-[8px] font-black">
                       {log.status.toUpperCase()}

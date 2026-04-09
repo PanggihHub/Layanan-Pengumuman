@@ -57,20 +57,62 @@ export default function SystemConfig() {
   const [weatherLatSec, setWeatherLatSec] = useState(SCREEN_SETTINGS.weatherLatSecondary.toString());
   const [weatherLngSec, setWeatherLngSec] = useState(SCREEN_SETTINGS.weatherLngSecondary.toString());
 
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const [isSearchingCitySec, setIsSearchingCitySec] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "global"), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setWeatherCity(d.weatherCity || "Yogyakarta");
+        setWeatherLat(d.weatherLat?.toString() || "-7.78");
+        setWeatherLng(d.weatherLng?.toString() || "110.38");
+        setWeatherCitySec(d.weatherCitySecondary || "New York");
+        setWeatherLatSec(d.weatherLatSecondary?.toString() || "40.71");
+        setWeatherLngSec(d.weatherLngSecondary?.toString() || "-74.00");
+        setDisplayLayout(d.displayLayout || "single");
+        setSyncUrl(d.syncUrl || "https://api.screensense.cloud/v1");
+        setHeartbeat(d.heartbeat?.toString() || "60");
+        setSessionTimeout(d.sessionTimeout?.toString() || "30");
+        setAutoUpdate(d.autoUpdate ?? true);
+      }
+    });
+    return unsub;
+  }, []);
+
+  const searchCity = async (query: string, setResults: (res: any[]) => void, setLoading: (l: boolean) => void) => {
+    if (query.length < 3) return;
+    setLoading(true);
+    try {
+      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`);
+      const data = await resp.json();
+      setResults(data.results || []);
+    } catch (error) {
+      console.error("Geocoding failed", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
     
-    // Persist to Mock Data
-    SCREEN_SETTINGS.displayLayout = displayLayout;
-    SCREEN_SETTINGS.weatherCity = weatherCity;
-    SCREEN_SETTINGS.weatherLat = parseFloat(weatherLat);
-    SCREEN_SETTINGS.weatherLng = parseFloat(weatherLng);
-    SCREEN_SETTINGS.weatherCitySecondary = weatherCitySec;
-    SCREEN_SETTINGS.weatherLatSecondary = parseFloat(weatherLatSec);
-    SCREEN_SETTINGS.weatherLngSecondary = parseFloat(weatherLngSec);
+    await setDoc(doc(db, "settings", "global"), {
+      displayLayout,
+      weatherCity,
+      weatherLat: parseFloat(weatherLat),
+      weatherLng: parseFloat(weatherLng),
+      weatherCitySecondary: weatherCitySec,
+      weatherLatSecondary: parseFloat(weatherLatSec),
+      weatherLngSecondary: parseFloat(weatherLngSec),
+      syncUrl,
+      heartbeat: parseInt(heartbeat),
+      sessionTimeout: parseInt(sessionTimeout),
+      autoUpdate
+    }, { merge: true });
 
     setTimeout(() => {
       setIsSaving(false);
@@ -78,7 +120,7 @@ export default function SystemConfig() {
         title: "Configuration Saved",
         description: "Global system parameters and display settings updated.",
       });
-    }, 1200);
+    }, 1000);
   };
 
   const LayoutPreview = ({ layout }: { layout: DisplayLayout }) => {
@@ -188,18 +230,52 @@ export default function SystemConfig() {
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary">
                   <MapPin className="w-4 h-4" /> Primary Location (Main)
                 </div>
-                <div className="space-y-2">
-                  <Label>City Name</Label>
-                  <Input value={weatherCity} onChange={e => setWeatherCity(e.target.value)} placeholder="e.g. Yogyakarta" className="rounded-xl" />
+                <div className="space-y-2 relative">
+                  <Label>Search City</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={weatherCity} 
+                      onChange={e => {
+                        setWeatherCity(e.target.value);
+                        searchCity(e.target.value, setCitySearchResults, setIsSearchingCity);
+                      }} 
+                      placeholder="e.g. Yogyakarta" 
+                      className="rounded-xl" 
+                    />
+                    {isSearchingCity && <RefreshCw className="w-4 h-4 animate-spin self-center" />}
+                  </div>
+                  {citySearchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-primary/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                      {citySearchResults.map((city, i) => (
+                        <button
+                          key={i}
+                          className="w-full px-4 py-2 text-left text-xs hover:bg-primary/5 transition-colors border-b last:border-none flex flex-col"
+                          onClick={() => {
+                            setWeatherCity(city.name);
+                            setWeatherLat(city.latitude.toString());
+                            setWeatherLng(city.longitude.toString());
+                            setCitySearchResults([]);
+                          }}
+                        >
+                          <span className="font-bold">{city.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{city.admin1}, {city.country}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 opacity-50">
                   <div className="space-y-2">
-                    <Label>Latitude</Label>
-                    <Input value={weatherLat} onChange={e => setWeatherLat(e.target.value)} type="number" step="any" className="rounded-xl" />
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Latitude</Label>
+                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
+                      {weatherLat}
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Longitude</Label>
-                    <Input value={weatherLng} onChange={e => setWeatherLng(e.target.value)} type="number" step="any" className="rounded-xl" />
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Longitude</Label>
+                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
+                      {weatherLng}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -209,18 +285,52 @@ export default function SystemConfig() {
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
                   <Globe className="w-4 h-4" /> Secondary Location (Global)
                 </div>
-                <div className="space-y-2">
-                  <Label>City Name</Label>
-                  <Input value={weatherCitySec} onChange={e => setWeatherCitySec(e.target.value)} placeholder="e.g. New York" className="rounded-xl" />
+                <div className="space-y-2 relative">
+                  <Label>Search City</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={weatherCitySec} 
+                      onChange={e => {
+                        setWeatherCitySec(e.target.value);
+                        searchCity(e.target.value, setCitySearchResultsSec, setIsSearchingCitySec);
+                      }} 
+                      placeholder="e.g. New York" 
+                      className="rounded-xl" 
+                    />
+                    {isSearchingCitySec && <RefreshCw className="w-4 h-4 animate-spin self-center" />}
+                  </div>
+                  {citySearchResultsSec.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-primary/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                      {citySearchResultsSec.map((city, i) => (
+                        <button
+                          key={i}
+                          className="w-full px-4 py-2 text-left text-xs hover:bg-primary/5 transition-colors border-b last:border-none flex flex-col"
+                          onClick={() => {
+                            setWeatherCitySec(city.name);
+                            setWeatherLatSec(city.latitude.toString());
+                            setWeatherLngSec(city.longitude.toString());
+                            setCitySearchResultsSec([]);
+                          }}
+                        >
+                          <span className="font-bold">{city.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{city.admin1}, {city.country}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 opacity-50">
                   <div className="space-y-2">
-                    <Label>Latitude</Label>
-                    <Input value={weatherLatSec} onChange={e => setWeatherLatSec(e.target.value)} type="number" step="any" className="rounded-xl" />
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Latitude</Label>
+                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
+                      {weatherLatSec}
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Longitude</Label>
-                    <Input value={weatherLngSec} onChange={e => setWeatherLngSec(e.target.value)} type="number" step="any" className="rounded-xl" />
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Longitude</Label>
+                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
+                      {weatherLngSec}
+                    </div>
                   </div>
                 </div>
               </div>

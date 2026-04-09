@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { Separator } from "@/components/ui/separator";
+import PinShield from "@/components/PinShield";
 import { 
   Bell, 
   Search, 
@@ -60,6 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <SidebarProvider defaultOpen={true}>
+      <PinShield />
       <div className="flex min-h-screen w-full bg-background font-body">
         <AdminSidebar />
         <SidebarInset className="flex flex-col h-screen overflow-hidden">
@@ -131,7 +133,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <DropdownMenuContent align="end" className="w-80 p-0 overflow-hidden shadow-2xl rounded-2xl border-primary/10">
                   <DropdownMenuLabel className="p-4 bg-muted/50 border-b flex items-center justify-between">
                     <span className="font-bold">System Alerts</span>
-                    <Badge variant="outline" className="bg-white text-[10px] font-black uppercase tracking-widest">Live</Badge>
                   </DropdownMenuLabel>
                   <div className="max-h-96 overflow-y-auto">
                     <div className="p-4 border-b hover:bg-primary/5 transition-colors cursor-default">

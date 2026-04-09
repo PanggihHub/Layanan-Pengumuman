@@ -13,13 +13,26 @@ import {
   Sparkles,
   Info,
   Calendar,
-  Waves
+  Waves,
+  ShieldAlert,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc } from "firebase/firestore";
-import { Playlist, MediaItem } from "@/lib/mock-data";
+import { collection, onSnapshot, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { Playlist, MediaItem, ScreenStatus } from "@/lib/mock-data";
+
+// Helper to get or create device ID
+const getDeviceId = () => {
+  if (typeof window === "undefined") return "server";
+  let id = localStorage.getItem("screensense_device_id");
+  if (!id) {
+    id = "DISP-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+    localStorage.setItem("screensense_device_id", id);
+  }
+  return id;
+};
 
 const extractYouTubeId = (url: string) => {
   if (!url) return null;
@@ -31,6 +44,7 @@ export default function DisplayClient() {
   const [tickerMessage, setTickerMessage] = useState("");
   const [activePlaylistId, setActivePlaylistId] = useState("");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
+  const [isLocked, setIsLocked] = useState(false);
   
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -58,13 +72,31 @@ export default function DisplayClient() {
         setTickerMessage(data.tickerMessage || "");
         setActivePlaylistId(data.activePlaylistId || "");
         setTimezone(data.timezone || "Asia/Jakarta");
+        setIsLocked(data.isPanicLocked || false);
       }
     });
+
+    // Heartbeat System
+    const deviceId = getDeviceId();
+    const heartbeat = setInterval(async () => {
+      try {
+        await setDoc(doc(db, "screens", deviceId), {
+          id: deviceId,
+          lastSeen: new Date().toISOString(),
+          status: "Online",
+          uptime: "Active",
+          // We don't overwrite name if it already exists, admin sets the name
+        }, { merge: true });
+      } catch (e) {
+        console.error("Heartbeat failed", e);
+      }
+    }, 30000); // 30 seconds Pulse
 
     return () => {
       unsubPlaylists();
       unsubMedia();
       unsubSettings();
+      clearInterval(heartbeat);
     };
   }, []);
 
@@ -100,15 +132,86 @@ export default function DisplayClient() {
     return () => clearInterval(interval);
   }, [loopItems, currentIndex]);
 
-  if (!activePlaylist || loopItems.length === 0) {
+  if (isLocked) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-8">
-        <Sparkles className="w-16 h-16 text-accent mb-6 animate-pulse" />
-        <h1 className="text-4xl font-black uppercase tracking-widest text-primary">Standby Mode</h1>
-        <p className="text-muted-foreground mt-4 text-xl">Awaiting playlist configuration from network...</p>
-        <div className="absolute bottom-8 left-8 text-xs font-mono opacity-30">
-          NODE: OFFLINE | WAITING FOR HANDSHAKE
+      <div className="w-screen h-screen bg-black flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-1000">
+        <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden">
+          <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-500/20 via-transparent to-transparent animate-pulse" />
         </div>
+        <ShieldAlert className="w-32 h-32 text-red-600 mb-8 animate-bounce" />
+        <h1 className="text-7xl font-black text-red-600 tracking-tighter uppercase">System Secured</h1>
+        <p className="text-white/60 text-2xl mt-4 max-w-2xl font-medium">All visual output has been terminated by emergency override. Contact security operations for manual restoration code.</p>
+        <div className="mt-12 flex items-center gap-4 text-xs font-mono text-white/20">
+          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-ping" /> SECURE_HANDSHAKE_ACTIVE</div>
+          <span className="opacity-50">|</span>
+          <div className="font-bold">LOCKOUT_ID: {Math.random().toString(36).substring(7).toUpperCase()}</div>
+        </div>
+
+        {/* Persistent Back Button for Navigation */}
+        <button 
+          onClick={() => window.location.href = "/"}
+          className="fixed top-8 left-8 z-[100] h-14 w-14 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+          title="Back to Home"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+      </div>
+    );
+  }
+
+  if (!activePlaylist || loopItems.length === 0) {
+    // Premium Default Dashboard (Clock + Weather)
+    return (
+      <div className="w-screen h-screen bg-zinc-950 flex flex-col items-center justify-center text-white relative overflow-hidden font-sans">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-zinc-950 z-0" />
+        
+        {/* Floating background elements */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 blur-[120px] rounded-full" />
+
+        <div className="relative z-10 flex flex-col items-center text-center max-w-4xl">
+          <Sparkles className="w-16 h-16 text-indigo-400 mb-12 animate-pulse" />
+          
+          <div className="space-y-4">
+            <h2 className="text-[12rem] font-black tracking-tighter leading-none tabular-nums text-white drop-shadow-[0_20px_50px_rgba(255,255,255,0.1)]">
+              {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')}
+            </h2>
+            <p className="text-4xl font-black text-indigo-400 uppercase tracking-[0.2em] animate-pulse">
+              {currentTime.toLocaleDateString('id-ID', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+          </div>
+
+          <div className="mt-20 grid grid-cols-2 gap-12 w-full px-12">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl">
+              <CloudSun className="w-16 h-16 text-amber-400" />
+              <div className="flex flex-col items-center">
+                <span className="text-6xl font-black leading-none">28°C</span>
+                <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2">{timezone.split('/')[1]?.replace('_', ' ') || 'Jakarta'}</span>
+              </div>
+            </div>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl">
+               <Waves className="w-16 h-16 text-emerald-400" />
+               <div className="flex flex-col items-center">
+                 <span className="text-5xl font-black leading-none flex items-center gap-2">98<span className="text-xl font-bold opacity-50">%</span></span>
+                 <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2">Network Health</span>
+               </div>
+            </div>
+          </div>
+
+          <div className="mt-24 py-4 px-8 bg-zinc-900/50 border border-white/5 rounded-full backdrop-blur-sm flex items-center gap-3 animate-pulse">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+            <span className="text-sm font-bold tracking-widest uppercase text-white/40">Broadcasting Services Online</span>
+          </div>
+        </div>
+
+        {/* Persistent Back Button */}
+        <button 
+          onClick={() => window.location.href = "/"}
+          className="fixed top-8 left-8 z-[100] h-16 w-16 rounded-full bg-white/5 backdrop-blur-3xl border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-95 shadow-2xl group"
+          title="Back to Home"
+        >
+          <ArrowLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+        </button>
       </div>
     );
   }
@@ -121,20 +224,30 @@ export default function DisplayClient() {
 
   const renderMediaContent = (mediaCls: string) => {
     if (!currentMedia) return null;
-    const youtubeId = currentMedia.source === "external" ? extractYouTubeId(currentMedia.url) : null;
+    const youtubeId = (currentMedia.type === 'external_video' || currentMedia.source === "external") ? extractYouTubeId(currentMedia.url) : null;
     
+    if (currentMedia.type === "website") {
+      return (
+        <iframe 
+          src={currentMedia.url} 
+          className={cn("w-full h-full border-none pointer-events-none bg-white", mediaCls)} 
+          title="Website Content"
+        />
+      );
+    }
+
     if (currentMedia.type === "video" || youtubeId) {
       if (youtubeId) {
         return (
           <iframe 
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}`} 
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&start=${currentMedia.startTime || 0}&end=${currentMedia.endTime || 0}&vq=hd720&rel=0`} 
             className={cn("w-full h-full object-cover pointer-events-none", mediaCls)} 
             frameBorder="0" 
             allow="autoplay; fullscreen" 
           />
         );
       } else {
-        // Render raw video
+        // Render raw video with trimming
         return (
           <video 
             src={currentMedia.url} 
@@ -142,6 +255,16 @@ export default function DisplayClient() {
             autoPlay 
             muted 
             loop 
+            onLoadedMetadata={(e) => {
+              const video = e.target as HTMLVideoElement;
+              if (currentMedia.startTime) video.currentTime = currentMedia.startTime;
+            }}
+            onTimeUpdate={(e) => {
+              const video = e.target as HTMLVideoElement;
+              if (currentMedia.endTime && video.currentTime >= currentMedia.endTime) {
+                video.currentTime = currentMedia.startTime || 0;
+              }
+            }}
           />
         );
       }
@@ -341,6 +464,15 @@ export default function DisplayClient() {
         )}
 
       </div>
+
+      {/* Persistent Back Button for Navigation */}
+      <button 
+        onClick={() => window.location.href = "/"}
+        className="fixed top-8 left-8 z-[100] h-16 w-16 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-95 shadow-2xl group"
+        title="Back to Home"
+      >
+        <ArrowLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+      </button>
     </div>
   );
 }

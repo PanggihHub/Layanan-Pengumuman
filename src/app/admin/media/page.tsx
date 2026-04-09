@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -21,7 +21,11 @@ import {
   Scissors,
   CheckCircle2,
   FileImage,
-  FileVideo
+  FileVideo,
+  Clock,
+  CloudSun,
+  RefreshCw,
+  Maximize2
 } from "lucide-react";
 import Image from "next/image";
 import { 
@@ -53,22 +57,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, extractYouTubeId, getMediaThumbnail } from "@/lib/utils";
 
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
 
-const extractYouTubeId = (url: string) => {
-  if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
-  return match ? match[1] : null;
-};
+// Logic moved to @/lib/utils.ts
 
 export default function MediaLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Dialog states
@@ -85,6 +86,26 @@ export default function MediaLibrary() {
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(30);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSourceConfirmed, setIsSourceConfirmed] = useState(false);
+
+  // Auto-detect type based on URL
+  useEffect(() => {
+    if (sourceOrigin === 'external' && newUrl) {
+      const ytId = extractYouTubeId(newUrl);
+      if (ytId) {
+        setNewType('external_video');
+      } else if (newUrl && (newUrl.startsWith('http') || newUrl.includes('.'))) {
+        // Basic detection for external links
+        if (newUrl.match(/\.(jpeg|jpg|gif|png|webp)/i)) {
+          setNewType('image');
+        } else if (newUrl.match(/\.(mp4|webm|ogg)/i)) {
+          setNewType('video');
+        } else {
+          setNewType('website');
+        }
+      }
+    }
+  }, [newUrl, sourceOrigin]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "media"), (snapshot) => {
@@ -131,6 +152,16 @@ export default function MediaLibrary() {
       return;
     }
 
+    if (sourceOrigin === 'internal' && !isSourceConfirmed && dialogMode === "add") {
+      toast({ title: "Source Required", description: "Please select and confirm a file from your device before staging.", variant: "destructive" });
+      return;
+    }
+
+    if (newType === 'website' && !newUrl.startsWith('http')) {
+      toast({ title: "Validation Error", description: "Website URL must include http:// or https://", variant: "destructive" });
+      return;
+    }
+
     // Determine final URL
     let finalUrl = newUrl;
     if (sourceOrigin === 'internal' && !newUrl) {
@@ -140,6 +171,9 @@ export default function MediaLibrary() {
         ? `https://picsum.photos/seed/${seed}/1920/1080` 
         : `https://picsum.photos/seed/${seed}/1920/1080`;
     }
+
+    // Handle high-res YouTube thumbnail as the official display URL if preferred, 
+    // but usually we keep the source URL. The renderer will handle it.
 
     if (dialogMode === "add") {
       const newId = Math.random().toString(36).substr(2, 9);
@@ -187,6 +221,7 @@ export default function MediaLibrary() {
     setEndTime(30);
     setCurrentItem(null);
     setIsUploading(false);
+    setIsSourceConfirmed(false);
   };
 
   const openAddDialog = () => {
@@ -208,12 +243,36 @@ export default function MediaLibrary() {
     setIsDialogOpen(true);
   };
 
-  const handleSimulatedUpload = () => {
+  const handleFileSelection = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setIsSourceConfirmed(false);
+      return;
+    }
+
     setIsUploading(true);
+    setNewName(file.name.split('.')[0]); // Set name without extension
+    
+    // In a real app, you'd upload to Firebase Storage here and get a URL
     setTimeout(() => {
       setIsUploading(false);
-      toast({ title: "Upload Complete", description: "File successfully staged for processing." });
-    }, 1500);
+      setIsSourceConfirmed(true);
+      const fakeUrl = URL.createObjectURL(file); // Temporary for session preview
+      setNewUrl(fakeUrl);
+      
+      // Auto-detect type
+      if (file.type.startsWith('video/')) setNewType('video');
+      else if (file.type.startsWith('image/')) setNewType('image');
+      
+      toast({ 
+        title: "Source Staged", 
+        description: `${file.name} is ready for processing.` 
+      });
+    }, 1200);
   };
 
   return (
@@ -296,11 +355,19 @@ export default function MediaLibrary() {
           {filteredMedia.map((media) => (
             <Card key={media.id} className="group overflow-hidden hover:ring-2 hover:ring-accent transition-all flex flex-col rounded-2xl border-primary/5 shadow-sm">
               <div className="relative aspect-video bg-muted shrink-0">
-                {media.source === "external" && extractYouTubeId(media.url) ? (
-                   <Image src={`https://img.youtube.com/vi/${extractYouTubeId(media.url)}/hqdefault.jpg`} alt={media.name} fill className="object-cover" unoptimized/>
+                {media.type === 'clock' ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white">
+                    <Clock className="w-12 h-12 mb-2 text-primary" />
+                    <span className="text-[10px] font-black tracking-widest uppercase">System Clock</span>
+                  </div>
+                ) : media.type === 'weather' ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-sky-900 text-white">
+                    <CloudSun className="w-12 h-12 mb-2 text-accent" />
+                    <span className="text-[10px] font-black tracking-widest uppercase">Weather Widget</span>
+                  </div>
                 ) : (
                   <Image 
-                    src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} 
+                    src={getMediaThumbnail(media.url, media.type)} 
                     alt={media.name} 
                     fill 
                     className="object-cover"
@@ -386,7 +453,7 @@ export default function MediaLibrary() {
                   <tr key={media.id} className="border-b hover:bg-primary/5 transition-colors">
                     <td className="px-6 py-4">
                       <div className="w-14 h-9 rounded-lg relative overflow-hidden bg-muted border">
-                        <Image src={media.url || 'https://picsum.photos/seed/placeholder/1920/1080'} alt={media.name} fill className="object-cover" unoptimized />
+                        <Image src={getMediaThumbnail(media.url, media.type)} alt={media.name} fill className="object-cover" unoptimized />
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -468,22 +535,44 @@ export default function MediaLibrary() {
                     <SelectTrigger className="h-11 rounded-xl border-muted-foreground/20">
                       <SelectValue placeholder="Select media type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="image">Static Image</SelectItem>
-                      <SelectItem value="video">Motion Video</SelectItem>
+                    <SelectContent className="rounded-xl border-none shadow-2xl p-2 bg-white/95 backdrop-blur-xl">
+                      <SelectItem value="image" className="rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span>Standard Image</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="video" className="rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span>Motion Video</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="website" className="rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span>Dynamic Dashboard (Web)</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="external_video" className="rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500" />
+                          <span>HD Streaming (YouTube)</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {newType === 'video' && (
+                {(newType === 'video' || newType === 'external_video') && (
                   <div className="space-y-4 pt-4 border-t border-dashed border-primary/20">
                     <div className="flex items-center gap-2 text-xs font-black text-primary uppercase tracking-widest">
                       <Scissors className="w-4 h-4" />
-                      Timeline Transform
+                      Timeline Transform (Scene Selection)
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label htmlFor="startTime" className="text-[9px] font-bold uppercase tracking-widest opacity-60">Entry (Sec)</Label>
+                        <Label htmlFor="startTime" className="text-[9px] font-bold uppercase tracking-widest opacity-60">Scene Start (Sec)</Label>
                         <Input 
                           id="startTime" 
                           type="number" 
@@ -493,7 +582,7 @@ export default function MediaLibrary() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="endTime" className="text-[9px] font-bold uppercase tracking-widest opacity-60">Exit (Sec)</Label>
+                        <Label htmlFor="endTime" className="text-[9px] font-bold uppercase tracking-widest opacity-60">Scene End (Sec)</Label>
                         <Input 
                           id="endTime" 
                           type="number" 
@@ -502,6 +591,61 @@ export default function MediaLibrary() {
                           className="h-10 rounded-xl"
                         />
                       </div>
+                    </div>
+                    {/* Visual Scrubber with range markers */}
+                    <div className="space-y-4 relative pt-2">
+                       {/* Background Track */}
+                       <div className="h-2 w-full bg-zinc-100 rounded-full relative overflow-hidden border">
+                          <div 
+                            className="absolute bg-primary/30 h-full border-x border-primary"
+                            style={{ 
+                              left: `${(startTime / (endTime + 120)) * 100}%`, 
+                              width: `${((endTime - startTime) / (endTime + 120)) * 100}%` 
+                            }}
+                          />
+                       </div>
+                       
+                       {/* Twin Sliders for Range Selection */}
+                       <div className="relative h-6 -mt-4">
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max={endTime + 60} 
+                          value={startTime} 
+                          onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 1))}
+                          className="absolute w-full accent-primary h-1.5 appearance-none bg-transparent cursor-pointer z-30"
+                        />
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max={endTime + 120} 
+                          value={endTime} 
+                          onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 1))}
+                          className="absolute w-full accent-primary h-1.5 appearance-none bg-transparent cursor-pointer z-20"
+                        />
+                       </div>
+
+                       <div className="flex justify-between items-center px-1">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase">Mark In</span>
+                            <div className="flex items-center gap-1.5 bg-white border px-2 py-1 rounded-lg shadow-sm">
+                              <PlayCircle className="w-3 h-3 text-primary" />
+                              <span className="text-xs font-black font-mono">{startTime}s</span>
+                            </div>
+                          </div>
+                          <div className="h-6 w-px bg-zinc-200" />
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase">Mark Out</span>
+                            <div className="flex items-center gap-1.5 bg-white border px-2 py-1 rounded-lg shadow-sm">
+                              <span className="text-xs font-black font-mono">{endTime}s</span>
+                              <Info className="w-3 h-3 text-zinc-400" />
+                            </div>
+                          </div>
+                       </div>
+                       
+                       <div className="p-3 bg-zinc-50 rounded-xl border border-dashed text-[10px] text-zinc-500 italic">
+                          Scene Duration: <span className="font-bold text-primary">{(endTime - startTime)} seconds</span>. This segment will be extracted during playback.
+                       </div>
                     </div>
                   </div>
                 )}
@@ -522,19 +666,27 @@ export default function MediaLibrary() {
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Local Staging</Label>
                     <div 
                       className="w-full h-32 border-2 border-dashed border-primary/20 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/5 transition-all group"
-                      onClick={handleSimulatedUpload}
+                      onClick={handleFileSelection}
                     >
                       {isUploading ? (
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Uploading...</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Analyzing Stream...</span>
+                        </div>
+                      ) : isSourceConfirmed ? (
+                        <div className="flex flex-col items-center gap-2">
+                           <div className="p-3 bg-emerald-100 rounded-full scale-110 shadow-lg shadow-emerald-200">
+                             <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                           </div>
+                           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Source Confirmed</span>
+                           <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setIsSourceConfirmed(false); handleFileSelection(); }} className="h-6 text-[9px] font-bold">Change File</Button>
                         </div>
                       ) : (
                         <>
                           <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
                             <Upload className="w-5 h-5 text-primary" />
                           </div>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select file from filesystem</span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4">Select file from filesystem<br/><span className="lowercase font-normal opacity-60">(MP4, PNG, JPG supported)</span></span>
                         </>
                       )}
                     </div>
@@ -579,15 +731,73 @@ export default function MediaLibrary() {
                       unoptimized
                     />
                   )}
-                  {newType === 'video' ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
-                      <PlayCircle className="w-12 h-12 text-white/40" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-3 text-white/60">Timeline Active</p>
+
+                  {newType === 'website' && newUrl && newUrl.length > 8 && (
+                    <div className="absolute inset-0 bg-white z-10 flex flex-col">
+                      <div className="h-8 bg-zinc-100 border-b flex items-center px-3 gap-2 shrink-0">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 rounded-full bg-red-400" />
+                          <div className="w-2 h-2 rounded-full bg-amber-400" />
+                          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        </div>
+                        <div className="bg-white border rounded px-2 py-0.5 text-[8px] font-mono text-zinc-400 truncate flex-1 leading-none h-4 flex items-center">
+                          {newUrl}
+                        </div>
+                      </div>
+                      <iframe 
+                        src={newUrl} 
+                        className="w-full flex-1 border-none pointer-events-none scale-75 origin-top"
+                        title="Website Preview"
+                      />
+                      <div className="absolute inset-0 pointer-events-none border-4 border-accent/20" />
+                      <div className="absolute top-10 right-2 flex flex-col gap-1 pointer-events-auto">
+                        <Button size="icon" variant="secondary" className="h-7 w-7 rounded-lg shadow-lg bg-white/80 backdrop-blur-md" onClick={() => setNewUrl(newUrl + '')}>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="icon" variant="secondary" className="h-7 w-7 rounded-lg shadow-lg bg-white/80 backdrop-blur-md" onClick={() => window.open(newUrl, '_blank')}>
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
-                      <FileImage className="w-12 h-12 text-white/40" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-3 text-white/60">Static Signal</p>
+                  )}
+
+                  {(newType === 'video' || newType === 'external_video') && (newUrl || currentItem?.url) && (
+                    <div className="absolute inset-0 bg-black z-10 flex items-center justify-center">
+                      {extractYouTubeId(newUrl || currentItem?.url || '') ? (
+                        <iframe
+                          className="w-full aspect-video border-none"
+                          src={`https://www.youtube.com/embed/${extractYouTubeId(newUrl || currentItem?.url || '')}?start=${startTime || 0}&autoplay=0&controls=1&vq=hd1080&rel=0&modestbranding=1`}
+                          title="YouTube Player"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (newUrl || currentItem?.url) && (sourceOrigin === 'internal' || newType === 'video') ? (
+                        <video 
+                          key={newUrl || currentItem?.url}
+                          className="w-full h-full object-contain"
+                          controls
+                          onLoadedMetadata={(e) => {
+                            const video = e.target as HTMLVideoElement;
+                            if (endTime === 30 || endTime === 0) setEndTime(Math.floor(video.duration));
+                          }}
+                        >
+                          <source src={newUrl || currentItem?.url} />
+                        </video>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <PlayCircle className="w-12 h-12 text-white/20" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/10">Signal Pending</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!newUrl && !currentItem?.url && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900">
+                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                        <Radio className="w-8 h-8 text-white/20 animate-pulse" />
+                      </div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Awaiting Signal Proxy...</p>
                     </div>
                   )}
                 </div>
@@ -620,6 +830,13 @@ export default function MediaLibrary() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        onChange={handleFileChange}
+        accept="image/*,video/*"
+      />
     </div>
   );
 }

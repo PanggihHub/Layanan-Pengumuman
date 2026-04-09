@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Welcome to Antigravity!
 
 Welcome to your new developer home! Your Firebase Studio project has been successfully migrated to Antigravity.
@@ -26,3 +27,7 @@ File any bugs at https://github.com/firebase/firebase-tools/issues
 This is a NextJS starter in Firebase Studio.
 
 To get started, take a look at src/app/page.tsx.
+=======
+# Layanan-Pengumuman
+ScreenSense 2.0: Cloud Real-Time Persistence
+>>>>>>> dcb9e794315f63912930eacc9312b785c63f2fa3

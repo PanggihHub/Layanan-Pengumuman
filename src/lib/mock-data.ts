@@ -3,9 +3,29 @@
  * This simulates a database for media, playlists, and screen settings.
  */
 
-export type MediaType = 'image' | 'video' | 'document';
+export type MediaType = 'image' | 'video' | 'document' | 'website' | 'clock' | 'weather' | 'external_video';
 export type MediaSourceOrigin = 'internal' | 'external';
 export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h' | 'widget-hub';
+
+export interface TimeWindow {
+  start: string;
+  end: string;
+}
+
+export interface DaySchedule {
+  active: boolean;
+  windows: TimeWindow[];
+}
+
+export interface PlaylistSchedule {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
 
 export interface MediaItem {
   id: string;
@@ -38,6 +58,7 @@ export interface Playlist {
   items: string[];
   isSystem?: boolean;
   schedule?: string;
+  structuredSchedule?: PlaylistSchedule;
   // Visibility overrides per playlist (Scene settings)
   showTicker?: boolean;
   showInfoCard?: boolean;
@@ -53,6 +74,15 @@ export interface WorshipSchedule {
   location: string;
   frequency: string;
   active: boolean;
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  event: string;
+  timestamp: string;
+  user: string;
+  status: 'Success' | 'Failed' | 'Blocked' | 'Warning';
+  details?: string;
 }
 
 export const INITIAL_MEDIA: MediaItem[] = [
@@ -124,6 +154,28 @@ export const INITIAL_MEDIA: MediaItem[] = [
     category: 'events',
     description: 'Daily lunch menu for the central cafeteria.'
   },
+  {
+    id: 'w-clock',
+    name: 'Digital Clock Widget',
+    type: 'clock',
+    source: 'internal',
+    size: '0.1 MB',
+    date: '2026-04-08',
+    url: 'widget://clock',
+    category: 'campus',
+    description: 'System-wide digital clock with date overlay.'
+  },
+  {
+    id: 'w-weather',
+    name: 'Smart Weather Widget',
+    type: 'weather',
+    source: 'internal',
+    size: '0.2 MB',
+    date: '2026-04-08',
+    url: 'widget://weather',
+    category: 'science',
+    description: 'Real-time weather forecast and temperature display.'
+  },
 ];
 
 export const SCREEN_STATUS: ScreenStatus[] = [
@@ -151,7 +203,14 @@ export const SCREEN_SETTINGS = {
   weatherLatSecondary: 40.71,
   weatherLngSecondary: -74.00,
   weatherCitySecondary: "New York",
+  isPanicLocked: false,
 };
+
+export const INITIAL_AUDIT_LOGS: SecurityAuditLog[] = [
+  { id: '1', event: "PIN Rotation", timestamp: "2026-04-08T10:00:00Z", user: "Admin", status: "Success" },
+  { id: '2', event: "MFA Challenge", timestamp: "2026-04-08T08:00:00Z", user: "Staff-12", status: "Success" },
+  { id: '3', event: "Login Failure", timestamp: "2026-04-08T05:00:00Z", user: "Unknown", status: "Blocked" },
+];
 
 export const PLAYLISTS: Playlist[] = [
   {
@@ -202,6 +261,19 @@ export const PLAYLISTS: Playlist[] = [
     showWorship: true,
     showQR: true,
     layout: 'widget-hub',
+  },
+  {
+    id: "default-info-hub",
+    name: "Default Info Hub (Clock & Weather)",
+    description: "Initial system playlist containing Clock and Weather widgets. Automatically active if no other content is set.",
+    items: ['w-clock', 'w-weather'],
+    isSystem: true,
+    schedule: "Always Active",
+    showTicker: true,
+    showInfoCard: true,
+    showWorship: true,
+    showQR: true,
+    layout: 'split-h',
   }
 ];
 
