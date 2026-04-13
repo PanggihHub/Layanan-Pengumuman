@@ -17,7 +17,7 @@ import {
   Download,
   Eye,
   EyeOff,
-  History,
+  History as HistoryIcon,
   FileText,
   TrendingUp,
   LayoutDashboard
@@ -59,7 +59,10 @@ const engagementData = [
   { name: 'Sun', engagement: 190 },
 ];
 
+import { useLanguage } from "@/context/LanguageContext";
+
 export default function AdminOverview() {
+  const { t, language } = useLanguage();
   const [screens, setScreens] = useState<ScreenStatus[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -71,35 +74,21 @@ export default function AdminOverview() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [monitorScreen, setMonitorScreen] = useState<ScreenStatus | null>(null);
   const { toast } = useToast();
-
   useEffect(() => {
-    // 1. Listen to Screens
-    const unsubScreens = onSnapshot(collection(db, "screens"), (snap) => {
-      const items: ScreenStatus[] = [];
-      snap.forEach(doc => items.push(doc.data() as ScreenStatus));
-      setScreens(items);
+    const unsubScreens = onSnapshot(collection(db, "screens"), (snapshot) => {
+      setScreens(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScreenStatus)));
     });
 
-    // 2. Listen to Media
-    const unsubMedia = onSnapshot(collection(db, "media"), (snap) => {
-      const items: MediaItem[] = [];
-      snap.forEach(doc => items.push(doc.data() as MediaItem));
-      setMediaItems(items);
+    const unsubMedia = onSnapshot(collection(db, "media"), (snapshot) => {
+      setMediaItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaItem)));
     });
 
-    // 3. Listen to Playlists
-    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snap) => {
-      const items: Playlist[] = [];
-      snap.forEach(doc => items.push(doc.data() as Playlist));
-      setPlaylists(items);
+    const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snapshot) => {
+      setPlaylists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Playlist)));
     });
 
-    // 4. Listen to Audit Logs
-    const qLogs = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(20));
-    const unsubLogs = onSnapshot(qLogs, (snap) => {
-      const items: SecurityAuditLog[] = [];
-      snap.forEach(doc => items.push({ id: doc.id, ...doc.data() } as SecurityAuditLog));
-      setAuditLogs(items);
+    const unsubLogs = onSnapshot(query(collection(db, "securityLogs"), orderBy("timestamp", "desc"), limit(40)), (snapshot) => {
+      setAuditLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SecurityAuditLog)));
     });
 
     return () => {
@@ -109,41 +98,52 @@ export default function AdminOverview() {
       unsubLogs();
     };
   }, []);
-  
-  // Simulated activity history
-  const [history] = useState([
-    { id: 1, time: "2m ago", text: "Main Hall A started 'Orientation Loop'", type: "play" },
-    { id: 2, time: "15m ago", text: "Media library: 'Welcome_Slide_V2' uploaded", type: "genai" },
-    { id: 3, time: "1h ago", text: "Sync: 12 screens updated successfully", type: "sync" },
-    { id: 4, time: "3h ago", text: "System check: All clear", type: "system" },
-    { id: 5, time: "5h ago", text: "New schedule added: Friday Jumu'ah", type: "worship" },
-    { id: 6, time: "8h ago", text: "Admin login: Chief Editor", type: "system" },
-  ]);
-
+  // Stats calculation
   const stats = useMemo(() => {
-    const totalMedia = mediaItems.length;
-    const totalPlaylists = playlists.length;
-    const onlineScreens = screens.filter(s => {
-      const lastSeenDate = s.lastSeen ? new Date(s.lastSeen) : null;
-      return lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000) && s.status !== 'DEACTIVATED' && s.status !== 'Offline';
-    }).length;
-    
-    // Engagement proxy: frequency of administrative actions + active screen ratio
-    const engagementScore = screens.length > 0 ? (onlineScreens / screens.length) * 1000 : 0;
-    
+    // Calculate most frequent media
+    const mediaCounts: Record<string, number> = {};
+    playlists.forEach(playlist => {
+      playlist.items.forEach(itemId => {
+        mediaCounts[itemId] = (mediaCounts[itemId] || 0) + 1;
+      });
+    });
+
+    const topMedia = Object.entries(mediaCounts)
+      .map(([id, count]) => ({
+        id,
+        count,
+        name: mediaItems.find(m => m.id === id)?.name || "Unknown Asset",
+        type: mediaItems.find(m => m.id === id)?.type || "image",
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
     return {
-      totalMedia,
-      totalPlaylists,
-      onlineScreens,
-      weeklyViews: Math.round(engagementScore).toLocaleString()
+      onlineScreens: screens.filter(s => s.status === 'Online').length,
+      totalMedia: mediaItems.length,
+      totalPlaylists: playlists.length,
+      topMedia,
+      weeklyViews: engagementData.reduce((acc, curr) => acc + curr.engagement, 0)
     };
   }, [screens, mediaItems, playlists]);
+
+  const getActiveMediaForScreen = (screen: ScreenStatus | null) => {
+    if (!screen) return [];
+    const playlist = playlists.find(p => p.id === screen.playlistId);
+    if (!playlist) return [];
+    return playlist.items
+      .map(itemId => mediaItems.find(m => m.id === itemId))
+      .filter(Boolean) as MediaItem[];
+  };
 
   const handleSyncAll = () => {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
-      toast({ title: "Fleet Sync Complete", description: `Synchronized ${stats.onlineScreens} screens.` });
+      toast({ 
+        title: language === "id-ID" ? "Sinkronisasi Selesai" : "Fleet Sync Complete", 
+        description: language === "id-ID" ? `Mensinkronkan ${stats.onlineScreens} layar.` : `Synchronized ${stats.onlineScreens} screens.` 
+      });
     }, 2000);
   };
 
@@ -151,53 +151,47 @@ export default function AdminOverview() {
     setIsRefreshingLogs(true);
     setTimeout(() => {
       setIsRefreshingLogs(false);
-      toast({ title: "Logs Updated", description: "Activity feed refreshed." });
+      toast({ 
+        title: language === "id-ID" ? "Log Diperbarui" : "Logs Updated", 
+        description: language === "id-ID" ? "Umpan aktivitas diperbarui." : "Activity feed refreshed." 
+      });
     }, 1000);
   };
 
   const handleExport = () => {
     setIsExporting(true);
-    toast({ title: "Generating System Report", description: "Compiling telemetry and audit history..." });
+    toast({ 
+      title: language === "id-ID" ? "Menghasilkan Laporan" : "Generating System Report", 
+      description: language === "id-ID" ? "Menyusun telemetri dan riwayat audit..." : "Compiling telemetry and audit history..." 
+    });
     
     setTimeout(() => {
-      // 1. Generate JSON
-      const jsonContent = JSON.stringify({
-        timestamp: new Date().toISOString(),
-        fleet: screens,
-        media: mediaItems,
-        logs: auditLogs
-      }, null, 2);
-      
-      const jsonBlob = new Blob([jsonContent], { type: 'application/json' });
-      const jsonUrl = URL.createObjectURL(jsonBlob);
-      const jsonLink = document.createElement('a');
-      jsonLink.href = jsonUrl;
-      jsonLink.download = `ScreenSense_Report_${new Date().getTime()}.json`;
-      jsonLink.click();
-
-      // 2. Generate CSV
-      const csvRows = [
-        ["Device ID", "Name", "Status", "Last Seen"],
-        ...screens.map(s => [s.id, s.name, s.status, s.lastSeen])
-      ];
-      const csvContent = csvRows.map(row => row.join(",")).join("\n");
-      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
-      const csvUrl = URL.createObjectURL(csvBlob);
-      const csvLink = document.createElement('a');
-      csvLink.href = csvUrl;
-      csvLink.download = `ScreenSense_Fleet_${new Date().getTime()}.csv`;
-      csvLink.click();
-
+      try {
+        const data = {
+          screens,
+          mediaItems,
+          playlists,
+          auditLogs,
+          exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `screensense-export-${new Date().getTime()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Export failed:", err);
+      }
       setIsExporting(false);
-      toast({ title: "Export Ready", description: "Telemetry reports (CSV & JSON) downloaded." });
-    }, 2000);
-  };
-
-  const getActiveMediaForScreen = (screen: ScreenStatus | null) => {
-    if (!screen) return [];
-    const playlist = playlists.find(p => p.id === screen.playlistId);
-    if (!playlist) return [];
-    return playlist.items.map(id => mediaItems.find(m => m.id === id)).filter(Boolean);
+      toast({ 
+        title: language === "id-ID" ? "Ekspor Siap" : "Export Ready", 
+        description: language === "id-ID" ? "Laporan telemetri (CSV & JSON) telah diunduh." : "Telemetry reports (CSV & JSON) downloaded." 
+      });
+    }, 1000);
   };
 
   return (
@@ -206,26 +200,26 @@ export default function AdminOverview() {
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
             <LayoutDashboard className="w-8 h-8 text-accent" />
-            System Dashboard
+            {t("dash.title")}
           </h1>
-          <p className="text-muted-foreground">Monitoring {screens.length} screens across the network.</p>
+          <p className="text-muted-foreground">{t("dash.monitor")} {screens.length} {t("dash.screensCount")}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border shadow-sm">
             {showAnalytics ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
             <Label htmlFor="analytics-toggle" className="text-xs font-bold uppercase tracking-tight cursor-pointer">
-              Analytics
+              {t("dash.analytics")}
             </Label>
             <Switch id="analytics-toggle" checked={showAnalytics} onCheckedChange={setShowAnalytics} />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExport} disabled={isExporting} className="gap-2">
               {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Export
+              {t("dash.export")}
             </Button>
             <Button className="bg-primary gap-2" onClick={handleSyncAll} disabled={isSyncing}>
               <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
-              Sync Fleet
+              {t("dash.sync")}
             </Button>
           </div>
         </div>
@@ -237,7 +231,7 @@ export default function AdminOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Active Screens</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("dash.activeScreens")}</p>
                 <p className="text-2xl font-bold mt-1">{stats.onlineScreens} / {screens.length}</p>
               </div>
               <div className="bg-primary/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
@@ -250,7 +244,7 @@ export default function AdminOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Asset Library</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("dash.assetLibrary")}</p>
                 <p className="text-2xl font-bold mt-1">{stats.totalMedia}</p>
               </div>
               <div className="bg-accent/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
@@ -263,7 +257,7 @@ export default function AdminOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Live Loops</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("dash.liveLoops")}</p>
                 <p className="text-2xl font-bold mt-1">{stats.totalPlaylists}</p>
               </div>
               <div className="bg-emerald-100 p-3 rounded-xl group-hover:scale-110 transition-transform">
@@ -276,7 +270,7 @@ export default function AdminOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Engagement</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("dash.engagement")}</p>
                 <p className="text-2xl font-bold mt-1">{stats.weeklyViews}</p>
               </div>
               <div className="bg-white p-3 rounded-xl group-hover:scale-110 transition-transform shadow-sm">
@@ -293,29 +287,54 @@ export default function AdminOverview() {
           <Card className="lg:col-span-2 shadow-sm border-primary/10">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg">Audience Engagement</CardTitle>
-                <CardDescription>Visualizing traffic and scan metrics over the last 7 days.</CardDescription>
+                <CardTitle className="text-lg">{t("dash.audience")}</CardTitle>
+                <CardDescription>{t("dash.audienceDesc")}</CardDescription>
               </div>
-              <Badge variant="outline" className="bg-accent/10 text-primary border-accent/20">Real-time Data</Badge>
+              <Badge variant="outline" className="bg-accent/10 text-primary border-accent/20">{t("dash.realtime")}</Badge>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={engagementData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(38, 110, 184, 0.05)' }} 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} 
-                    />
-                    <Bar dataKey="engagement" radius={[6, 6, 0, 0]}>
-                      {engagementData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === 3 ? 'hsl(var(--accent))' : 'hsl(var(--primary))'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="h-[300px] w-full mt-4 md:col-span-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={engagementData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip 
+                        cursor={{ fill: 'rgba(38, 110, 184, 0.05)' }} 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} 
+                      />
+                      <Bar dataKey="engagement" radius={[6, 6, 0, 0]}>
+                        {engagementData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 3 ? 'hsl(var(--accent))' : 'hsl(var(--primary))'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                <div className="h-full mt-4 space-y-4">
+                  <h3 className="font-bold text-sm tracking-tight border-b pb-2">{language === "id-ID" ? "Media Paling Sering Ditampilkan" : "Most Displayed Media"}</h3>
+                  <div className="space-y-3">
+                    {stats.topMedia.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">No media assigned to playlists.</p>
+                    )}
+                    {stats.topMedia.map(media => (
+                      <div key={media.id} className="flex items-center justify-between bg-muted/20 p-2 rounded-lg border border-primary/5">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <div className="w-8 h-8 rounded shrink-0 bg-primary/10 flex items-center justify-center">
+                            {media.type === 'video' ? <FileVideo className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-accent" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold truncate">{media.name}</p>
+                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground">{media.type}</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] tabular-nums">{media.count} loops</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -326,7 +345,7 @@ export default function AdminOverview() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-accent" />
-              <CardTitle className="text-lg">Activity Feed</CardTitle>
+              <CardTitle className="text-lg">{t("dash.activity")}</CardTitle>
             </div>
             <Button variant="ghost" size="icon" className={cn("h-8 w-8 hover:bg-muted", isRefreshingLogs && "animate-spin")} onClick={handleRefreshLogs}>
               <RefreshCw className="w-4 h-4 text-muted-foreground" />
@@ -336,7 +355,7 @@ export default function AdminOverview() {
             <ScrollArea className="h-[320px] pr-4">
               <div className="space-y-6 pt-2">
                 {auditLogs.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-10 italic">No administrative events recorded.</p>
+                  <p className="text-xs text-muted-foreground text-center py-10 italic">{t("dash.noActivity")}</p>
                 )}
                 {auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-4 relative group">
@@ -350,7 +369,7 @@ export default function AdminOverview() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-snug text-primary/90">{log.event}</p>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
-                        <History className="w-3 h-3" />
+                        <HistoryIcon className="w-3 h-3" />
                         {log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : "Unknown"}
                       </p>
                     </div>
@@ -363,7 +382,7 @@ export default function AdminOverview() {
               className="mt-6 w-full p-0 text-accent h-auto font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:no-underline hover:text-primary transition-colors" 
               onClick={() => setIsHistoryOpen(true)}
             >
-              Full Security Audit <ArrowUpRight className="w-3.5 h-3.5" />
+              {t("dash.fullAudit")} <ArrowUpRight className="w-3.5 h-3.5" />
             </Button>
           </CardContent>
         </Card>
@@ -373,13 +392,13 @@ export default function AdminOverview() {
       <Card className="border-primary/10 shadow-sm overflow-hidden">
         <CardHeader className="bg-muted/30 border-b flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-6">
           <div>
-            <CardTitle className="text-lg">Network Health Matrix</CardTitle>
-            <CardDescription>Live telemetry and loop integrity for all provisioned nodes.</CardDescription>
+            <CardTitle className="text-lg">{t("dash.healthMatrix")}</CardTitle>
+            <CardDescription>{t("dash.healthDesc")}</CardDescription>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="bg-white px-3 py-1">{stats.onlineScreens} Online</Badge>
+            <Badge variant="outline" className="bg-white px-3 py-1">{stats.onlineScreens} {t("dash.online")}</Badge>
             <Button variant="outline" size="sm" className="bg-white border-primary/20 text-xs px-4" asChild>
-              <Link href="/admin/screens">Manage Device Inventory</Link>
+              <Link href="/admin/screens">{t("dash.manageInventory")}</Link>
             </Button>
           </div>
         </CardHeader>
@@ -388,11 +407,11 @@ export default function AdminOverview() {
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b text-muted-foreground bg-muted/20">
-                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">Node ID</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">Physical Location</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-center">Connectivity</th>
-                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">Active Sequence</th>
-                  <th className="px-6 py-4 text-right font-bold uppercase tracking-widest text-[9px]">Action</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">{t("dash.nodeId")}</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">{t("dash.location")}</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-center">{t("dash.connectivity")}</th>
+                  <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px]">{t("dash.sequence")}</th>
+                  <th className="px-6 py-4 text-right font-bold uppercase tracking-widest text-[9px]">{t("dash.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -407,14 +426,14 @@ export default function AdminOverview() {
                   const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000);
                   
                   let color = "bg-zinc-400"; // Grey
-                  let label = "No Signal";
+                  let label = t("dash.noSignal");
                   
                   if (isRecent && screen.status !== 'DEACTIVATED' && screen.status !== 'Offline') {
                     color = "bg-emerald-500";
-                    label = "Active";
+                    label = t("common.active");
                   } else if (screen.lastSeen) {
                     color = "bg-red-500";
-                    label = screen.status === 'DEACTIVATED' ? "Deactivated" : "Inactive";
+                    label = screen.status === 'DEACTIVATED' ? t("dash.deactivated") : t("dash.inactive");
                   }
 
                   return (
@@ -431,8 +450,8 @@ export default function AdminOverview() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-muted-foreground">{playlist?.name || "System Loop"}</span>
-                          <span className="text-[9px] text-muted-foreground/60 italic">{playlist?.schedule || "Standard"}</span>
+                          <span className="text-xs font-bold text-muted-foreground">{playlist?.name || t("dash.systemLoop")}</span>
+                          <span className="text-[9px] text-muted-foreground/60 italic">{playlist?.schedule || t("dash.standard")}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -454,30 +473,30 @@ export default function AdminOverview() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <History className="w-5 h-5 text-accent" />
+              <HistoryIcon className="w-5 h-5 text-accent" />
               Full System Audit Log
             </DialogTitle>
             <DialogDescription>A detailed chronological record of all administrative and system events.</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[450px] mt-4 pr-4 border rounded-xl bg-muted/20 p-4">
             <div className="space-y-4">
-              {history.map((log) => (
+              {auditLogs.map((log) => (
                 <div key={log.id} className="flex items-start gap-4 p-4 rounded-xl border bg-white shadow-sm">
                   <div className={cn(
                     "p-2 rounded-full",
-                    log.type === 'sync' ? 'bg-primary/10 text-primary' : 
-                    log.type === 'genai' ? 'bg-purple-100 text-purple-600' : 
+                    log.status === 'Success' ? 'bg-primary/10 text-primary' : 
+                    log.status === 'Blocked' ? 'bg-red-100 text-red-600' : 
                     'bg-muted text-muted-foreground'
                   )}>
                     <FileText className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-4">
-                      <p className="text-sm font-bold text-primary">{log.text}</p>
-                      <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded whitespace-nowrap">{log.time}</span>
+                      <p className="text-sm font-bold text-primary">{log.event}</p>
+                      <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded whitespace-nowrap">{log.timestamp}</span>
                     </div>
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mt-2">
-                      Event Category: {log.type}
+                      Event Category: {log.status}
                     </p>
                   </div>
                 </div>
@@ -495,32 +514,47 @@ export default function AdminOverview() {
             <DialogDescription>Surveillance view for active signage node.</DialogDescription>
           </DialogHeader>
           <div className="relative aspect-video flex flex-col items-center justify-center">
-            {monitorScreen?.status === "Online" ? (
-              <div className="w-full h-full relative">
-                {getActiveMediaForScreen(monitorScreen).slice(0, 1).map((item, i) => (
-                  <Image key={i} src={item?.url || ''} alt="" fill className="object-cover opacity-80" unoptimized />
-                ))}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
-                <div className="absolute bottom-10 left-10 text-white animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Surveillance</span>
+            {(() => {
+              const lastSeenDate = monitorScreen?.lastSeen ? new Date(monitorScreen.lastSeen) : null;
+              const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000);
+              const isTrulyOnline = monitorScreen?.status === "Online" && isRecent;
+              
+              return isTrulyOnline ? (
+                <div className="w-full h-full relative">
+                  {getActiveMediaForScreen(monitorScreen).slice(0, 1).map((item, i) => (
+                    <Image key={i} src={item?.url || ''} alt="" fill className="object-cover opacity-80" unoptimized />
+                  ))}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute bottom-10 left-10 text-white animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Live Surveillance</span>
+                    </div>
+                    <h3 className="text-4xl font-black tracking-tighter leading-none">{monitorScreen?.name}</h3>
+                    <p className="text-lg opacity-70 font-medium mt-2">Looping: {playlists.find(p => p.id === monitorScreen?.playlistId)?.name}</p>
                   </div>
-                  <h3 className="text-4xl font-black tracking-tighter leading-none">{monitorScreen?.name}</h3>
-                  <p className="text-lg opacity-70 font-medium mt-2">Looping: {playlists.find(p => p.id === monitorScreen?.playlistId)?.name}</p>
                 </div>
-              </div>
-            ) : (
-              <div className="text-white/20 flex flex-col items-center gap-6 text-center animate-pulse">
-                <div className="p-8 rounded-full bg-white/5">
-                  <Monitor className="w-24 h-24 opacity-20" />
+              ) : (
+                <div className="relative w-full h-full flex flex-col items-center justify-center bg-black/90">
+                  <div className="absolute bottom-10 left-10 text-white animate-in slide-in-from-bottom-4 duration-500 z-20">
+                    <div className="flex items-center gap-3 mb-2">
+                       <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                       <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Signal Offline</span>
+                    </div>
+                    <h3 className="text-2xl font-black tracking-tighter leading-none opacity-50">{monitorScreen?.name}</h3>
+                  </div>
+                  <div className="text-white/20 flex flex-col items-center gap-6 text-center animate-pulse z-10">
+                    <div className="p-8 rounded-full bg-white/5">
+                      <Monitor className="w-24 h-24 opacity-20" />
+                    </div>
+                    <div>
+                      <h3 className="text-3xl font-black uppercase tracking-[0.2em]">Disconnected</h3>
+                      <p className="text-sm font-mono mt-2 opacity-40">NODE_ID: {monitorScreen?.id}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-3xl font-black uppercase tracking-[0.2em]">Signal Offline</h3>
-                  <p className="text-sm font-mono mt-2 opacity-40">NODE_ID: {monitorScreen?.id}</p>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>

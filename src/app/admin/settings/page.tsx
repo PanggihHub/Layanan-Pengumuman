@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,54 +47,27 @@ export default function SystemConfig() {
   const [heartbeat, setHeartbeat] = useState("60");
   const [sessionTimeout, setSessionTimeout] = useState("30");
   const [autoUpdate, setAutoUpdate] = useState(true);
+  const [timezone, setTimezone] = useState("Asia/Jakarta");
+  const [tempUnit, setTempUnit] = useState("C");
   
   // Display Controls (Master Defaults)
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(SCREEN_SETTINGS.displayLayout);
-
-  // Weather Settings
-  const [weatherCity, setWeatherCity] = useState(SCREEN_SETTINGS.weatherCity);
-  const [weatherLat, setWeatherLat] = useState(SCREEN_SETTINGS.weatherLat.toString());
-  const [weatherLng, setWeatherLng] = useState(SCREEN_SETTINGS.weatherLng.toString());
-  const [weatherCitySec, setWeatherCitySec] = useState(SCREEN_SETTINGS.weatherCitySecondary);
-  const [weatherLatSec, setWeatherLatSec] = useState(SCREEN_SETTINGS.weatherLatSecondary.toString());
-  const [weatherLngSec, setWeatherLngSec] = useState(SCREEN_SETTINGS.weatherLngSecondary.toString());
-
-  const [isSearchingCity, setIsSearchingCity] = useState(false);
-  const [isSearchingCitySec, setIsSearchingCitySec] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "global"), (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-        setWeatherCity(d.weatherCity || "Yogyakarta");
-        setWeatherLat(d.weatherLat?.toString() || "-7.78");
-        setWeatherLng(d.weatherLng?.toString() || "110.38");
-        setWeatherCitySec(d.weatherCitySecondary || "New York");
-        setWeatherLatSec(d.weatherLatSecondary?.toString() || "40.71");
-        setWeatherLngSec(d.weatherLngSecondary?.toString() || "-74.00");
         setDisplayLayout(d.displayLayout || "single");
         setSyncUrl(d.syncUrl || "https://api.screensense.cloud/v1");
         setHeartbeat(d.heartbeat?.toString() || "60");
         setSessionTimeout(d.sessionTimeout?.toString() || "30");
         setAutoUpdate(d.autoUpdate ?? true);
+        setTimezone(d.timezone || "Asia/Jakarta");
+        setTempUnit(d.tempUnit || "C");
       }
     });
     return unsub;
   }, []);
-
-  const searchCity = async (query: string, setResults: (res: any[]) => void, setLoading: (l: boolean) => void) => {
-    if (query.length < 3) return;
-    setLoading(true);
-    try {
-      const resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`);
-      const data = await resp.json();
-      setResults(data.results || []);
-    } catch (error) {
-      console.error("Geocoding failed", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -102,23 +77,19 @@ export default function SystemConfig() {
     
     await setDoc(doc(db, "settings", "global"), {
       displayLayout,
-      weatherCity,
-      weatherLat: parseFloat(weatherLat),
-      weatherLng: parseFloat(weatherLng),
-      weatherCitySecondary: weatherCitySec,
-      weatherLatSecondary: parseFloat(weatherLatSec),
-      weatherLngSecondary: parseFloat(weatherLngSec),
       syncUrl,
       heartbeat: parseInt(heartbeat),
       sessionTimeout: parseInt(sessionTimeout),
-      autoUpdate
+      autoUpdate,
+      timezone,
+      tempUnit
     }, { merge: true });
 
     setTimeout(() => {
       setIsSaving(false);
       toast({
         title: "Configuration Saved",
-        description: "Global system parameters and display settings updated.",
+        description: "Global system fundamentals and display layout defaults updated.",
       });
     }, 1000);
   };
@@ -175,9 +146,9 @@ export default function SystemConfig() {
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Layout className="w-5 h-5 text-accent" />
-              Signage Display Visibility Defaults
+              Signage Display Visibility Previews
             </CardTitle>
-            <CardDescription>Control the master fallback layout for screens without specific overrides.</CardDescription>
+            <CardDescription>Visualize system-wide display presets. Note: This module acts as a template reference for hardware orchestration.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-8">
@@ -214,133 +185,7 @@ export default function SystemConfig() {
           </CardContent>
         </Card>
 
-        {/* Weather Configuration Card */}
-        <Card className="border-primary/10 shadow-sm overflow-hidden rounded-2xl">
-          <CardHeader className="bg-muted/30">
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <CloudSun className="w-5 h-5 text-accent" />
-              Weather & Forecast Settings
-            </CardTitle>
-            <CardDescription>Customize the geographic targets for the real-time weather widgets.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Primary Location */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary">
-                  <MapPin className="w-4 h-4" /> Primary Location (Main)
-                </div>
-                <div className="space-y-2 relative">
-                  <Label>Search City</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      value={weatherCity} 
-                      onChange={e => {
-                        setWeatherCity(e.target.value);
-                        searchCity(e.target.value, setCitySearchResults, setIsSearchingCity);
-                      }} 
-                      placeholder="e.g. Yogyakarta" 
-                      className="rounded-xl" 
-                    />
-                    {isSearchingCity && <RefreshCw className="w-4 h-4 animate-spin self-center" />}
-                  </div>
-                  {citySearchResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-primary/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-                      {citySearchResults.map((city, i) => (
-                        <button
-                          key={i}
-                          className="w-full px-4 py-2 text-left text-xs hover:bg-primary/5 transition-colors border-b last:border-none flex flex-col"
-                          onClick={() => {
-                            setWeatherCity(city.name);
-                            setWeatherLat(city.latitude.toString());
-                            setWeatherLng(city.longitude.toString());
-                            setCitySearchResults([]);
-                          }}
-                        >
-                          <span className="font-bold">{city.name}</span>
-                          <span className="text-[10px] text-muted-foreground">{city.admin1}, {city.country}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4 opacity-50">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Latitude</Label>
-                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
-                      {weatherLat}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Longitude</Label>
-                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
-                      {weatherLng}
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Secondary Location */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                  <Globe className="w-4 h-4" /> Secondary Location (Global)
-                </div>
-                <div className="space-y-2 relative">
-                  <Label>Search City</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      value={weatherCitySec} 
-                      onChange={e => {
-                        setWeatherCitySec(e.target.value);
-                        searchCity(e.target.value, setCitySearchResultsSec, setIsSearchingCitySec);
-                      }} 
-                      placeholder="e.g. New York" 
-                      className="rounded-xl" 
-                    />
-                    {isSearchingCitySec && <RefreshCw className="w-4 h-4 animate-spin self-center" />}
-                  </div>
-                  {citySearchResultsSec.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-primary/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-                      {citySearchResultsSec.map((city, i) => (
-                        <button
-                          key={i}
-                          className="w-full px-4 py-2 text-left text-xs hover:bg-primary/5 transition-colors border-b last:border-none flex flex-col"
-                          onClick={() => {
-                            setWeatherCitySec(city.name);
-                            setWeatherLatSec(city.latitude.toString());
-                            setWeatherLngSec(city.longitude.toString());
-                            setCitySearchResultsSec([]);
-                          }}
-                        >
-                          <span className="font-bold">{city.name}</span>
-                          <span className="text-[10px] text-muted-foreground">{city.admin1}, {city.country}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4 opacity-50">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Latitude</Label>
-                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
-                      {weatherLatSec}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Longitude</Label>
-                    <div className="h-10 px-3 flex items-center bg-muted/20 border rounded-xl text-xs font-mono text-muted-foreground">
-                      {weatherLngSec}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-primary/5 p-4 rounded-xl border border-dashed text-[10px] text-muted-foreground flex gap-3 items-start">
-              <Info className="w-4 h-4 text-primary shrink-0" />
-              <p>The weather widget uses high-precision GPS coordinates to fetch local conditions. Ensure the City Name matches your administrative location records for consistency.</p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Cloud Infrastructure Card */}
         <Card className="border-primary/10 shadow-sm rounded-2xl overflow-hidden">
@@ -363,11 +208,41 @@ export default function SystemConfig() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><Timer className="w-4 h-4 text-accent" /> Device Heartbeat (Sec)</Label>
-                <Input type="number" value={heartbeat} onChange={e => setHeartbeat(e.target.value)} className="rounded-xl" />
+                <Input type="number" value={heartbeat} onChange={e => setHeartbeat(e.target.value)} className="rounded-xl h-11" />
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><Cloud className="w-4 h-4 text-accent" /> Session Duration (Min)</Label>
-                <Input type="number" value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} className="rounded-xl" />
+                <Input type="number" value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)} className="rounded-xl h-11" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Globe className="w-4 h-4 text-accent" /> Global Timezone</Label>
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger className="rounded-xl h-11">
+                    <SelectValue placeholder="Select Timezone" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="Asia/Jakarta">Jakarta (GMT+7)</SelectItem>
+                    <SelectItem value="Asia/Makassar">Makassar (GMT+8)</SelectItem>
+                    <SelectItem value="Asia/Jayapura">Jayapura (GMT+9)</SelectItem>
+                    <SelectItem value="Europe/London">London (GMT+0)</SelectItem>
+                    <SelectItem value="America/New_York">New York (GMT-5)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><CloudSun className="w-4 h-4 text-accent" /> Temp Unit</Label>
+                <Select value={tempUnit} onValueChange={setTempUnit}>
+                  <SelectTrigger className="rounded-xl h-11">
+                    <SelectValue placeholder="Select Unit" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="C">Celsius (°C)</SelectItem>
+                    <SelectItem value="F">Fahrenheit (°F)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -383,9 +258,9 @@ export default function SystemConfig() {
 
         <div className="flex justify-end gap-3 pt-4">
           <Button variant="ghost" onClick={() => window.location.reload()} className="rounded-xl">Discard Changes</Button>
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2 px-8 rounded-xl h-11 shadow-lg shadow-primary/20">
-            {isSaving ? <RefreshCw className="animate-spin" /> : <Save />}
-            Apply Global Config
+          <Button onClick={handleSave} disabled={isSaving} className="gap-2 px-12 rounded-xl h-12 shadow-xl shadow-primary/20 bg-primary font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95">
+            {isSaving ? <RefreshCw className="animate-spin" /> : <Save className="w-5 h-5" />}
+            Save & Apply Fundamentals
           </Button>
         </div>
       </div>

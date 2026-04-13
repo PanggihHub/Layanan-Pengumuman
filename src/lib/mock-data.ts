@@ -4,6 +4,13 @@
  */
 
 export type MediaType = 'image' | 'video' | 'document' | 'website' | 'clock' | 'weather' | 'external_video';
+/**
+ * Video pipeline class:
+ * - 'motion_video'  → ≤1080p FHD; direct play, no transcoding needed
+ * - 'hd_stream'     → >1080p (4K/8K); real-time adaptive HLS/DASH transcode pipeline
+ * - 'adaptive'      → system-auto detected per device capacity
+ */
+export type VideoClass = 'motion_video' | 'hd_stream' | 'adaptive';
 export type MediaSourceOrigin = 'internal' | 'external';
 export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h' | 'widget-hub';
 
@@ -30,16 +37,31 @@ export interface PlaylistSchedule {
 export interface MediaItem {
   id: string;
   name: string;
+  title?: string;
+  content?: string;
   type: MediaType;
   source: MediaSourceOrigin;
   size: string;
   date: string;
+  validFrom?: string;
+  validUntil?: string;
+  priority?: number;
   url: string;
   category: 'campus' | 'science' | 'math' | 'events';
   description?: string;
   // Metadata for video clipping/transform
   startTime?: number; 
   endTime?: number;
+  quality?: string;
+  isActive?: boolean;
+  // Adaptive Streaming Pipeline
+  videoClass?: VideoClass;       // 'motion_video' | 'hd_stream' | 'adaptive'
+  resolutionWidth?: number;      // detected or declared pixel width
+  resolutionHeight?: number;     // detected or declared pixel height
+  bitrateKbps?: number;          // detected or target bitrate (kbps)
+  lazyLoad?: boolean;            // enable lazy/deferred loading for this asset
+  dynamicBuffer?: boolean;       // enable dynamic buffer sizing based on device
+  codecHint?: string;            // e.g. 'h264' | 'h265' | 'vp9' | 'av1'
 }
 
 export interface ScreenStatus {

@@ -24,7 +24,8 @@ import {
   UploadCloud,
   Edit,
   Info,
-  X
+  X,
+  Radio
 } from "lucide-react";
 import { 
   Select, 
@@ -64,6 +65,7 @@ import { ScreenStatus, Playlist, MediaItem } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useLanguage } from "@/context/LanguageContext";
 
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
@@ -75,6 +77,7 @@ const extractYouTubeId = (url: string) => {
 };
 
 export default function ScreensManagement() {
+  const { t, language } = useLanguage();
   const [ticker, setTicker] = useState("");
   const [activePlaylistId, setActivePlaylistId] = useState("");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
@@ -98,6 +101,7 @@ export default function ScreensManagement() {
   const [pairingCode, setPairingCode] = useState("");
   const [linkUnitName, setLinkUnitName] = useState("");
   const [isLinking, setIsLinking] = useState(false);
+  const [generatedPairCode, setGeneratedPairCode] = useState("");
 
   const [screenToDelete, setScreenToDelete] = useState<string | null>(null);
 
@@ -109,8 +113,20 @@ export default function ScreensManagement() {
     const unsubFleet = onSnapshot(collection(db, "screens"), (snap) => {
       const items: ScreenStatus[] = [];
       snap.forEach((doc) => items.push(doc.data() as ScreenStatus));
+      
+      // Virtual A/B Preview Node - Always present locally for admin testing
+      items.push({
+        id: "virtual-ab-hub",
+        name: "A/B Preview Simulator",
+        status: "Online",
+        lastSeen: new Date().toISOString(),
+        playlistId: activePlaylistId,
+        location: "Virtual Console",
+        uptime: "Cloud Master"
+      });
+      
       setFleet(items);
-      if (items.length > 0 && !previewDeviceId) setPreviewDeviceId(items[0].id);
+      if (items.length > 0 && !previewDeviceId) setPreviewDeviceId("virtual-ab-hub");
     });
 
     const unsubPlaylists = onSnapshot(collection(db, "playlists"), (snap) => {
@@ -133,6 +149,14 @@ export default function ScreensManagement() {
         setTimezone(data.timezone || "Asia/Jakarta");
       }
     });
+
+    // Cleanup stale pairing codes (simulated or real)
+    const cleanupPairing = async () => {
+      const q = query(collection(db, "pairingCodes"), where("createdAt", "<", new Date(Date.now() - 10 * 60 * 1000).toISOString()));
+      const snap = await getDocs(q);
+      snap.forEach(async (d) => await deleteDoc(doc(db, "pairingCodes", d.id)));
+    };
+    cleanupPairing();
 
     return () => {
       unsubFleet();
@@ -169,16 +193,22 @@ export default function ScreensManagement() {
 
   const handleSaveGlobalSettings = async () => {
     setIsSyncing(true);
-    await setDoc(doc(db, "settings", "global"), { tickerMessage: ticker, activePlaylistId, timezone }, { merge: true });
-    
-    setTimeout(() => {
-      setIsSyncing(false);
+    try {
+      await setDoc(doc(db, "settings", "global"), { tickerMessage: ticker, activePlaylistId, timezone }, { merge: true });
       setScanTime(new Date().toLocaleTimeString());
       toast({
-        title: "Global Publish Successful",
-        description: "Settings synced to the entire active screen network.",
+        title: language === "id-ID" ? "Publikasi Global Berhasil" : "Global Publish Successful",
+        description: language === "id-ID" ? "Pengaturan disinkronkan ke seluruh jaringan layar aktif." : "Settings synced to the entire active screen network.",
       });
-    }, 1000);
+    } catch (e) {
+      toast({
+        title: language === "id-ID" ? "Gagal Sinkron" : "Sync Failed",
+        description: language === "id-ID" ? "Gagal memperbarui pengaturan global." : "Failed to update global settings.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleOpenEdit = (screen: ScreenStatus) => {
@@ -204,31 +234,51 @@ export default function ScreensManagement() {
       setDeployProgress(progress);
     }, 200);
 
-    await setDoc(doc(db, "screens", editingScreen.id), {
-       ...editingScreen,
-       name: localScreenName,
-       playlistId: localScreenPlaylist 
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, "screens", editingScreen.id), {
+         ...editingScreen,
+         name: localScreenName,
+         playlistId: localScreenPlaylist 
+      }, { merge: true });
 
-    setTimeout(() => {
-      setIsDeploying(false);
+      // Simulate a bit of extra time for progress to feel real
+      await new Promise(r => setTimeout(r, 1000));
+      
       setIsEditDialogOpen(false);
       setScanTime(new Date().toLocaleTimeString());
       toast({
-        title: "Device Deployment Successful",
-        description: `Content and integrity policy successfully pushed to ${localScreenName}.`,
+        title: language === "id-ID" ? "Penerapan Perangkat Berhasil" : "Device Deployment Successful",
+        description: language === "id-ID" ? `Konten dan kebijakan integritas berhasil dikirim ke ${localScreenName}.` : `Content and integrity policy successfully pushed to ${localScreenName}.`,
       });
-    }, 2000);
+    } catch (e) {
+      toast({
+        title: language === "id-ID" ? "Penerapan Gagal" : "Deployment Failed",
+        description: language === "id-ID" ? "Gagal memperbarui perangkat." : "Failed to update device.",
+        variant: "destructive"
+      });
+    } finally {
+      clearInterval(interval);
+      setIsDeploying(false);
+      setDeployProgress(0);
+    }
   };
 
   const handleDeleteDevice = async (id: string) => {
-    await deleteDoc(doc(db, "screens", id));
-    setScreenToDelete(null);
-    toast({
-      title: "Node Decommissioned",
-      description: `Hardware unit ${id} has been removed.`,
-      variant: "destructive"
-    });
+    try {
+      await deleteDoc(doc(db, "screens", id));
+      setScreenToDelete(null);
+      toast({
+        title: language === "id-ID" ? "Node Dinonaktifkan Permanen" : "Node Decommissioned",
+        description: language === "id-ID" ? `Unit hardware ${id} telah dihapus.` : `Hardware unit ${id} has been removed.`,
+        variant: "destructive"
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to delete node.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleResetHandshake = async (id: string) => {
@@ -238,26 +288,56 @@ export default function ScreensManagement() {
     }, { merge: true });
     
     toast({
-      title: "Handshake Reset",
-      description: "Connection identity cleared. Waiting for fresh telemetry sync.",
+      title: language === "id-ID" ? "Handshake Diatur Ulang" : "Handshake Reset",
+      description: language === "id-ID" ? "Identitas koneksi dihapus. Menunggu sinkronisasi telemetri baru." : "Connection identity cleared. Waiting for fresh telemetry sync.",
     });
   };
 
   const handleLinkNewDevice = async () => {
     if (!pairingCode || !linkUnitName) {
-      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+      toast({ 
+        title: language === "id-ID" ? "Kesalahan" : "Error", 
+        description: language === "id-ID" ? "Semua bidang wajib diisi." : "All fields are required.", 
+        variant: "destructive" 
+      });
       return;
     }
 
     setIsLinking(true);
     
     try {
-      // Look for a device that has this pairing code
+      if (pairingCode === generatedPairCode) {
+        // Paired using the dashboard-generated code (Admin-Initiated)
+        // Store this in a temporary handshake collection for the screen to fetch
+        const pairId = `PAUSE-${pairingCode}`;
+        await setDoc(doc(db, "adminInitiatedPairing", pairId), {
+          code: pairingCode,
+          name: linkUnitName,
+          playlistId: activePlaylistId || "system-default",
+          createdAt: new Date().toISOString()
+        });
+
+        toast({ 
+          title: language === "id-ID" ? "Kode Pemasangan Aktif" : "Pairing Code Active", 
+          description: language === "id-ID" 
+            ? `Kode ${pairingCode} siap dimasukkan pada layar baru.` 
+            : `Code ${pairingCode} is ready to be entered on the new screen.`,
+        });
+        
+        // Don't close yet, show the code
+        return;
+      }
+
+      // Look for a device that has this pairing code from the client
       const q = query(collection(db, "pairingCodes"), where("code", "==", pairingCode));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        toast({ title: "Invalid Code", description: "No device found with this pairing code.", variant: "destructive" });
+        toast({ 
+          title: language === "id-ID" ? "Kode Tidak Valid" : "Invalid Code", 
+          description: language === "id-ID" ? "Tidak ada perangkat yang ditemukan dengan kode pemasangan ini." : "No device found with this pairing code.", 
+          variant: "destructive" 
+        });
         setIsLinking(false);
         return;
       }
@@ -270,7 +350,7 @@ export default function ScreensManagement() {
         name: linkUnitName,
         status: "Online",
         playlistId: activePlaylistId || "system-default",
-        uptime: "Connected",
+        uptime: language === "id-ID" ? "Terhubung" : "Connected",
         lastSeen: new Date().toISOString()
       };
 
@@ -283,10 +363,17 @@ export default function ScreensManagement() {
         setIsLinkDialogOpen(false);
         setPairingCode("");
         setLinkUnitName("");
-        toast({ title: "Hardware Linked", description: `Device ${deviceId} is now online.` });
+        toast({ 
+          title: language === "id-ID" ? "Perangkat Terhubung" : "Hardware Linked", 
+          description: language === "id-ID" ? `Perangkat ${deviceId} sekarang online.` : `Device ${deviceId} is now online.` 
+        });
       }, 1000);
     } catch (error) {
-      toast({ title: "Linking Failed", description: "Hardware handshake failed. Check your connection.", variant: "destructive" });
+      toast({ 
+        title: language === "id-ID" ? "Penautan Gagal" : "Linking Failed", 
+        description: language === "id-ID" ? "Handshake hardware gagal. Periksa koneksi Anda." : "Hardware handshake failed. Check your connection.", 
+        variant: "destructive" 
+      });
       setIsLinking(false);
     }
   };
@@ -295,8 +382,8 @@ export default function ScreensManagement() {
     const newStatus = currentStatus === 'Online' ? 'Offline' : 'Online';
     await setDoc(doc(db, "screens", id), { status: newStatus }, { merge: true });
     toast({
-      title: `Device Status Changed`,
-      description: `Device is now ${newStatus}.`,
+      title: language === "id-ID" ? "Status Perangkat Berubah" : "Device Status Changed",
+      description: language === "id-ID" ? `Perangkat sekarang ${newStatus === 'Online' ? 'Aktif' : 'Nonaktif'}.` : `Device is now ${newStatus}.`,
     });
   };
 
@@ -304,7 +391,11 @@ export default function ScreensManagement() {
     const isDeactivated = screen.status === 'DEACTIVATED';
     const newStatus = isDeactivated ? 'Online' : 'DEACTIVATED';
     await setDoc(doc(db, "screens", screen.id), { status: newStatus }, { merge: true });
-    toast({ title: isDeactivated ? "Device Reconnected" : "Device Deactivated" });
+    toast({ 
+      title: isDeactivated 
+        ? (language === "id-ID" ? "Perangkat Terhubung Kembali" : "Device Reconnected") 
+        : (language === "id-ID" ? "Perangkat Dinonaktifkan" : "Device Deactivated") 
+    });
   };
 
   const selectedScreen = fleet.find(s => s.id === previewDeviceId);
@@ -315,18 +406,21 @@ export default function ScreensManagement() {
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
             <Monitor className="w-8 h-8 text-accent" />
-            Display Network Orchestration
+            {t("scr.title")}
           </h1>
-          <p className="text-muted-foreground">Manage device-specific configurations and worship loops.</p>
+          <p className="text-muted-foreground">{t("scr.desc")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="bg-white rounded-xl" onClick={() => setIsLinkDialogOpen(true)}>
+          <Button variant="outline" className="bg-white rounded-xl" onClick={() => {
+            setGeneratedPairCode(Math.floor(100000 + Math.random() * 900000).toString());
+            setIsLinkDialogOpen(true);
+          }}>
             <Link2 className="w-4 h-4" />
-            Link New Unit
+            {language === "id-ID" ? "Tautkan Unit / Pasangkan" : "Link Unit / Pair Device"}
           </Button>
           <Button variant="default" className="rounded-xl px-6" onClick={handleSaveGlobalSettings} disabled={isSyncing}>
             <RefreshCw className={isSyncing ? "animate-spin" : ""} />
-            Fleet Sync
+            {t("scr.fleetSync")}
           </Button>
         </div>
       </div>
@@ -339,24 +433,24 @@ export default function ScreensManagement() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-primary text-lg">
                     <CloudCog className="w-5 h-5 text-accent" />
-                    Global Fleet Orchestrator
+                    {t("scr.globalOrch")}
                   </CardTitle>
-                  <CardDescription>Broadcasting settings for all active nodes.</CardDescription>
+                  <CardDescription>{t("scr.orchDesc")}</CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-white border-accent text-primary text-[10px] font-bold">
-                  {fleet.filter(s => s.status === 'Online').length} Active Nodes
+                  {fleet.filter(s => s.status === 'Online').length} {t("scr.activeNodes")}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="ticker">Global Ticker Feed</Label>
+                <Label htmlFor="ticker">{t("scr.tickerLabel")}</Label>
                 <div className="flex gap-2">
                   <Input 
                     id="ticker" 
                     value={ticker} 
                     onChange={(e) => setTicker(e.target.value)}
-                    placeholder="Enter broadcast message..."
+                    placeholder={t("scr.tickerPlaceholder")}
                     className="flex-1 rounded-xl"
                   />
                   <Button variant="secondary" className="rounded-xl px-6" onClick={handleSaveGlobalSettings}>Update</Button>
@@ -365,7 +459,7 @@ export default function ScreensManagement() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label>Display Timezone</Label>
+                  <Label>{t("scr.timezoneLabel")}</Label>
                   <Select value={timezone} onValueChange={setTimezone}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select Timezone" />
@@ -381,7 +475,7 @@ export default function ScreensManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Master Fleet Playlist</Label>
+                  <Label>{t("scr.playlistLabel")}</Label>
                   <Select value={activePlaylistId} onValueChange={setActivePlaylistId}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select Playlist" />
@@ -394,10 +488,18 @@ export default function ScreensManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2 flex flex-col justify-end">
-                   <Button onClick={handleSaveGlobalSettings} disabled={isSyncing} className="gap-2 h-10 rounded-xl shadow-md">
-                    {isSyncing ? <RefreshCw className="animate-spin" /> : <Zap className="w-4 h-4" />}
-                    Deploy Fleet Update
-                  </Button>
+                   <Button 
+                onClick={handleSaveGlobalSettings} 
+                className="gap-2 h-11 px-8 rounded-xl bg-primary shadow-lg shadow-primary/20 font-black uppercase tracking-tighter"
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Radio className="w-4 h-4" />
+                )}
+                {isSyncing ? (language === "id-ID" ? "Menyinkronkan..." : "Syncing...") : t("scr.pushGlobal")}
+              </Button>
                 </div>
               </div>
             </CardContent>
@@ -406,12 +508,12 @@ export default function ScreensManagement() {
           <Card className="shadow-sm overflow-hidden border-primary/5 rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b py-4 px-6">
               <div>
-                <CardTitle className="text-lg">Fleet Inventory</CardTitle>
-                <CardDescription>Live telemetry for {fleet.length} provisioned panels.</CardDescription>
+                <CardTitle className="text-lg">{t("scr.inventory")}</CardTitle>
+                <CardDescription>{t("scr.inventoryDesc")}</CardDescription>
               </div>
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border shadow-sm">
                 <Search className="w-4 h-4 text-muted-foreground" />
-                <input type="text" placeholder="Search devices..." className="bg-transparent text-xs border-none outline-none w-32" />
+                <input type="text" placeholder={t("scr.searchDevices")} className="bg-transparent text-xs border-none outline-none w-32" />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -419,16 +521,16 @@ export default function ScreensManagement() {
                 <table className="w-full text-sm text-left">
                   <thead className="text-muted-foreground bg-muted/10 border-b">
                     <tr>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Panel ID & Location</th>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">Connectivity</th>
-                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">Active Loop</th>
-                      <th className="px-6 py-4 text-right font-bold text-[10px] uppercase tracking-widest">Ops</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">{t("scr.panelId")}</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-center">{t("scr.connectivity")}</th>
+                      <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest">{t("scr.activeLoop")}</th>
+                      <th className="px-6 py-4 text-right font-bold text-[10px] uppercase tracking-widest">{t("med.ops")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {fleet.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="text-center p-8 text-muted-foreground">No devices provisioned in the cloud yet. Click "Link New Unit".</td>
+                        <td colSpan={4} className="text-center p-8 text-muted-foreground">{t("scr.noDevices")}</td>
                       </tr>
                     )}
                     {fleet.map((screen) => {
@@ -462,14 +564,14 @@ export default function ScreensManagement() {
                               const isRecent = lastSeenDate && (new Date().getTime() - lastSeenDate.getTime() < 60000); // 60s threshold
                               
                               let color = "bg-zinc-400"; // Grey (Never)
-                              let label = "No Signal";
+                              let label = t("scr.statusWaiting");
                               
                               if (isRecent && screen.status !== 'DEACTIVATED' && screen.status !== 'Offline') {
                                 color = "bg-emerald-500";
-                                label = "Active";
+                                label = t("scr.statusActive");
                               } else if (screen.lastSeen) {
                                 color = "bg-red-500";
-                                label = screen.status === 'DEACTIVATED' ? "Deactivated" : "Inactive";
+                                label = screen.status === 'DEACTIVATED' ? t("scr.statusDeactivated") : t("scr.statusInactive");
                               }
 
                               return (
@@ -486,7 +588,7 @@ export default function ScreensManagement() {
                             })()}
                           </td>
                           <td className="px-6 py-4 text-xs font-medium text-muted-foreground truncate max-w-[150px]">
-                            {isDeactivated || isOffline ? "IDLE" : playlists.find(p => p.id === (screen.playlistId || activePlaylistId))?.name}
+                            {isDeactivated || isOffline ? t("scr.nodeIdle") : playlists.find(p => p.id === (screen.playlistId || activePlaylistId))?.name}
                           </td>
                           <td className="px-6 py-4 text-right">
                             <DropdownMenu>
@@ -497,29 +599,29 @@ export default function ScreensManagement() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 shadow-xl border-primary/10">
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenEdit(screen); }} disabled={isDeactivated} className="rounded-lg py-2">
-                                  <Edit className="w-4 h-4 mr-2" /> Configure Node
+                                  <Edit className="w-4 h-4 mr-2" /> {t("scr.configNode")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleResetHandshake(screen.id); }} className="rounded-lg py-2">
-                                  <RefreshCw className="w-4 h-4 mr-2" /> Reset Handshake
+                                  <RefreshCw className="w-4 h-4 mr-2" /> {t("scr.resetHandshake")}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="mx-2 my-1" />
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleOnlineStatus(screen.id, screen.status); }} disabled={isDeactivated} className="rounded-lg py-2">
                                   {isOffline ? (
-                                    <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> Power On</>
+                                    <><Wifi className="w-4 h-4 mr-2 text-emerald-600" /> {t("scr.powerOn")}</>
                                   ) : (
-                                    <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> Power Off</>
+                                    <><WifiOff className="w-4 h-4 mr-2 text-red-600" /> {t("scr.powerOff")}</>
                                   )}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleDeactivation(screen); }} className="rounded-lg py-2">
                                   {isDeactivated ? (
-                                    <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> Reactivate Node</>
+                                    <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" /> {t("scr.reactivate")}</>
                                   ) : (
-                                    <><ZapOff className="w-4 h-4 mr-2 text-red-600" /> Deactivate Node</>
+                                    <><ZapOff className="w-4 h-4 mr-2 text-red-600" /> {t("scr.deactivate")}</>
                                   )}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="mx-2 my-1" />
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setScreenToDelete(screen.id); }} className="text-red-600 rounded-lg py-2 font-bold">
-                                  <Trash2 className="w-4 h-4 mr-2" /> Decommission Node
+                                  <Trash2 className="w-4 h-4 mr-2" /> {t("scr.decommission")}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -551,7 +653,7 @@ export default function ScreensManagement() {
                     <div className={cn("w-3 h-3 rounded-full", statusColor)} />
                   );
                 })()}
-                <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none text-primary">Live Telemetry Proxy</CardTitle>
+                <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] leading-none text-primary">{t("scr.telemetryProxy")}</CardTitle>
               </div>
               <Badge variant="outline" className="text-[10px] font-bold bg-white px-3 rounded-lg border-primary/20">
                 {selectedScreen?.id || "NO_SIGNAL"}
@@ -562,22 +664,29 @@ export default function ScreensManagement() {
                 <div className="relative w-full h-full overflow-hidden">
                   {previewUrls.map((url, i) => (
                     <div key={i} className={cn("absolute inset-0 transition-opacity duration-1000", i === previewIndex ? "opacity-100" : "opacity-0")}>
-                      {extractYouTubeId(url) ? (
-                        <Image src={`https://img.youtube.com/vi/${extractYouTubeId(url)}/hqdefault.jpg`} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                      {url ? (
+                        extractYouTubeId(url) ? (
+                          <Image src={`https://img.youtube.com/vi/${extractYouTubeId(url)}/hqdefault.jpg`} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                        ) : (
+                          <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                        )
                       ) : (
-                        <Image src={url} alt="Signage View" fill className="object-cover opacity-80" unoptimized />
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/80 text-white/20">
+                          <ShieldAlert className="w-12 h-12 mb-3 opacity-20" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">{t("common.noData") || "SOURCE_UNAVAILABLE"}</span>
+                        </div>
                       )}
                     </div>
                   ))}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                   <div className="absolute bottom-6 left-6 right-6 flex flex-col gap-1.5 pointer-events-none">
                     <p className="text-[10px] text-accent font-black uppercase tracking-widest flex items-center gap-2 drop-shadow-sm">
-                      <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> BROADCASTING: {selectedScreen?.name}
+                      <Signal className="w-3.5 h-3.5 fill-accent animate-pulse" /> {t("scr.broadcasting")}: {selectedScreen?.name}
                     </p>
                     <p className="text-base font-black tracking-tight drop-shadow-lg truncate text-white">
                       {playlists.find(p => p.id === (selectedScreen?.playlistId || activePlaylistId))?.name}
                     </p>
-                    <p className="text-[9px] font-mono text-white/60 uppercase tracking-tighter drop-shadow-sm">Status: Active Loop • Uptime: {selectedScreen?.uptime}</p>
+                    <p className="text-[9px] font-mono text-white/60 uppercase tracking-tighter drop-shadow-sm">Status: Active Loop • {t("scr.uptime")}: {selectedScreen?.uptime}</p>
                   </div>
                 </div>
               ) : (
@@ -586,7 +695,7 @@ export default function ScreensManagement() {
                     <Monitor className="w-20 h-20 opacity-30" />
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-[11px] font-black tracking-[0.3em] uppercase text-primary/40">No Active Link</p>
+                    <p className="text-[11px] font-black tracking-[0.3em] uppercase text-primary/40">{t("scr.noActiveLink")}</p>
                     <p className="text-[9px] font-mono opacity-40">WAITING_FOR_HANDSHAKE...</p>
                   </div>
                 </div>
@@ -600,17 +709,17 @@ export default function ScreensManagement() {
                 <div className="p-1.5 bg-primary/10 rounded-lg">
                    <Signal className="w-4 h-4" />
                 </div>
-                Network Health Matrix
+                {t("scr.healthMatrix")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 pt-5 px-6 pb-8">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm">
-                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Fleet Scan</span>
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">{t("scr.fleetScan")}</span>
                   <span className="text-sm font-black text-primary font-mono">{scanTime || "--:--:--"}</span>
                 </div>
                 <div className="flex flex-col p-4 rounded-xl bg-muted/30 border shadow-sm text-right">
-                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">Network Stability</span>
+                  <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter mb-1">{t("scr.stability")}</span>
                   <span className="text-sm font-black text-emerald-600">
                     {(() => {
                       if (fleet.length === 0) return "100%";
@@ -625,7 +734,7 @@ export default function ScreensManagement() {
               </div>
               <div className="space-y-4 pt-2">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground/80 px-1">
-                   <span>Critical Node Failures</span>
+                   <span>{t("scr.failures")}</span>
                    <span className="text-red-500 font-black">
                      {fleet.filter(s => {
                         const lastSeenDate = s.lastSeen ? new Date(s.lastSeen) : null;
@@ -634,7 +743,7 @@ export default function ScreensManagement() {
                    </span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground/80 px-1">
-                   <span>Fleet Sync Integrity</span>
+                   <span>{t("scr.integrity")}</span>
                    <span>{fleet.length > 0 ? "98.2%" : "100%"}</span>
                 </div>
                 <Progress value={98.2} className="h-1.5 bg-muted" />
@@ -648,12 +757,12 @@ export default function ScreensManagement() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Configure Node</DialogTitle>
+            <DialogTitle className="text-2xl font-black">{t("scr.configNode")}</DialogTitle>
             <DialogDescription>Modify settings and assigned loops for hardware node {editingScreen?.id}.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Node Display Name</Label>
+              <Label>{t("scr.nodeLabel")}</Label>
               <Input 
                 value={localScreenName} 
                 onChange={e => setLocalScreenName(e.target.value)} 
@@ -662,7 +771,7 @@ export default function ScreensManagement() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Assigned Broadcast Loop</Label>
+              <Label>{t("scr.playlistLabel")}</Label>
               <Select value={localScreenPlaylist} onValueChange={setLocalScreenPlaylist}>
                 <SelectTrigger className="rounded-xl h-11">
                   <SelectValue placeholder="Choose a playlist" />
@@ -685,15 +794,19 @@ export default function ScreensManagement() {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl">Cancel</Button>
+          <DialogFooter className="border-t pt-6 gap-3">
+            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl h-11" disabled={isDeploying}>{t("common.cancel")}</Button>
             <Button 
               onClick={handleUpdateSpecificScreen} 
-              disabled={isDeploying} 
-              className="rounded-xl px-8 h-11 shadow-lg shadow-primary/20 bg-primary"
+              className="gap-2 h-11 px-8 rounded-xl bg-primary shadow-xl shadow-primary/20 font-black uppercase tracking-tighter"
+              disabled={isDeploying}
             >
-              {isDeploying ? <RefreshCw className="animate-spin mr-2" /> : <UploadCloud className="w-4 h-4 mr-2" />}
-              {isDeploying ? "Pushing Data..." : "Apply & Deploy"}
+              {isDeploying ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              {isDeploying ? (language === "id-ID" ? "Menerapkan..." : "Deploying...") : t("scr.applyChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -701,27 +814,78 @@ export default function ScreensManagement() {
 
       {/* Linking Dialog */}
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Provision New Node</DialogTitle>
-            <DialogDescription>Link physical hardware via pairing code.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Node Label</Label>
-              <Input value={linkUnitName} onChange={e => setLinkUnitName(e.target.value)} placeholder="e.g. Science Wing Entrance" className="rounded-xl h-11" />
+        <DialogContent className="rounded-[2.5rem] sm:max-w-md border-primary/20 shadow-2xl overflow-hidden p-0">
+          <div className="bg-primary p-8 text-white relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+             <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/20 rounded-full -ml-12 -mb-12 blur-2xl" />
+             <DialogHeader>
+                <DialogTitle className="text-3xl font-black tracking-tighter mb-1">{language === "id-ID" ? "PENAUTAN PERANGKAT" : "DEVICE PROVISIONING"}</DialogTitle>
+                <DialogDescription className="text-white/70 font-medium">
+                  {language === "id-ID" 
+                    ? "Sinkronkan hardware baru ke dalam ekosistem ScreenSense." 
+                    : "Synchronize new hardware into the ScreenSense ecosystem."}
+                </DialogDescription>
+             </DialogHeader>
+          </div>
+
+          <div className="p-8 space-y-8">
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-6 rounded-3xl border border-primary/5 text-center space-y-3">
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">{language === "id-ID" ? "KODE PEMASANGAN ANDA" : "YOUR PAIRING CODE"}</p>
+                 <div className="flex justify-center gap-3">
+                    {(generatedPairCode || "000000").split('').map((char, i) => (
+                      <div key={i} className="w-10 h-14 bg-white border-2 border-primary/10 rounded-xl flex items-center justify-center text-2xl font-black text-primary shadow-sm">
+                        {char}
+                      </div>
+                    ))}
+                 </div>
+                 <p className="text-[9px] text-muted-foreground font-medium italic mt-2">
+                   {language === "id-ID" 
+                     ? "Masukkan kode ini pada aplikasi layar atau gunakan input di bawah." 
+                     : "Enter this code on the screen app or use the input below."}
+                 </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{language === "id-ID" ? "NAMA UNIT" : "UNIT DESIGNATION"}</Label>
+                  <Input 
+                    value={linkUnitName} 
+                    onChange={e => setLinkUnitName(e.target.value)} 
+                    placeholder={language === "id-ID" ? "Contoh: Lobi Utama" : "e.g. Grand Lobby Display"}
+                    className="rounded-2xl h-14 border-primary/10 bg-muted/30 focus:bg-white transition-all text-lg font-bold px-6"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest ml-1">{language === "id-ID" ? "ATAU MASUKKAN KODE KLIEN" : "OR ENTER CLIENT CODE"}</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={pairingCode} 
+                      onChange={e => setPairingCode(e.target.value)} 
+                      placeholder="685-992"
+                      className="rounded-2xl h-14 border-primary/10 bg-muted/30 focus:bg-white transition-all text-center text-xl font-mono tracking-[0.3em]"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Hardware Pairing Code</Label>
-              <Input value={pairingCode} onChange={e => setPairingCode(e.target.value)} placeholder="000-000" className="text-center text-xl tracking-widest h-14 rounded-xl font-black border-2" />
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleLinkNewDevice} 
+                className="w-full h-16 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-base shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                disabled={isLinking}
+              >
+                {isLinking ? (
+                  <RefreshCw className="w-5 h-5 animate-spin mr-3" />
+                ) : (
+                  <Link2 className="w-5 h-5 mr-3" />
+                )}
+                {isLinking ? (language === "id-ID" ? "MENAUTKAN..." : "PROVISIONING...") : (language === "id-ID" ? "OTORISASI PERANGKAT" : "AUTHORIZE DEVICE")}
+              </Button>
+              <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)} className="h-12 rounded-xl text-muted-foreground font-bold">{t("common.cancel")}</Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleLinkNewDevice} disabled={isLinking} className="w-full h-12 rounded-xl text-lg font-black uppercase tracking-tight shadow-lg shadow-primary/20">
-              {isLinking ? <RefreshCw className="animate-spin mr-2" /> : <Link2 className="w-5 h-5 mr-2" />}
-              {isLinking ? "Authenticating..." : "Authorize Node"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -729,13 +893,13 @@ export default function ScreensManagement() {
       <AlertDialog open={!!screenToDelete} onOpenChange={(open) => !open && setScreenToDelete(null)}>
         <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black text-red-600">Confirm Decommission</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-black text-red-600">{t("scr.decommissionTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently sever the link with node {screenToDelete}. The hardware will require re-pairing to reconnect to the network.
+              {t("scr.decommissionDesc")} ({screenToDelete})
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => screenToDelete && handleDeleteDevice(screenToDelete)}
               className="bg-red-600 hover:bg-red-700 rounded-xl"

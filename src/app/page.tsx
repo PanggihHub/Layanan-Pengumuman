@@ -1,11 +1,81 @@
+"use client";
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Monitor, LayoutDashboard, School } from 'lucide-react';
+import { Monitor, LayoutDashboard, School, Link2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { db } from "@/lib/firebase";
+import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Home() {
+  const router = useRouter();
   const heroImg = PlaceHolderImages.find(img => img.id === 'hero-signage');
+  
+  const [isPairDialogOpen, setIsPairDialogOpen] = useState(false);
+  const [pairingCode, setPairingCode] = useState("");
+  const [deviceId, setDeviceId] = useState("");
+  const [pairingSuccess, setPairingSuccess] = useState(false);
+
+  const getDeviceId = () => {
+    if (typeof window === "undefined") return "server";
+    let id = localStorage.getItem("screensense_device_id");
+    if (!id) {
+      id = "DISP-" + Math.random().toString(36).substring(2, 11).toUpperCase();
+      localStorage.setItem("screensense_device_id", id);
+    }
+    return id;
+  };
+
+  const handleStartPairing = async () => {
+    setIsPairDialogOpen(true);
+    const id = getDeviceId();
+    setDeviceId(id);
+    
+    // Generate 6 digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setPairingCode(code);
+    
+    // Persist to firestore
+    try {
+      await setDoc(doc(db, "pairingCodes", id), {
+        deviceId: id,
+        code: code,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Failed to generate pairing code", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isPairDialogOpen || !deviceId) return;
+
+    let successHandled = false;
+    // Listen for this device being provisioned in the screens collection
+    const unsub = onSnapshot(doc(db, "screens", deviceId), (snap) => {
+      if (snap.exists() && !successHandled) {
+        successHandled = true;
+        setPairingSuccess(true);
+        setTimeout(() => {
+          setIsPairDialogOpen(false);
+          setPairingSuccess(false);
+          router.push("/display");
+        }, 3000);
+      }
+    });
+
+    return () => unsub();
+  }, [isPairDialogOpen, deviceId, router]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -37,7 +107,7 @@ export default function Home() {
           <p className="text-lg text-muted-foreground leading-relaxed">
             ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and ensure seamless communication across your entire campus network.
           </p>
-          <div className="flex flex-row items-center justify-center md:justify-start gap-4">
+          <div className="flex flex-row items-center justify-center md:justify-start gap-4 flex-wrap">
             <Link href="/admin">
               <Button size="lg" className="h-14 px-8 text-lg gap-2">
                 <LayoutDashboard className="w-5 h-5" />
@@ -50,8 +120,47 @@ export default function Home() {
                 Signage Client
               </Button>
             </Link>
+            <Button variant="secondary" size="lg" className="h-14 px-8 text-lg gap-2" onClick={handleStartPairing}>
+              <Link2 className="w-5 h-5" />
+              Pair Device
+            </Button>
           </div>
         </div>
+
+        <Dialog open={isPairDialogOpen} onOpenChange={setIsPairDialogOpen}>
+          <DialogContent className="sm:max-w-md rounded-3xl text-center flex flex-col items-center py-10">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black text-primary">Pair This Screen</DialogTitle>
+              <DialogDescription className="text-lg">
+                Enter this 6-digit code in the Admin Dashboard to link this display to your network.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="my-8 space-y-4 w-full">
+              <div className="bg-muted/30 p-8 rounded-3xl border-2 border-primary/10 shadow-inner">
+                {pairingSuccess ? (
+                  <h2 className="text-4xl font-black text-green-600 animate-in zoom-in">PAIRED SUCCESSFULLY</h2>
+                ) : pairingCode ? (
+                  <h2 className="text-6xl font-black tracking-[0.2em] text-primary">{pairingCode}</h2>
+                ) : (
+                  <RefreshCw className="w-12 h-12 animate-spin mx-auto text-primary/40" />
+                )}
+              </div>
+              <p className="text-xs font-mono text-muted-foreground bg-muted w-fit mx-auto px-3 py-1 rounded-full">
+                DEVICE_ID: {deviceId}
+              </p>
+            </div>
+            {pairingSuccess ? (
+              <div className="flex items-center gap-2 text-sm text-green-600 font-bold">
+                Redirecting to master display...
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                <RefreshCw className="w-4 h-4" />
+                Waiting for admin approval...
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <div className="flex-1 w-full max-w-md md:max-w-none">
           <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white">

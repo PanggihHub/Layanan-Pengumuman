@@ -16,8 +16,12 @@ import {
   History,
   Monitor,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Moon,
+  Sun
 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { ModeToggle } from "@/components/ModeToggle";
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu, 
@@ -28,14 +32,25 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <LanguageProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </LanguageProvider>
+  );
+}
+
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -71,69 +86,68 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <SidebarTrigger className="hover:bg-muted" />
               <Separator orientation="vertical" className="h-6" />
               
-              {/* Intelligent Search Bar */}
-              <div className={cn(
-                "relative flex items-center gap-3 px-4 py-2 rounded-2xl transition-all duration-300 border",
-                isSearchFocused 
-                  ? "bg-white w-[500px] ring-4 ring-primary/5 border-primary shadow-2xl" 
-                  : "bg-muted/50 border-transparent w-72 lg:w-96"
-              )}>
-                <Search className={cn("w-4 h-4 transition-colors", isSearchFocused ? "text-primary" : "text-muted-foreground/60")} />
-                <input 
-                  type="text" 
-                  placeholder="Search telemetry, assets, screens..." 
-                  className="bg-transparent border-none outline-none text-sm flex-1 placeholder:text-muted-foreground/40"
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-
-                {/* Simulated Search Results Dropdown */}
-                {isSearchFocused && searchQuery.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl border shadow-2xl p-2 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4 py-3 border-b">Real-time Indexing</p>
-                    <div className="space-y-1 p-1">
-                      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 rounded-xl text-left transition-colors">
-                        <Monitor className="w-4 h-4 text-primary" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold">Main Hall A (Online)</span>
-                          <span className="text-[10px] text-muted-foreground">Screen Telemetry</span>
-                        </div>
-                      </button>
-                      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 rounded-xl text-left transition-colors">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold">All Clear Response</span>
-                          <span className="text-[10px] text-muted-foreground">Emergency Protocol</span>
-                        </div>
-                      </button>
-                      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/10 rounded-xl text-left transition-colors">
-                        <AlertCircle className="w-4 h-4 text-accent" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold">Worship Sync Failure</span>
-                          <span className="text-[10px] text-muted-foreground">System Alert</span>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Notification Command Center */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative hover:bg-muted rounded-full w-10 h-10 transition-transform active:scale-95">
-                    <Bell className="w-5 h-5 text-muted-foreground/80" />
-                    <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 p-0 overflow-hidden shadow-2xl rounded-2xl border-primary/10">
-                  <DropdownMenuLabel className="p-4 bg-muted/50 border-b flex items-center justify-between">
-                    <span className="font-bold">System Alerts</span>
-                  </DropdownMenuLabel>
+               <div className={cn(
+                 "relative flex items-center gap-3 px-4 py-2 rounded-2xl transition-all duration-300 border",
+                 isSearchFocused 
+                   ? "bg-white w-[500px] ring-4 ring-primary/5 border-primary shadow-2xl" 
+                   : "bg-muted/50 border-transparent w-72 lg:w-96"
+               )}>
+                 <Search className={cn("w-4 h-4 transition-colors", isSearchFocused ? "text-primary" : "text-muted-foreground/60")} />
+                 <input 
+                   type="text" 
+                   placeholder={t("header.search")}
+                   className="bg-transparent border-none outline-none text-sm flex-1 placeholder:text-muted-foreground/40"
+                   onFocus={() => setIsSearchFocused(true)}
+                   onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                 />
+ 
+                 {/* Simulated Search Results Dropdown */}
+                 {isSearchFocused && searchQuery.length > 0 && (
+                   <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl border shadow-2xl p-2 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-300">
+                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4 py-3 border-b">{t("header.indexing")}</p>
+                     <div className="space-y-1 p-1">
+                       <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 rounded-xl text-left transition-colors">
+                         <Monitor className="w-4 h-4 text-primary" />
+                         <div className="flex flex-col">
+                           <span className="text-sm font-bold">Main Hall A (Online)</span>
+                           <span className="text-[10px] text-muted-foreground">Screen Telemetry</span>
+                         </div>
+                       </button>
+                       <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-emerald-50 rounded-xl text-left transition-colors">
+                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                         <div className="flex flex-col">
+                           <span className="text-sm font-bold">All Clear Response</span>
+                           <span className="text-[10px] text-muted-foreground">Emergency Protocol</span>
+                         </div>
+                       </button>
+                       <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/10 rounded-xl text-left transition-colors">
+                         <AlertCircle className="w-4 h-4 text-accent" />
+                         <div className="flex flex-col">
+                           <span className="text-sm font-bold">Worship Sync Failure</span>
+                           <span className="text-[10px] text-muted-foreground">System Alert</span>
+                         </div>
+                       </button>
+                     </div>
+                   </div>
+                 )}
+               </div>
+             </div>
+             
+             <div className="flex items-center gap-4">
+               {/* Notification Command Center */}
+               <DropdownMenu>
+                 <DropdownMenuTrigger asChild>
+                   <Button variant="ghost" size="icon" className="relative hover:bg-muted rounded-full w-10 h-10 transition-transform active:scale-95">
+                     <Bell className="w-5 h-5 text-muted-foreground/80" />
+                     <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                   </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="end" className="w-80 p-0 overflow-hidden shadow-2xl rounded-2xl border-primary/10">
+                   <DropdownMenuLabel className="p-4 bg-muted/50 border-b flex items-center justify-between">
+                     <span className="font-bold">{t("header.alerts")}</span>
+                   </DropdownMenuLabel>
                   <div className="max-h-96 overflow-y-auto">
                     <div className="p-4 border-b hover:bg-primary/5 transition-colors cursor-default">
                       <p className="font-bold text-xs flex items-center gap-2 text-primary">
@@ -154,10 +168,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              
-              <Separator orientation="vertical" className="h-8 hidden sm:block" />
 
-              {/* Admin Overseer Profile Menu */}
+              <div className="ml-2">
+                <ModeToggle />
+              </div>
+              
+              <Separator orientation="vertical" className="h-8 hidden sm:block mx-1" />              {/* Admin Overseer Profile Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-3 px-2 pr-4 hover:bg-muted rounded-2xl transition-all h-12 active:scale-95 group">
@@ -165,33 +181,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <UserCircle className="w-6 h-6 text-white" />
                     </div>
                     <div className="hidden md:block text-left">
-                      <p className="text-sm font-black text-primary leading-none">Admin Overseer</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter mt-1">Master Console</p>
+                      <p className="text-sm font-black text-primary leading-none">{t("header.admin")}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter mt-1">{t("header.console")}</p>
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 shadow-2xl rounded-2xl p-2 border-primary/10">
                   <DropdownMenuLabel className="flex flex-col px-4 py-3">
-                    <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Account Security</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t("header.account")}</span>
                     <span className="text-[11px] font-medium text-primary mt-1">admin@screensense.local</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="mx-2" />
                   <DropdownMenuItem asChild className="cursor-pointer gap-3 p-3 rounded-xl hover:bg-primary/5">
                     <Link href="/admin/settings">
                       <Settings className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-semibold text-sm">Platform Config</span>
+                      <span className="font-semibold text-sm">{t("header.systemConfig")}</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="cursor-pointer gap-3 p-3 rounded-xl hover:bg-accent/10">
                     <Link href="/admin/security">
                       <Shield className="w-4 h-4 text-accent" />
-                      <span className="font-semibold text-sm">Security & PIN</span>
+                      <span className="font-semibold text-sm">{t("header.securityPin")}</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="cursor-pointer gap-3 p-3 rounded-xl hover:bg-muted">
                     <Link href="/admin">
                       <History className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-semibold text-sm">Access Audit Log</span>
+                      <span className="font-semibold text-sm">{t("header.auditLog")}</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="mx-2" />
@@ -200,7 +216,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     onClick={handleLogout}
                   >
                     <LogOut className="w-4 h-4" />
-                    <span className="text-sm">END SESSION</span>
+                    <span className="text-sm">{t("header.endSession")}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -30,3 +30,9 @@ export const getMediaThumbnail = (url: string, type: string) => {
   return url || 'https://picsum.photos/seed/placeholder/1920/1080';
 };
 
+/**
+ * Simple delay helper to ensure UI transitions have time to breathe
+ * if the backend response is too fast for local animations.
+ */
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+

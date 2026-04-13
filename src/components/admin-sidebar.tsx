@@ -20,6 +20,8 @@ import {
   History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
+import { TranslationKey } from "@/lib/translations";
 import {
   Sidebar,
   SidebarContent,
@@ -39,23 +41,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Overview", href: "/admin" },
-  { icon: Film, label: "Media Library", href: "/admin/media" },
-  { icon: ListMusic, label: "Playlists", href: "/admin/playlists" },
-  { icon: Monitor, label: "Screens", href: "/admin/screens" },
-  { icon: Heart, label: "Worship Schedule", href: "/admin/worship" },
+const menuItems: { icon: any, labelKey: TranslationKey, href: string }[] = [
+  { icon: LayoutDashboard, labelKey: "nav.overview", href: "/admin" },
+  { icon: Film, labelKey: "nav.media", href: "/admin/media" },
+  { icon: ListMusic, labelKey: "nav.playlists", href: "/admin/playlists" },
+  { icon: Monitor, labelKey: "nav.screens", href: "/admin/screens" },
+  { icon: Heart, labelKey: "nav.worship", href: "/admin/worship" },
 ];
 
-const settings = [
-  { icon: Settings, label: "System Config", href: "/admin/settings" },
-  { icon: Shield, label: "Security & PIN", href: "/admin/security" },
-  { icon: Globe, label: "Localization", href: "/admin/languages" },
-  { icon: AlertTriangle, label: "Emergency", href: "/admin/emergency", className: "text-red-400 hover:text-red-500" },
+const settings: { icon: any, labelKey: TranslationKey, href: string, className?: string }[] = [
+  { icon: Settings, labelKey: "nav.settings", href: "/admin/settings" },
+  { icon: Shield, labelKey: "nav.security", href: "/admin/security" },
+  { icon: Globe, labelKey: "nav.localization", href: "/admin/languages" },
+  { icon: AlertTriangle, labelKey: "nav.emergency", href: "/admin/emergency", className: "text-red-400 hover:text-red-500" },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   return (
     <Sidebar className="border-r border-white/10">
@@ -70,7 +73,7 @@ export function AdminSidebar() {
       
       <SidebarContent className="bg-primary">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">Management Hub</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">{t("nav.hub")}</SidebarGroupLabel>
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
@@ -81,7 +84,7 @@ export function AdminSidebar() {
                 >
                   <Link href={item.href}>
                     <item.icon className="w-5 h-5" />
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -90,7 +93,7 @@ export function AdminSidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">Governance</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/60 font-bold uppercase tracking-widest text-[10px]">{t("nav.governance")}</SidebarGroupLabel>
           <SidebarMenu>
             {settings.map((item) => (
               <SidebarMenuItem key={item.href}>
@@ -101,7 +104,7 @@ export function AdminSidebar() {
                 >
                   <Link href={item.href}>
                     <item.icon className="w-5 h-5" />
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -116,7 +119,7 @@ export function AdminSidebar() {
             <Button className="w-full bg-accent text-primary font-black hover:bg-accent/90 flex items-center justify-between px-4 h-12 rounded-xl shadow-lg shadow-black/20" size="sm">
               <div className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                <span className="uppercase tracking-tighter">Actions</span>
+                <span className="uppercase tracking-tighter">{t("nav.actions")}</span>
               </div>
               <ChevronUp className="w-4 h-4 opacity-50" />
             </Button>
@@ -125,19 +128,19 @@ export function AdminSidebar() {
             <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/admin/media">
                 <Film className="w-4 h-4 text-muted-foreground" />
-                Add New Media
+                {t("nav.addMedia")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/display">
                 <ExternalLink className="w-4 h-4 text-accent" />
-                View Signage Feed
+                {t("nav.viewFeed")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="gap-2 cursor-pointer py-3 rounded-lg">
               <Link href="/">
                 <Home className="w-4 h-4 text-muted-foreground" />
-                Exit to Website
+                {t("nav.exit")}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

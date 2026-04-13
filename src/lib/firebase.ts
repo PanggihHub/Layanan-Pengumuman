@@ -1,5 +1,6 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBvrUwZe1RyOW2CYohGnktX0gVNtRc6rz8",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 let app;
 let db: ReturnType<typeof getFirestore>;
+let storage: ReturnType<typeof getStorage>;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -32,4 +34,6 @@ if (!getApps().length) {
   db = getFirestore(app);
 }
 
-export { app, db };
+storage = getStorage(app);
+
+export { app, db, storage };

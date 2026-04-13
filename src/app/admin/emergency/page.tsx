@@ -15,7 +15,7 @@ import {
   Power,
   RefreshCw,
   Zap,
-  Radio,
+  RadioTower,
   EyeOff,
   Plus,
   Trash2,
@@ -51,6 +51,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Protocol {
   id: string;
@@ -61,6 +62,7 @@ interface Protocol {
 }
 
 export default function EmergencyPlatform() {
+  const { t, language } = useLanguage();
   const [activeAlert, setActiveAlert] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
@@ -71,10 +73,10 @@ export default function EmergencyPlatform() {
   const { toast } = useToast();
 
   const [protocols, setProtocols] = useState<Protocol[]>([
-    { id: 'fire', icon: Flame, label: 'Fire / Evacuation', color: 'bg-orange-500', text: 'SHELTER IN PLACE / EVACUATE' },
-    { id: 'weather', icon: CloudRain, label: 'Severe Weather', color: 'bg-blue-600', text: 'SEEK INDOOR SHELTER' },
-    { id: 'lockdown', icon: Lock, label: 'Security Lockdown', color: 'bg-red-800', text: 'LOCKDOWN IN EFFECT' },
-    { id: 'hazard', icon: ShieldAlert, label: 'Biohazard / Spill', color: 'bg-yellow-600', text: 'HAZMAT ALERT - DO NOT ENTER' },
+    { id: 'fire', icon: Flame, label: t("eme.fireEvac"), color: 'bg-orange-500', text: t("eme.fireEvacText") },
+    { id: 'weather', icon: CloudRain, label: t("eme.weather"), color: 'bg-blue-600', text: t("eme.weatherText") },
+    { id: 'lockdown', icon: Lock, label: t("eme.lockdown"), color: 'bg-red-800', text: t("eme.lockdownText") },
+    { id: 'hazard', icon: ShieldAlert, label: t("eme.hazard"), color: 'bg-yellow-600', text: t("eme.hazardText") },
   ]);
 
   const [logs, setLogs] = useState([
@@ -97,16 +99,18 @@ export default function EmergencyPlatform() {
       
       const logEntry = {
         id: Date.now(),
-        time: "Just now",
-        text: `BROADCAST ACTIVE: ${protocol?.label || 'General Panic'}`,
+        time: language === "id-ID" ? "Baru saja" : "Just now",
+        text: `${language === "id-ID" ? "SIARAN AKTIF" : "BROADCAST ACTIVE"}: ${protocol?.label || (language === "id-ID" ? "Kepanikan Umum" : "General Panic")}`,
         type: "alert"
       };
       setLogs(prev => [logEntry, ...prev]);
 
       toast({
         variant: "destructive",
-        title: "EMERGENCY BROADCAST ACTIVE",
-        description: `Protocol ${protocol?.label.toUpperCase() || 'PANIC'} deployed to all network nodes.`,
+        title: language === "id-ID" ? "SIARAN DARURAT AKTIF" : "EMERGENCY BROADCAST ACTIVE",
+        description: language === "id-ID" 
+          ? `Protokol ${protocol?.label.toUpperCase() || 'PANIK'} dikirim ke semua node jaringan.` 
+          : `Protocol ${protocol?.label.toUpperCase() || 'PANIC'} deployed to all network nodes.`,
       });
     }, 2000);
   };
@@ -118,13 +122,20 @@ export default function EmergencyPlatform() {
       setIsProcessing(false);
       
       setLogs(prev => [
-        { id: Date.now(), time: "Just now", text: "Protocol Reset: All screens cleared", type: "system" },
+        { 
+          id: Date.now(), 
+          time: language === "id-ID" ? "Baru saja" : "Just now", 
+          text: language === "id-ID" ? "Reset Protokol: Semua layar dibersihkan" : "Protocol Reset: All screens cleared", 
+          type: "system" 
+        },
         ...prev
       ]);
 
       toast({
-        title: "All Clear",
-        description: "Emergency broadcast terminated. Resuming standard playlists.",
+        title: language === "id-ID" ? "Semua Aman" : "All Clear",
+        description: language === "id-ID" 
+          ? "Siaran darurat dihentikan. Melanjutkan daftar putar standar." 
+          : "Emergency broadcast terminated. Resuming standard playlists.",
       });
     }, 1500);
   };
@@ -171,7 +182,10 @@ export default function EmergencyPlatform() {
     setIsRefreshingLogs(true);
     setTimeout(() => {
       setIsRefreshingLogs(false);
-      toast({ title: "Logs Updated", description: "Audit trail synchronized." });
+      toast({ 
+        title: language === "id-ID" ? "Log Diperbarui" : "Logs Updated", 
+        description: language === "id-ID" ? "Jejak audit sinkron." : "Audit trail synchronized." 
+      });
     }, 800);
   };
 
@@ -183,18 +197,18 @@ export default function EmergencyPlatform() {
         <div>
           <h1 className="text-3xl font-bold text-red-600 flex items-center gap-3">
             <AlertTriangle className="w-8 h-8" />
-            Emergency Orchestration Platform
+            {t("eme.title")}
           </h1>
-          <p className="text-muted-foreground mt-2">High-priority override console for campus safety protocols.</p>
+          <p className="text-muted-foreground mt-2">{t("eme.desc")}</p>
         </div>
         <div className="flex gap-2">
           {activeAlert && (
             <Button variant="outline" className="border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={handleClear} disabled={isProcessing}>
-              {isProcessing ? <RefreshCw className="animate-spin" /> : "Clear Emergency State"}
+              {isProcessing ? <RefreshCw className="animate-spin" /> : t("eme.clearBtn")}
             </Button>
           )}
           <Button onClick={handleOpenAddProtocol} className="bg-red-600 hover:bg-red-700 text-white gap-2">
-            <Plus className="w-4 h-4" /> Add Protocol
+            <Plus className="w-4 h-4" /> {t("eme.addProtocol")}
           </Button>
         </div>
       </div>
@@ -209,10 +223,10 @@ export default function EmergencyPlatform() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    Protocol Selection
-                    {activeAlert && <Badge variant="destructive" className="animate-bounce">ACTIVE OVERRIDE</Badge>}
+                    {t("eme.selectionTitle")}
+                    {activeAlert && <Badge variant="destructive" className="animate-bounce">{t("eme.activeBadge")}</Badge>}
                   </CardTitle>
-                  <CardDescription>Select a protocol to broadcast instantly across the network.</CardDescription>
+                  <CardDescription>{t("eme.selectionDesc")}</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -241,10 +255,10 @@ export default function EmergencyPlatform() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleOpenEditProtocol(alert)}>
-                            <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit
+                            <Edit2 className="w-3.5 h-3.5 mr-2" /> {t("common.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDeleteProtocol(alert.id)} className="text-red-600">
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> {t("common.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -258,10 +272,10 @@ export default function EmergencyPlatform() {
           <Card className="bg-zinc-900 text-white border-none overflow-hidden ring-1 ring-white/10">
             <CardHeader className="bg-red-600/20 border-b border-white/10 flex flex-row items-center justify-between">
               <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                <Radio className="w-4 h-4" />
-                Live Broadcast Intercept
+                <RadioTower className="w-4 h-4" />
+                {t("eme.liveIntercept")}
               </CardTitle>
-              <Badge variant="outline" className="text-white border-white/20 text-[9px]">ACTIVE FEED</Badge>
+              <Badge variant="outline" className="text-white border-white/20 text-[9px]">{t("eme.liveBadge")}</Badge>
             </CardHeader>
             <CardContent className="aspect-video relative flex flex-col items-center justify-center p-0 overflow-hidden bg-black">
               {activeAlert ? (
@@ -270,13 +284,13 @@ export default function EmergencyPlatform() {
                   activeProtocol?.color || 'bg-red-600'
                 )}>
                    <AlertTriangle className="w-24 h-24 mb-6" />
-                   <h2 className="text-4xl font-black uppercase mb-4 tracking-tighter leading-none">Emergency Alert</h2>
+                   <h2 className="text-4xl font-black uppercase mb-4 tracking-tighter leading-none">{language === "id-ID" ? "Peringatan Darurat" : "Emergency Alert"}</h2>
                    <p className="text-xl font-bold uppercase">{activeProtocol?.text}</p>
                 </div>
               ) : (
                 <div className="text-white/10 flex flex-col items-center italic gap-3">
                   <EyeOff className="w-16 h-16" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest">No Active Signal</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest">{t("eme.noSignal")}</p>
                 </div>
               )}
             </CardContent>
@@ -286,7 +300,7 @@ export default function EmergencyPlatform() {
         <div className="space-y-6">
           <Card className="bg-gradient-to-br from-white to-red-50 shadow-md">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-red-600">Master Control</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-red-600">{t("eme.masterControl")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button 
@@ -296,7 +310,7 @@ export default function EmergencyPlatform() {
                 disabled={isProcessing || activeAlert !== null}
               >
                 <Zap className="w-6 h-6 fill-white" />
-                PANIC OVERRIDE
+                {t("eme.panicOverride")}
               </Button>
               <Button 
                 variant="outline" 
@@ -305,7 +319,7 @@ export default function EmergencyPlatform() {
                 disabled={!activeAlert || isProcessing}
               >
                 <Power className="w-5 h-5" />
-                SYSTEM RESET
+                {t("eme.systemReset")}
               </Button>
             </CardContent>
           </Card>
@@ -314,7 +328,7 @@ export default function EmergencyPlatform() {
             <CardHeader className="pb-3 border-b flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Emergency Log
+                {t("eme.emergencyLog")}
               </CardTitle>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRefreshLogs}>
                 <RefreshCw className={cn("w-3 h-3", isRefreshingLogs && "animate-spin")} />
@@ -340,7 +354,7 @@ export default function EmergencyPlatform() {
                 className="w-full p-0 h-auto text-[10px] font-bold uppercase tracking-widest text-red-600 gap-2"
                 onClick={() => setIsHistoryOpen(true)}
               >
-                View Full Audit History <History className="w-3 h-3" />
+                {t("eme.viewHistory")} <History className="w-3 h-3" />
               </Button>
             </CardContent>
           </Card>
@@ -351,37 +365,37 @@ export default function EmergencyPlatform() {
       <Dialog open={isProtocolDialogOpen} onOpenChange={setIsProtocolDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingProtocol ? "Modify Protocol" : "Add Emergency Protocol"}</DialogTitle>
-            <DialogDescription>Define the broadcast parameters for this safety response.</DialogDescription>
+            <DialogTitle>{editingProtocol ? t("eme.dialogEditTitle") : t("eme.dialogAddTitle")}</DialogTitle>
+            <DialogDescription>{t("eme.dialogDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Protocol Name (Internal)</Label>
+              <Label>{t("eme.protoName")}</Label>
               <Input value={protoLabel} onChange={e => setProtoLabel(e.target.value)} placeholder="e.g. Chemical Leak" />
             </div>
             <div className="space-y-2">
-              <Label>Display Message (Public)</Label>
+              <Label>{t("eme.displayMsg")}</Label>
               <Input value={protoText} onChange={e => setProtoText(e.target.value)} placeholder="e.g. HAZMAT ALERT - DO NOT ENTER" />
             </div>
             <div className="space-y-2">
-              <Label>System Color</Label>
+              <Label>{t("eme.systemColor")}</Label>
               <Select value={protoColor} onValueChange={setProtoColor}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bg-red-600">Crisis Red</SelectItem>
-                  <SelectItem value="bg-orange-500">Warning Orange</SelectItem>
-                  <SelectItem value="bg-blue-600">Info Blue</SelectItem>
-                  <SelectItem value="bg-yellow-600">Caution Yellow</SelectItem>
-                  <SelectItem value="bg-zinc-900">Blackout</SelectItem>
+                  <SelectItem value="bg-red-600">{t("eme.crisisRed")}</SelectItem>
+                  <SelectItem value="bg-orange-500">{t("eme.warningOrange")}</SelectItem>
+                  <SelectItem value="bg-blue-600">{t("eme.infoBlue")}</SelectItem>
+                  <SelectItem value="bg-yellow-600">{t("eme.cautionYellow")}</SelectItem>
+                  <SelectItem value="bg-zinc-900">{t("eme.blackout")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsProtocolDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveProtocol}>Save Protocol</Button>
+            <Button variant="ghost" onClick={() => setIsProtocolDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSaveProtocol}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -392,9 +406,9 @@ export default function EmergencyPlatform() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="w-5 h-5 text-red-600" />
-              Full Emergency Audit Trail
+              {t("eme.auditTitle")}
             </DialogTitle>
-            <DialogDescription>A complete log of all safety protocol triggers and system resets.</DialogDescription>
+            <DialogDescription>{t("eme.auditDesc")}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[350px] pr-4 mt-4">
             <div className="space-y-4">
@@ -412,7 +426,7 @@ export default function EmergencyPlatform() {
                       <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
                     </div>
                     <p className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/60 mt-1">
-                      Category: {log.type}
+                      {language === "id-ID" ? "Kategori" : "Category"}: {log.type}
                     </p>
                   </div>
                 </div>
