@@ -2,7 +2,9 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider";
+import { QualityProvider } from "@/context/QualityContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
   title: 'ScreenSense | Intelligent Digital Signage',
@@ -28,7 +30,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          {children}
+          <LanguageProvider>
+            <QualityProvider>
+              {children}
+            </QualityProvider>
+          </LanguageProvider>
           <Toaster />
         </ThemeProvider>
       </body>

@@ -91,11 +91,26 @@ export interface Playlist {
 
 export interface WorshipSchedule {
   id: string;
-  name: string;
-  time: string;
-  location: string;
-  frequency: string;
+  name: string;         // e.g. "Subuh", "Jumaat Prayer"
+  time: string;         // HH:mm — always in local timezone
+  location: string;     // room / building name
+  frequency: string;    // "Daily", "Weekly (Fri)", etc.
   active: boolean;
+  category?: 'islamic' | 'christian' | 'general' | 'custom';
+  source?: 'auto' | 'manual';  // auto = imported from Aladhan API
+  importedAt?: string;         // ISO timestamp of last auto-import
+}
+
+/** Priority-based ticker queue entry */
+export interface TickerMessage {
+  id: string;
+  message: string;
+  priority: 'urgent' | 'normal' | 'info';
+  active: boolean;
+  createdAt: string;        // ISO string
+  expiresAt?: string;       // ISO – message auto-expires after this
+  durationMs?: number;      // how long this message shows per cycle (ms)
+  order?: number;            // manual sort order within same priority
 }
 
 export interface SecurityAuditLog {
@@ -103,8 +118,10 @@ export interface SecurityAuditLog {
   event: string;
   timestamp: string;
   user: string;
-  status: 'Success' | 'Failed' | 'Blocked' | 'Warning';
+  status: 'Success' | 'Failed' | 'Blocked' | 'Warning' | 'Verified';
+  category: 'auth' | 'config' | 'access' | 'lockout' | 'system';
   details?: string;
+  ip?: string;
 }
 
 export const INITIAL_MEDIA: MediaItem[] = [

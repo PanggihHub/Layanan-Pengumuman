@@ -87,7 +87,7 @@ export default function AdminOverview() {
       setPlaylists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Playlist)));
     });
 
-    const unsubLogs = onSnapshot(query(collection(db, "securityLogs"), orderBy("timestamp", "desc"), limit(40)), (snapshot) => {
+    const unsubLogs = onSnapshot(query(collection(db, "securityLogs"), orderBy("timestamp", "desc"), limit(8)), (snapshot) => {
       setAuditLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SecurityAuditLog)));
     });
 
@@ -479,28 +479,45 @@ export default function AdminOverview() {
             <DialogDescription>A detailed chronological record of all administrative and system events.</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[450px] mt-4 pr-4 border rounded-xl bg-muted/20 p-4">
-            <div className="space-y-4">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-4 p-4 rounded-xl border bg-white shadow-sm">
-                  <div className={cn(
-                    "p-2 rounded-full",
-                    log.status === 'Success' ? 'bg-primary/10 text-primary' : 
-                    log.status === 'Blocked' ? 'bg-red-100 text-red-600' : 
-                    'bg-muted text-muted-foreground'
-                  )}>
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-4">
-                      <p className="text-sm font-bold text-primary">{log.event}</p>
-                      <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded whitespace-nowrap">{log.timestamp}</span>
+            <div className="space-y-3">
+              {auditLogs.map((log) => {
+                const statusCls = log.status === 'Success' ? 'bg-emerald-100 text-emerald-700' :
+                                  log.status === 'Blocked' ? 'bg-red-100 text-red-700 animate-pulse' :
+                                  log.status === 'Warning' ? 'bg-amber-100 text-amber-700' :
+                                  log.status === 'Verified' ? 'bg-sky-100 text-sky-700' :
+                                  'bg-muted text-muted-foreground';
+                return (
+                  <div key={log.id} className="flex items-start gap-4 p-4 rounded-xl border bg-white shadow-sm dark:bg-zinc-900">
+                    <div className={cn("p-2 rounded-full", statusCls.split(' ')[0])}>
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mt-2">
-                      Event Category: {log.status}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-4 flex-wrap">
+                        <p className="text-sm font-bold text-primary">{log.event}</p>
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded whitespace-nowrap">
+                          {log.timestamp ? formatDistanceToNow(new Date(log.timestamp), { addSuffix: true }) : '—'}
+                        </span>
+                      </div>
+                      {log.details && (
+                        <p className="text-[10px] text-muted-foreground/70 italic mt-1 leading-tight">{log.details}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border", statusCls)}>
+                          {log.status}
+                        </span>
+                        {log.category && (
+                          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 bg-muted px-2 py-0.5 rounded-full">
+                            {log.category}
+                          </span>
+                        )}
+                        {log.user && (
+                          <span className="text-[8px] font-mono text-muted-foreground/50">· {log.user}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         </DialogContent>

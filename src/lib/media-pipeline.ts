@@ -3,11 +3,13 @@
  *
  * Handles:
  *  - Automatic video class detection (Motion Video ≤1080p vs HD Stream >1080p)
+ *  - Centralized GlobalQualityPolicy synced from Firestore settings/global
  *  - Real-time resolution probing from <video> elements
  *  - Device capacity fingerprinting (CPU cores, device memory, connection type)
- *  - Adaptive bitrate targeting
+ *  - Adaptive bitrate targeting with upgrade/downgrade ladder
  *  - Dynamic buffer sizing
  *  - Lazy loading recommendations
+ *  - Smooth quality transition coordination
  */
 
 import { MediaItem, VideoClass } from './mock-data';
@@ -40,6 +42,62 @@ export const CONNECTION_QUALITY_MAP: Record<string, string> = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Ordered quality ladder from lowest to highest.
+ * Used for ABR upgrade/downgrade steps.
+ */
+export const QUALITY_LADDER = ['480p', '720p', '1080p', '4K', '8K'] as const;
+export type QualityTier = typeof QUALITY_LADDER[number];
+
+/**
+ * GlobalQualityPolicy — stored in Firestore at `settings/global.qualityPolicy`
+ * and broadcast in real-time to all endpoints (Media Library, Playlists, Screens, Displays).
+ */
+export interface GlobalQualityPolicy {
+  /** Master mode controlling how quality is selected across the fleet */
+  mode: 'auto'          // Full ABR — device + network decide
+       | 'locked'       // Force every endpoint to exactly `lockedQuality`
+       | 'capped'       // ABR but never exceed `maxQuality`
+       | 'performance'; // Prefer stability — always use `fallbackQuality`
+
+  /** Quality to lock all endpoints to (used when mode === 'locked') */
+  lockedQuality: QualityTier;
+
+  /** Maximum quality ceiling — ABR will not go above this (mode === 'capped') */
+  maxQuality: QualityTier;
+
+  /** Minimum quality floor — ABR will not go below this (all modes) */
+  fallbackQuality: QualityTier;
+
+  /** Whether ABR is enabled globally */
+  abrEnabled: boolean;
+
+  /** Pre-buffer seconds before switching to a higher quality tier */
+  upgradeBufferSeconds: number;
+
+  /** Number of stall events before downgrading one quality step */
+  stallThreshold: number;
+
+  /** Disable lazy loading globally (preload all assets immediately) */
+  disableLazyLoad: boolean;
+
+  /** Crossfade transition duration in ms when quality tier changes */
+  transitionMs: number;
+}
+
+/** Default policy — shipped with the app, overridden by Firestore */
+export const DEFAULT_QUALITY_POLICY: GlobalQualityPolicy = {
+  mode:                'auto',
+  lockedQuality:       '1080p',
+  maxQuality:          '4K',
+  fallbackQuality:     '720p',
+  abrEnabled:          true,
+  upgradeBufferSeconds: 12,
+  stallThreshold:      2,
+  disableLazyLoad:     false,
+  transitionMs:        600,
+};
+
 export interface DeviceCapacity {
   cpuCores: number;
   deviceMemoryGB: number;
@@ -68,6 +126,8 @@ export interface PipelineConfig {
   qualityLabel: string;
   /** Codec recommendation */
   codecHint: string;
+  /** The effective quality after applying global policy */
+  effectiveQuality: string;
 }
 
 // ── Device Capacity Fingerprint ───────────────────────────────────────────────
@@ -205,12 +265,15 @@ export function classifyByQualityLabel(label: string): {
  *  - Stored videoClass / resolution metadata
  *  - Live device capacity fingerprint
  *  - Connection-aware quality cap
+ *  - Optional global quality policy override
  */
 export function buildPipelineConfig(
   item: MediaItem,
-  device?: DeviceCapacity
+  device?: DeviceCapacity,
+  policy?: GlobalQualityPolicy
 ): PipelineConfig {
-  const cap = device ?? getDeviceCapacity();
+  const cap    = device ?? getDeviceCapacity();
+  const pol    = policy ?? DEFAULT_QUALITY_POLICY;
 
   // 1. Resolve dimensions
   const w = item.resolutionWidth  || 0;
@@ -232,9 +295,10 @@ export function buildPipelineConfig(
   }
 
   // 5. Build derivative properties
-  const useAdaptiveStream   = rawClass === 'hd_stream' || rawClass === 'adaptive';
-  const lazyLoad            = item.lazyLoad ?? (rawClass === 'hd_stream');
-  const bufferSizeSeconds   = rawClass === 'hd_stream' ? 12 : 4;
+  const useAdaptiveStream   = (pol.abrEnabled && pol.mode !== 'locked') &&
+                              (rawClass === 'hd_stream' || rawClass === 'adaptive');
+  const lazyLoad            = pol.disableLazyLoad ? false : (item.lazyLoad ?? (rawClass === 'hd_stream'));
+  const bufferSizeSeconds   = rawClass === 'hd_stream' ? pol.upgradeBufferSeconds : 4;
 
   // Target bitrate from quality label, or resolution-derived
   const qualityLabel = deriveQualityLabel(w, h, rawClass, cap.recommendedQualityCap);
@@ -247,6 +311,9 @@ export function buildPipelineConfig(
   const codecHint = item.codecHint ||
     (rawClass === 'hd_stream' ? 'av1,h265,vp9,h264' : 'h264,vp9');
 
+  // 6. Apply global policy to derive effective quality
+  const effectiveQuality = resolveEffectiveQuality(qualityLabel, cap, pol);
+
   return {
     videoClass:        rawClass,
     useAdaptiveStream,
@@ -257,7 +324,55 @@ export function buildPipelineConfig(
     resolutionHeight:  h,
     qualityLabel,
     codecHint,
+    effectiveQuality,
   };
+}
+
+/**
+ * Applies a GlobalQualityPolicy to a raw quality label and device cap,
+ * returning the final quality string that should be used for playback.
+ *
+ * Priority chain:
+ *   locked > device_cap > max_cap > (auto/capped ABR) > fallback
+ */
+export function resolveEffectiveQuality(
+  rawQuality: string,
+  device: DeviceCapacity,
+  policy: GlobalQualityPolicy
+): string {
+  const ladder = QUALITY_LADDER as readonly string[];
+
+  // Locked mode: every endpoint plays exactly this quality
+  if (policy.mode === 'locked') {
+    return policy.lockedQuality;
+  }
+
+  // Performance mode: stabilized quality, avoid high resolutions
+  if (policy.mode === 'performance') {
+    return policy.fallbackQuality;
+  }
+
+  // For 'auto' and 'capped' modes, apply hierarchical caps:
+  const rawIdx      = ladder.indexOf(rawQuality);
+  const maxIdx      = ladder.indexOf(policy.maxQuality);
+  const deviceIdx   = ladder.indexOf(device.recommendedQualityCap);
+  const fallbackIdx = ladder.indexOf(policy.fallbackQuality);
+
+  // Cap at device capability
+  let effectiveIdx = rawIdx === -1 ? 2 : rawIdx;
+  effectiveIdx = Math.min(effectiveIdx, deviceIdx === -1 ? 2 : deviceIdx);
+
+  // Cap at policy maxQuality
+  if (maxIdx !== -1) {
+    effectiveIdx = Math.min(effectiveIdx, maxIdx);
+  }
+
+  // Never go below fallback floor
+  if (fallbackIdx !== -1) {
+    effectiveIdx = Math.max(effectiveIdx, fallbackIdx);
+  }
+
+  return ladder[Math.max(0, Math.min(effectiveIdx, ladder.length - 1))];
 }
 
 /**
@@ -283,42 +398,67 @@ export function deriveQualityLabel(
 
 /**
  * Monitors a <video> element for stall events and adjusts a quality tier
- * recommendation accordingly. Calls `onQualityChange(newQualityLabel)` when
- * the system recommends downgrading.
+ * recommendation with both downgrade and upgrade logic.
+ *
+ * Downgrade: after `stallThreshold` consecutive stall events → drop one tier.
+ * Upgrade:   after `upgradeBufferSeconds` of stall-free playback → try one tier up.
  *
  * Returns a cleanup function.
  */
 export function attachAdaptiveBitrateMonitor(
   videoEl: HTMLVideoElement,
   currentQuality: string,
-  onQualityChange: (newQuality: string) => void
+  onQualityChange: (newQuality: string, direction: 'up' | 'down') => void,
+  policy?: GlobalQualityPolicy
 ): () => void {
-  const qualityLadder = ['480p', '720p', '1080p', '4K'];
-  let stallCount = 0;
-  let currentIdx = qualityLadder.indexOf(currentQuality);
+  const pol          = policy ?? DEFAULT_QUALITY_POLICY;
+  const qualityLadder = [...QUALITY_LADDER];
+  let stallCount     = 0;
+  let smoothSeconds  = 0;
+  let currentIdx     = qualityLadder.indexOf(currentQuality as QualityTier);
   if (currentIdx === -1) currentIdx = 2; // default to 1080p
 
+  const maxIdx      = qualityLadder.indexOf(pol.maxQuality);
+  const fallbackIdx = qualityLadder.indexOf(pol.fallbackQuality);
+  let upgradeInProgress = false;
+
   const handleWaiting = () => {
-    stallCount += 1;
-    if (stallCount >= 2 && currentIdx > 0) {
-      // Two stalls → downgrade one step
-      currentIdx -= 1;
-      stallCount  = 0;
-      onQualityChange(qualityLadder[currentIdx]);
+    stallCount   += 1;
+    smoothSeconds = 0; // reset smooth counter on any stall
+    if (stallCount >= pol.stallThreshold && currentIdx > Math.max(0, fallbackIdx)) {
+      currentIdx  -= 1;
+      stallCount   = 0;
+      onQualityChange(qualityLadder[currentIdx], 'down');
     }
   };
 
-  const handlePlaying = () => {
-    // Progressive upgrade: if playing smoothly, try stepping up after 10s
-    stallCount = Math.max(0, stallCount - 1);
-  };
+  // Upgrade ticker: increments every second of smooth playback
+  const upgradeTick = setInterval(() => {
+    if (!pol.abrEnabled || pol.mode === 'locked' || pol.mode === 'performance') return;
+    smoothSeconds += 1;
+    if (
+      smoothSeconds >= pol.upgradeBufferSeconds &&
+      !upgradeInProgress &&
+      currentIdx < Math.min(qualityLadder.length - 1, maxIdx === -1 ? 99 : maxIdx)
+    ) {
+      upgradeInProgress = true;
+      smoothSeconds     = 0;
+      currentIdx       += 1;
+      onQualityChange(qualityLadder[currentIdx], 'up');
+      // Lock out further upgrades for 2× buffer period to confirm stability
+      setTimeout(() => { upgradeInProgress = false; }, pol.upgradeBufferSeconds * 2000);
+    }
+  }, 1000);
+
+  const handleStalled = () => handleWaiting();
 
   videoEl.addEventListener('waiting', handleWaiting);
-  videoEl.addEventListener('playing', handlePlaying);
+  videoEl.addEventListener('stalled', handleStalled);
 
   return () => {
     videoEl.removeEventListener('waiting', handleWaiting);
-    videoEl.removeEventListener('playing', handlePlaying);
+    videoEl.removeEventListener('stalled', handleStalled);
+    clearInterval(upgradeTick);
   };
 }
 

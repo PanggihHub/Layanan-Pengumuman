@@ -23,8 +23,12 @@ import {
 import { cn } from "@/lib/utils";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
-import { Playlist, MediaItem, ScreenStatus } from "@/lib/mock-data";
+import { collection, onSnapshot, doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { Playlist, MediaItem, ScreenStatus, TickerMessage, WorshipSchedule } from "@/lib/mock-data";
+import { useQuality } from "@/context/QualityContext";
+import { AdaptiveVideoPlayer } from "@/components/ui/adaptive-video-player";
+import { SmartTicker } from "@/components/ui/smart-ticker";
+import { sortSchedulesByNextPrayer, getTimeUntil } from "@/lib/worship-importer";
 
 // Helper to get or create device ID
 const getDeviceId = () => {
@@ -44,9 +48,11 @@ const extractYouTubeId = (url: string) => {
 };
 
 export default function DisplayClient() {
+  const [deviceId] = useState(() => getDeviceId());
   const [isPaired, setIsPaired] = useState<boolean | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [tickerMessage, setTickerMessage] = useState("");
+  const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>([]);
+  const [tickerFallback, setTickerFallback] = useState("");
   const [activePlaylistId, setActivePlaylistId] = useState("");
   const [timezone, setTimezone] = useState("Asia/Jakarta");
   const [timeFormat, setTimeFormat] = useState("24h");
@@ -55,8 +61,11 @@ export default function DisplayClient() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showBackButton, setShowBackButton] = useState(true);
 
+  const { policy, resolveQuality } = useQuality();
+
   // Dynamic Widget States
-  const [worshipSchedules, setWorshipSchedules] = useState<any[]>([]);
+  const [worshipSchedules, setWorshipSchedules] = useState<WorshipSchedule[]>([]);
+  const [nowMinutes, setNowMinutes] = useState<number>(0);
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementLocation, setAnnouncementLocation] = useState("");
   const [qrUrl, setQrUrl] = useState("");
@@ -70,6 +79,7 @@ export default function DisplayClient() {
   const [weatherLng, setWeatherLng] = useState<number | null>(106.8456);
   const [weatherTemp, setWeatherTemp] = useState<number | null>(null);
   const [weatherCode, setWeatherCode] = useState<number | null>(null);
+  const [temperatureUnit, setTemperatureUnit] = useState<"celsius" | "fahrenheit">("celsius");
 
   const [weatherCitySec, setWeatherCitySec] = useState("");
   const [weatherLatSec, setWeatherLatSec] = useState<number | null>(null);
@@ -107,7 +117,8 @@ export default function DisplayClient() {
     const unsubSettings = onSnapshot(doc(db, "settings", "global"), (docSnapshot) => {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
-        setTickerMessage(data.tickerMessage || "");
+        // Legacy single-string ticker (used as fallback if no queue entries)
+        setTickerFallback(data.tickerMessage || "");
         setActivePlaylistId(data.activePlaylistId || "");
         setTimezone(data.timezone || "Asia/Jakarta");
         setIsLocked(data.isPanicLocked || false);
@@ -123,25 +134,35 @@ export default function DisplayClient() {
         if (data.weatherCitySec) setWeatherCitySec(data.weatherCitySec);
         if (data.weatherLatSec) setWeatherLatSec(Number(data.weatherLatSec));
         if (data.weatherLngSec) setWeatherLngSec(Number(data.weatherLngSec));
-        
+
+        if (data.temperatureUnit) setTemperatureUnit(data.temperatureUnit);
         if (data.timeFormat) setTimeFormat(data.timeFormat);
       }
     });
 
+    // Ticker message queue — real-time, priority-sorted
+    const unsubTicker = onSnapshot(
+      query(collection(db, "tickerMessages"), orderBy("createdAt", "asc")),
+      (snap) => {
+        setTickerMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as TickerMessage)));
+      }
+    );
+
     const unsubWorship = onSnapshot(collection(db, "worship"), (snap) => {
-      const items: any[] = [];
-      snap.forEach((doc) => {
-        const data = doc.data();
-        if (data.active !== false && !data.hidden) {
-          items.push({ id: doc.id, ...data });
-        }
-      });
-      // Sort by time
-      items.sort((a, b) => a.time.localeCompare(b.time));
+      const items: WorshipSchedule[] = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as WorshipSchedule))
+        .filter(s => s.active !== false);
+      // Initial sort by time; display re-sorts by next-prayer every minute
       setWorshipSchedules(items);
     });
 
-    const deviceId = getDeviceId();
+    // Minute ticker for next-prayer sorting
+    const updateNow = () => {
+      const d = new Date();
+      setNowMinutes(d.getHours() * 60 + d.getMinutes());
+    };
+    updateNow();
+    const minuteTick = setInterval(updateNow, 60_000);
 
     // Pairing & Authorization System
     const unsubScreen = onSnapshot(doc(db, "screens", deviceId), async (snap) => {
@@ -185,8 +206,10 @@ export default function DisplayClient() {
       unsubMedia();
       unsubSettings();
       unsubWorship();
+      unsubTicker();
       unsubScreen();
       clearInterval(heartbeat);
+      clearInterval(minuteTick);
     };
   }, []);
 
@@ -323,6 +346,15 @@ export default function DisplayClient() {
     return () => clearInterval(interval);
   }, [loopItems, currentIndex]);
 
+  // YouTube quality param derived from global policy
+  const ytQualityParam = useMemo(() => {
+    const resolved = resolveQuality('1080p'); // ask policy what quality to use for HD content
+    if (resolved === '480p') return 'large';
+    if (resolved === '720p') return 'hd720';
+    if (resolved === '4K' || resolved === '8K') return 'hd2160';
+    return 'hd1080'; // 1080p default
+  }, [resolveQuality]);
+
   if (isPaired === null) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -450,7 +482,7 @@ export default function DisplayClient() {
               <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl flex-1 max-w-[300px]">
                 <CloudSun className="w-16 h-16 text-amber-400" />
                 <div className="flex flex-col items-center text-center">
-                  <span className="text-6xl font-black leading-none">{`${weatherTemp}°C`}</span>
+                  <span className="text-6xl font-black leading-none">{fmtTemp(weatherTemp)}</span>
                   <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2 px-2 truncate w-full">{weatherCity || locationName}</span>
                   <span className="text-sm font-bold text-white/40 uppercase tracking-widest mt-1">{getWeatherStatus(weatherCode)}</span>
                 </div>
@@ -460,7 +492,7 @@ export default function DisplayClient() {
               <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl flex-1 max-w-[300px]">
                 <CloudSun className="w-16 h-16 text-amber-400 opacity-80" />
                 <div className="flex flex-col items-center text-center">
-                  <span className="text-6xl font-black leading-none">{`${weatherTempSec}°C`}</span>
+                  <span className="text-6xl font-black leading-none">{fmtTemp(weatherTempSec)}</span>
                   <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2 px-2 truncate w-full">{weatherCitySec}</span>
                   <span className="text-sm font-bold text-white/40 uppercase tracking-widest mt-1">{getWeatherStatus(weatherCodeSec)}</span>
                 </div>
@@ -497,6 +529,13 @@ export default function DisplayClient() {
   }
 
   const currentMedia = loopItems[currentIndex];
+
+  // Temperature formatter — reads unit from Localization settings
+  const fmtTemp = (tempC: number | null): string => {
+    if (tempC === null) return "—";
+    if (temperatureUnit === "fahrenheit") return `${Math.round(tempC * 9/5 + 32)}°F`;
+    return `${tempC}°C`;
+  };
   const layout = activePlaylist.layout || 'single';
 
   // Extract location name gracefully (e.g. Asia/Makassar => Makassar)
@@ -524,6 +563,7 @@ export default function DisplayClient() {
     return "Unknown";
   };
 
+
   const renderMediaContent = (mediaCls: string, mediaItem?: MediaItem | null) => {
     const itemToRender = mediaItem || currentMedia;
     if (!itemToRender) {
@@ -550,31 +590,21 @@ export default function DisplayClient() {
       if (youtubeId) {
         return (
           <iframe 
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&start=${itemToRender.startTime || 0}&end=${itemToRender.endTime || 0}&vq=hd720&rel=0`} 
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&start=${itemToRender.startTime || 0}&end=${itemToRender.endTime || 0}&vq=${ytQualityParam}&rel=0`} 
             className={cn("w-full h-full object-cover pointer-events-none", mediaCls)} 
             frameBorder="0" 
             allow="autoplay; fullscreen" 
           />
         );
       } else {
-        // Render raw video with trimming
+        // Use AdaptiveVideoPlayer for policy-aware playback
         return (
-          <video 
-            src={itemToRender.url} 
-            className={cn("w-full h-full object-cover", mediaCls)} 
-            autoPlay 
-            muted 
-            loop 
-            onLoadedMetadata={(e) => {
-              const video = e.target as HTMLVideoElement;
-              if (itemToRender.startTime) video.currentTime = itemToRender.startTime;
-            }}
-            onTimeUpdate={(e) => {
-              const video = e.target as HTMLVideoElement;
-              if (itemToRender.endTime && video.currentTime >= itemToRender.endTime) {
-                video.currentTime = itemToRender.startTime || 0;
-              }
-            }}
+          <AdaptiveVideoPlayer
+            item={itemToRender}
+            autoPlay
+            loop
+            controls={false}
+            className={cn("w-full h-full", mediaCls)}
           />
         );
       }
@@ -751,51 +781,48 @@ export default function DisplayClient() {
               </div>
 
               {/* Islamic/Worship Widget */}
-              {activePlaylist.showWorship && worshipSchedules.length > 0 && (
-                <div className="bg-primary/90 text-white rounded-3xl p-6 border border-primary/20 shadow-2xl flex-1 flex flex-col relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-10">
-                    <Waves className="w-40 h-40" />
+              {activePlaylist.showWorship && (() => {
+                const sorted = sortSchedulesByNextPrayer(worshipSchedules, nowMinutes);
+                if (!sorted.length) return null;
+                return (
+                  <div className="bg-primary/90 text-white rounded-3xl p-6 border border-primary/20 shadow-2xl flex-1 flex flex-col relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 opacity-10">
+                      <Waves className="w-40 h-40" />
+                    </div>
+                    <div className="flex items-center gap-2 text-accent/80 mb-6">
+                      <Calendar className="w-5 h-5" />
+                      <span className="text-xs font-black uppercase tracking-widest">Jadwal Ibadah</span>
+                    </div>
+                    <div className="space-y-3 flex-1">
+                      {sorted.slice(0, 6).map((s, idx) => {
+                        const isNext = idx === 0;
+                        const until = getTimeUntil(s.time);
+                        return (
+                          <div
+                            key={s.id}
+                            className={cn(
+                              "flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-300",
+                              isNext
+                                ? "bg-white text-primary shadow-xl ring-2 ring-accent/40"
+                                : "font-medium text-white/75 border border-white/10 hover:bg-white/5"
+                            )}
+                          >
+                            <span className="uppercase tracking-widest text-sm font-black">{s.name}</span>
+                            <div className="flex items-center gap-3">
+                              {isNext && (
+                                <span className="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/30">
+                                  {until === "Now" ? "🟢 NOW" : `${until}`}
+                                </span>
+                              )}
+                              <span className="text-lg font-mono font-black">{s.time}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-accent/80 mb-6">
-                    <Calendar className="w-5 h-5" />
-                    <span className="text-xs font-black uppercase tracking-widest">Jadwal Shalat</span>
-                  </div>
-                  <div className="space-y-4 flex-1">
-                    {worshipSchedules.map((s, idx) => {
-                      const now = new Date();
-                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                      const [h, m] = s.time.split(':').map(Number);
-                      const scheduleMinutes = h * 60 + m;
-                      
-                      // Find the next upcoming prayer or the current one
-                      const hasUpcoming = worshipSchedules.some(prev => {
-                        const [ph, pm] = prev.time.split(':').map(Number);
-                        return (ph * 60 + pm) > currentMinutes;
-                      });
-
-                      let isNext = false;
-                      if (!hasUpcoming) {
-                        isNext = idx === 0; // Wrap around to first prayer tomorrow
-                      } else {
-                        isNext = scheduleMinutes > currentMinutes && !worshipSchedules.slice(0, idx).some(prev => {
-                          const [ph, pm] = prev.time.split(':').map(Number);
-                          return (ph * 60 + pm) > currentMinutes;
-                        });
-                      }
-
-                      return (
-                        <div key={s.id} className={cn(
-                          "flex items-center justify-between p-3 rounded-xl transition-all",
-                          isNext ? "bg-white text-primary scale-105 shadow-xl font-black" : "font-medium text-white/80 border border-white/10"
-                        )}>
-                          <span className="uppercase tracking-widest text-sm">{s.name}</span>
-                          <span className="text-lg">{s.time}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Upcoming Event Info */}
               {activePlaylist.showInfoCard && announcementTitle && (
@@ -831,22 +858,16 @@ export default function DisplayClient() {
 
         </div>
 
-        {/* Global Ticker */}
-        {activePlaylist.showTicker && tickerMessage && (
-          <div className="h-16 shrink-0 bg-primary/80 backdrop-blur-md border border-white/20 rounded-2xl flex items-center px-6 overflow-hidden relative shadow-2xl">
-            <div className="bg-accent text-primary h-full absolute left-0 flex items-center px-6 z-20 shadow-[10px_0_20px_rgba(0,0,0,0.5)]">
-               <Megaphone className="w-5 h-5 mr-3" />
-               <span className="font-black uppercase tracking-widest text-sm">INFO AKTUAL</span>
-            </div>
-            {/* Ticker Animation */}
-            <div className="whitespace-nowrap pl-[200px] animate-[ticker_20s_linear_infinite] z-10">
-              <span className="text-2xl font-bold tracking-tight text-white drop-shadow-md flex items-center gap-8">
-                {tickerMessage}
-                <Sparkles className="w-5 h-5 text-accent" />
-                {tickerMessage}
-              </span>
-            </div>
-          </div>
+        {/* Global Ticker — SmartTicker with priority queue */}
+        {activePlaylist.showTicker && (
+          <SmartTicker
+            messages={tickerMessages}
+            fallback={tickerFallback}
+            speedPxPerSec={90}
+            height={56}
+            textSize="text-xl"
+            className="shrink-0 rounded-2xl shadow-2xl"
+          />
         )}
 
       </div>
