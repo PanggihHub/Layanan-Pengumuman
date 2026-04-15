@@ -36,6 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 import { useLanguage } from "@/context/LanguageContext";
 import { Language } from "@/lib/translations";
@@ -53,20 +54,20 @@ interface WeatherInfo {
   bg: string;
 }
 
-function getWeatherInfo(code: number | null, manual?: string): WeatherInfo {
-  if (manual === "sunny")  return { label: "Sunny",          description: "Clear sky",               icon: Sun,        color: "text-amber-500",  bg: "bg-amber-50 border-amber-200"    };
-  if (manual === "cloudy") return { label: "Cloudy",         description: "Overcast clouds",          icon: CloudSun,   color: "text-slate-500",  bg: "bg-slate-50 border-slate-200"    };
-  if (manual === "rainy")  return { label: "Rainy",          description: "Moderate rainfall",        icon: CloudRain,  color: "text-blue-500",   bg: "bg-blue-50 border-blue-200"      };
-  if (manual === "stormy") return { label: "Stormy",         description: "Thunderstorm",             icon: Zap,        color: "text-violet-500", bg: "bg-violet-50 border-violet-200"  };
-  if (code === null)       return { label: "Fetching…",      description: "Waiting for data",         icon: CloudSun,   color: "text-sky-400",    bg: "bg-sky-50 border-sky-200"        };
-  if (code === 0)          return { label: "Clear Sky",      description: "Sunny & bright",           icon: Sun,        color: "text-amber-500",  bg: "bg-amber-50 border-amber-200"    };
-  if (code <= 3)           return { label: "Partly Cloudy",  description: "Mixed clouds",             icon: CloudSun,   color: "text-slate-400",  bg: "bg-slate-50 border-slate-200"    };
-  if (code <= 48)          return { label: "Foggy",          description: "Reduced visibility",       icon: Eye,        color: "text-gray-500",   bg: "bg-gray-50 border-gray-200"      };
-  if (code <= 67)          return { label: "Rainy",          description: "Rainfall expected",        icon: CloudRain,  color: "text-blue-500",   bg: "bg-blue-50 border-blue-200"      };
-  if (code <= 77)          return { label: "Snowy",          description: "Snow precipitation",       icon: CloudSnow,  color: "text-cyan-400",   bg: "bg-cyan-50 border-cyan-200"      };
-  if (code <= 82)          return { label: "Heavy Rain",     description: "Intense rainfall",         icon: Droplets,   color: "text-indigo-500", bg: "bg-indigo-50 border-indigo-200"  };
-  if (code <= 99)          return { label: "Thunderstorm",   description: "Lightning & rain",         icon: Zap,        color: "text-violet-600", bg: "bg-violet-50 border-violet-200"  };
-  return                          { label: "Unknown",        description: "No data available",        icon: CloudSun,   color: "text-muted-foreground", bg: "bg-muted border-muted"      };
+function getWeatherInfo(code: number | null, t: any, manual?: string): WeatherInfo {
+  if (manual === "sunny")  return { label: t("loc.weatherSunny"),          description: t("loc.weatherSunnyDesc"),  icon: Sun,        color: "text-amber-500",  bg: "bg-amber-50 border-amber-200"    };
+  if (manual === "cloudy") return { label: t("loc.weatherCloudy"),         description: t("loc.weatherCloudyDesc"), icon: CloudSun,   color: "text-slate-500",  bg: "bg-slate-50 border-slate-200"    };
+  if (manual === "rainy")  return { label: t("loc.weatherRainy"),          description: t("loc.weatherRainyDesc"),  icon: CloudRain,  color: "text-blue-500",   bg: "bg-blue-50 border-blue-200"      };
+  if (manual === "stormy") return { label: t("loc.weatherStormy"),         description: t("loc.weatherStormyDesc"), icon: Zap,        color: "text-violet-500", bg: "bg-violet-50 border-violet-200"  };
+  if (code === null)       return { label: t("loc.weatherFetching"),      description: t("loc.weatherWait"),       icon: CloudSun,   color: "text-sky-400",    bg: "bg-sky-50 border-sky-200"        };
+  if (code === 0)          return { label: t("loc.weatherClearSky"),      description: t("loc.weatherClearDesc"),  icon: Sun,        color: "text-amber-500",  bg: "bg-amber-50 border-amber-200"    };
+  if (code <= 3)           return { label: t("loc.weatherPartlyCloudy"),  description: t("loc.weatherMixed"),      icon: CloudSun,   color: "text-slate-400",  bg: "bg-slate-50 border-slate-200"    };
+  if (code <= 48)          return { label: t("loc.weatherFoggy"),          description: t("loc.weatherFogDesc"),    icon: Eye,        color: "text-gray-500",   bg: "bg-gray-50 border-gray-200"      };
+  if (code <= 67)          return { label: t("loc.weatherRainy"),          description: t("loc.weatherRainDesc"),   icon: CloudRain,  color: "text-blue-500",   bg: "bg-blue-50 border-blue-200"      };
+  if (code <= 77)          return { label: t("loc.weatherSnowy"),          description: t("loc.weatherSnowDesc"),   icon: CloudSnow,  color: "text-cyan-400",   bg: "bg-cyan-50 border-cyan-200"      };
+  if (code <= 82)          return { label: t("loc.weatherHeavyRain"),     description: t("loc.weatherIntense"),    icon: Droplets,   color: "text-indigo-500", bg: "bg-indigo-50 border-indigo-200"  };
+  if (code <= 99)          return { label: t("loc.weatherStormy"),        description: t("loc.weatherLightning"),  icon: Zap,        color: "text-violet-600", bg: "bg-violet-50 border-violet-200"  };
+  return                          { label: t("loc.weatherUnknown"),        description: t("loc.weatherNoData"),    icon: CloudSun,   color: "text-muted-foreground", bg: "bg-muted border-muted"      };
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -201,11 +202,11 @@ export default function LocalizationSettings() {
 
       setLanguage(stagedLanguage);
       toast({
-        title: "Localization Saved",
-        description: "Regional settings, weather, and widgets synced to all displays.",
+        title: t("loc.toastSaved"),
+        description: t("loc.toastSavedDesc"),
       });
     } catch {
-      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+      toast({ title: t("loc.toastError"), description: t("loc.toastErrorDesc"), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -238,6 +239,7 @@ export default function LocalizationSettings() {
 
   const effectiveWeatherInfo = getWeatherInfo(
     liveCode,
+    t,
     weatherOverride !== "none" ? weatherOverride : undefined
   );
   const WeatherIcon = effectiveWeatherInfo.icon;
@@ -250,10 +252,10 @@ export default function LocalizationSettings() {
         <div>
           <h1 className="text-3xl font-black text-primary flex items-center gap-3 tracking-tighter">
             <Globe className="w-10 h-10 text-accent p-2 bg-accent/10 rounded-2xl" />
-            {t("nav.languages")} &amp; Regional
+            {t("loc.title")}
           </h1>
           <p className="text-muted-foreground mt-2 font-medium">
-            Language, time, weather, and signage widget settings for all display endpoints.
+            {t("loc.desc")}
           </p>
         </div>
         <Button
@@ -262,7 +264,7 @@ export default function LocalizationSettings() {
           className="h-14 px-10 rounded-[1.25rem] bg-primary shadow-xl shadow-primary/20 font-black uppercase tracking-widest text-xs gap-3 hover:scale-[1.02] active:scale-95 transition-all"
         >
           {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {language === "id-ID" ? "SIMPAN & TERAPKAN" : "SAVE & APPLY CHANGES"}
+          {t("loc.saveApply")}
         </Button>
       </div>
 
@@ -274,20 +276,20 @@ export default function LocalizationSettings() {
             <CardHeader className="bg-muted/30 border-b py-6 px-8">
               <CardTitle className="text-xl font-bold flex items-center gap-3">
                 <Languages className="w-6 h-6 text-accent" />
-                Global Presence
+                {t("loc.globalPresence")}
               </CardTitle>
-              <CardDescription>Language, timezone, clock format, and temperature unit.</CardDescription>
+              <CardDescription>{t("loc.globalPresenceDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="pt-8 px-8 space-y-8 pb-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Language */}
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    System Language
+                    {t("loc.sysLang")}
                   </Label>
                   <Select value={stagedLanguage} onValueChange={(v: Language) => setStagedLanguage(v)}>
                     <SelectTrigger className="h-12 rounded-2xl border-primary/10 bg-muted/20">
-                      <SelectValue placeholder="Select Language" />
+                      <SelectValue placeholder={t("loc.sysLang")} />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl">
                       <SelectItem value="en-US">English (United States)</SelectItem>
@@ -308,11 +310,11 @@ export default function LocalizationSettings() {
                 {/* Timezone */}
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    Timezone (GMT offset)
+                    {t("loc.timezoneGmt")}
                   </Label>
                   <Select value={timezone} onValueChange={setTimezone}>
                     <SelectTrigger className="h-12 rounded-2xl border-primary/10 bg-muted/20">
-                      <SelectValue placeholder="Select Timezone" />
+                      <SelectValue placeholder={t("loc.timezoneGmt")} />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl max-h-72 overflow-y-auto">
                       {/* Pacific */}
@@ -371,7 +373,7 @@ export default function LocalizationSettings() {
                 {/* Clock format */}
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    Clock Format
+                    {t("loc.clockFormat")}
                   </Label>
                   <Select value={timeFormat} onValueChange={setTimeFormat}>
                     <SelectTrigger className="h-12 rounded-2xl border-primary/10 bg-muted/20">
@@ -387,7 +389,7 @@ export default function LocalizationSettings() {
                 {/* Temperature unit */}
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    Temperature Unit
+                    {t("loc.tempUnit")}
                   </Label>
                   <div className="flex gap-4">
                     <Button
@@ -395,14 +397,14 @@ export default function LocalizationSettings() {
                       onClick={() => setUnits("celsius")}
                       className="flex-1 h-12 rounded-2xl font-bold"
                     >
-                      Celsius (°C)
+                      {t("loc.celsius")}
                     </Button>
                     <Button
                       variant={units === "fahrenheit" ? "default" : "outline"}
                       onClick={() => setUnits("fahrenheit")}
                       className="flex-1 h-12 rounded-2xl font-bold"
                     >
-                      Fahrenheit (°F)
+                      {t("loc.fahrenheit")}
                     </Button>
                   </div>
                 </div>
@@ -415,14 +417,13 @@ export default function LocalizationSettings() {
             <CardHeader className="bg-muted/30 border-b py-6 px-8">
               <CardTitle className="text-xl font-bold flex items-center gap-3">
                 <CloudSun className="w-6 h-6 text-accent" />
-                Weather Forecast Settings
+                {t("loc.weatherTitle")}
                 <Badge variant="outline" className="ml-1 text-[9px] font-black uppercase tracking-widest bg-sky-50 text-sky-600 border-sky-200 px-2">
-                  LIVE API · Open-Meteo
+                  {t("loc.liveWeather")} · Open-Meteo
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Set geolocations for real-time weather data displayed on all client screens. Weather is
-                fetched from Open-Meteo and refreshed every 15 minutes automatically.
+                {t("loc.weatherDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-8 px-8 space-y-8 pb-10">
@@ -430,7 +431,7 @@ export default function LocalizationSettings() {
               {/* Primary location */}
               <div className="space-y-4">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-accent" /> Primary Location
+                  <MapPin className="w-4 h-4 text-accent" /> {t("loc.weatherLocation")}
                 </Label>
                 <div className="relative">
                   <div className="flex gap-2">
@@ -440,7 +441,7 @@ export default function LocalizationSettings() {
                         setWeatherCity(e.target.value);
                         searchCity(e.target.value, setCityResults, setIsSearchingCity);
                       }}
-                      placeholder="e.g. Yogyakarta, Indonesia"
+                      placeholder={t("loc.weatherLocationPlaceholder")}
                       className="h-12 rounded-2xl border-primary/10 bg-muted/20"
                     />
                     {isSearchingCity && <RefreshCw className="w-5 h-5 animate-spin self-center text-primary shrink-0" />}
@@ -470,11 +471,11 @@ export default function LocalizationSettings() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Latitude</Label>
+                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("loc.latitude")}</Label>
                     <Input value={weatherLat} onChange={e => setWeatherLat(e.target.value)} className="h-10 rounded-xl font-mono text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Longitude</Label>
+                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("loc.longitude")}</Label>
                     <Input value={weatherLng} onChange={e => setWeatherLng(e.target.value)} className="h-10 rounded-xl font-mono text-sm" />
                   </div>
                 </div>
@@ -485,7 +486,7 @@ export default function LocalizationSettings() {
               {/* Secondary location */}
               <div className="space-y-4">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground" /> Secondary Location (Optional)
+                  <MapPin className="w-4 h-4 text-muted-foreground" /> {t("loc.secondaryLocation")}
                 </Label>
                 <div className="relative">
                   <div className="flex gap-2">
@@ -495,7 +496,7 @@ export default function LocalizationSettings() {
                         setWeatherCitySec(e.target.value);
                         searchCity(e.target.value, setCityResultsSec, setIsSearchingCitySec);
                       }}
-                      placeholder="e.g. New York, USA"
+                      placeholder={t("loc.secondaryLocationPlaceholder")}
                       className="h-12 rounded-2xl border-primary/10 bg-muted/20"
                     />
                     {isSearchingCitySec && <RefreshCw className="w-5 h-5 animate-spin self-center text-primary shrink-0" />}
@@ -525,11 +526,11 @@ export default function LocalizationSettings() {
                 {weatherCitySec && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Latitude</Label>
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("loc.latitude")}</Label>
                       <Input value={weatherLatSec} onChange={e => setWeatherLatSec(e.target.value)} className="h-10 rounded-xl font-mono text-sm" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Longitude</Label>
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">{t("loc.longitude")}</Label>
                       <Input value={weatherLngSec} onChange={e => setWeatherLngSec(e.target.value)} className="h-10 rounded-xl font-mono text-sm" />
                     </div>
                   </div>
@@ -541,22 +542,22 @@ export default function LocalizationSettings() {
               {/* Manual override */}
               <div className="space-y-3">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                  Weather Override (Optional)
+                  {t("loc.weatherManual")}
                 </Label>
                 <Select value={weatherOverride} onValueChange={setWeatherOverride}>
                   <SelectTrigger className="h-12 rounded-2xl border-primary/10 bg-muted/20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl">
-                    <SelectItem value="none">None — Use Live API (Recommended)</SelectItem>
-                    <SelectItem value="sunny">☀️ Force Sunny / Clear</SelectItem>
-                    <SelectItem value="cloudy">🌤️ Force Cloudy</SelectItem>
-                    <SelectItem value="rainy">🌧️ Force Rainy</SelectItem>
-                    <SelectItem value="stormy">⛈️ Force Stormy / Thunder</SelectItem>
+                    <SelectItem value="none">{t("loc.weatherNone")}</SelectItem>
+                    <SelectItem value="sunny">{t("loc.weatherForceSunny")}</SelectItem>
+                    <SelectItem value="cloudy">{t("loc.weatherForceCloudy")}</SelectItem>
+                    <SelectItem value="rainy">{t("loc.weatherForceRainy")}</SelectItem>
+                    <SelectItem value="stormy">{t("loc.weatherForceStormy")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground italic ml-1">
-                  Override replaces live data on all displays. Use "None" for real weather conditions.
+                  {t("loc.weatherOverrideTip")}
                 </p>
               </div>
 
@@ -568,41 +569,40 @@ export default function LocalizationSettings() {
             <CardHeader className="bg-muted/30 border-b py-6 px-8">
               <CardTitle className="text-xl font-bold flex items-center gap-3">
                 <Sparkles className="w-6 h-6 text-accent" />
-                Signage Widget Configuration
+                {t("loc.signageWidget")}
               </CardTitle>
               <CardDescription>
-                Configure announcement banners, location context, and QR code URLs displayed
-                on all client screens as part of the sidebar widget panel.
+                {t("loc.signageWidgetDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-8 px-8 space-y-8 pb-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    Announcement Title
+                    {t("loc.announcementTitle")}
                   </Label>
                   <Input
                     value={announcementTitle}
                     onChange={e => setAnnouncementTitle(e.target.value)}
                     className="h-12 rounded-2xl border-primary/10 bg-muted/20"
-                    placeholder="e.g. Weekly Staff Briefing"
+                    placeholder={t("loc.announcementTitlePlaceholder")}
                   />
                 </div>
                 <div className="space-y-3">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                    Location Context
+                    {t("loc.locationContext")}
                   </Label>
                   <Input
                     value={announcementLocation}
                     onChange={e => setAnnouncementLocation(e.target.value)}
                     className="h-12 rounded-2xl border-primary/10 bg-muted/20"
-                    placeholder="e.g. Main Conference Room"
+                    placeholder={t("loc.locationContextPlaceholder")}
                   />
                 </div>
               </div>
               <div className="space-y-3">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                  QR Code URL
+                  {t("loc.qrUrl")}
                 </Label>
                 <Input
                   value={qrUrl}
@@ -611,7 +611,7 @@ export default function LocalizationSettings() {
                   placeholder="https://your-domain.com/details"
                 />
                 <p className="text-[10px] text-muted-foreground italic ml-1">
-                  Visitors scan this QR code on the display for more information.
+                  {t("loc.qrUrlTip")}
                 </p>
               </div>
             </CardContent>
@@ -624,8 +624,8 @@ export default function LocalizationSettings() {
           <Card className="bg-primary/5 border-dashed border-primary/20 shadow-inner overflow-hidden rounded-[2.5rem]">
             <CardHeader className="pb-2 pt-8 px-8">
               <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-primary flex items-center justify-between">
-                Live Display Preview
-                <Badge variant="outline" className="text-[8px] bg-white border-primary/10">REAL DATA</Badge>
+                {t("loc.previewTitle")}
+                <Badge variant="outline" className="text-[8px] bg-white border-primary/10">{t("loc.realData")}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center p-8 gap-6">
@@ -653,7 +653,7 @@ export default function LocalizationSettings() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                      Live Weather · {weatherCity}
+                      {t("loc.liveWeather")} · {weatherCity}
                     </p>
                     <p className="text-2xl font-black text-primary leading-none">
                       {fmtTemp(liveTemp)}
@@ -669,14 +669,14 @@ export default function LocalizationSettings() {
                     type="button"
                     onClick={() => fetchLiveWeather(weatherLat, weatherLng)}
                     className="shrink-0 p-2 rounded-xl hover:bg-white/50 transition-colors"
-                    title="Refresh weather"
+                    title={t("common.refresh")}
                   >
                     <RefreshCw className={`w-4 h-4 text-muted-foreground ${fetchingWeather ? "animate-spin" : ""}`} />
                   </button>
                 </div>
                 {weatherOverride !== "none" && (
                   <div className="mt-3 flex items-center gap-2 text-[9px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
-                    <Info className="w-3 h-3" /> Manual override active — live API suppressed
+                    <Info className="w-3 h-3" /> {t("loc.manualOverrideNotice")}
                   </div>
                 )}
               </div>
@@ -684,24 +684,24 @@ export default function LocalizationSettings() {
               {/* Signage metadata */}
               <div className="w-full space-y-3 opacity-70 hover:opacity-100 transition-all duration-500">
                 <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-2">
-                  <Info className="w-3.5 h-3.5" /> Signage Metadata
+                  <Info className="w-3.5 h-3.5" /> {t("loc.metadataTitle")}
                 </div>
                 <div className="bg-white/50 border border-primary/10 rounded-2xl p-4 text-[10px] font-medium space-y-2 dark:bg-zinc-900/50">
                   <div className="flex justify-between">
-                    <span>Language</span><span className="font-bold">{stagedLanguage}</span>
+                    <span>{t("loc.metaLanguage")}</span><span className="font-bold">{stagedLanguage}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Timezone</span><span className="font-bold">{timezone.split("/").pop()?.replace("_", " ")}</span>
+                    <span>{t("loc.metaTimezone")}</span><span className="font-bold">{timezone.split("/").pop()?.replace("_", " ")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Temp Unit</span><span className="font-bold uppercase">{units === "celsius" ? "°C" : "°F"}</span>
+                    <span>{t("loc.metaTempUnit")}</span><span className="font-bold uppercase">{units === "celsius" ? "°C" : "°F"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Clock Format</span><span className="font-bold">{timeFormat === "24h" ? "24-Hour" : "12-Hour"}</span>
+                    <span>{t("loc.metaClockFormat")}</span><span className="font-bold">{timeFormat === "24h" ? t("common.24h") : t("common.12h")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Weather Mode</span>
-                    <span className="font-bold">{weatherOverride === "none" ? "Live API" : "Manual Override"}</span>
+                    <span>{t("loc.metaWeatherMode")}</span>
+                    <span className="font-bold">{weatherOverride === "none" ? t("loc.weatherLive") : t("loc.weatherManualLabel")}</span>
                   </div>
                 </div>
               </div>
@@ -716,8 +716,8 @@ export default function LocalizationSettings() {
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-primary text-white px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-8 border border-white/20 backdrop-blur-xl">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Unsaved language change</span>
-              <span className="text-sm font-bold">Apply regional parameters now?</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{t("loc.unsavedLang")}</span>
+              <span className="text-sm font-bold">{t("loc.applyParams")}</span>
             </div>
             <div className="flex gap-4">
               <Button
@@ -725,13 +725,13 @@ export default function LocalizationSettings() {
                 onClick={() => setStagedLanguage(language)}
                 className="text-white hover:bg-white/10 rounded-xl"
               >
-                Discard
+                {t("loc.discard")}
               </Button>
               <Button
                 onClick={handleSave}
                 className="bg-white text-primary hover:bg-slate-100 rounded-xl font-black uppercase tracking-widest text-xs px-6"
               >
-                Save &amp; Sync
+                {t("loc.saveSync")}
               </Button>
             </div>
           </div>

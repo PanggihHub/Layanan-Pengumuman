@@ -50,7 +50,7 @@ import { useLanguage } from "@/context/LanguageContext";
 // Sub-component: VideoClassBadge
 // ─────────────────────────────────────────────────────────────────────────────
 
-function VideoClassBadge({ videoClass, compact = false }: { videoClass?: VideoClass; compact?: boolean }) {
+function VideoClassBadge({ videoClass, compact = false }: { videoClass?: VideoClass | null; compact?: boolean }) {
   const info = getVideoClassBadge(videoClass);
   const IconMap: Record<string, React.ElementType> = {
     film: Film, zap: Zap, cpu: Cpu,
@@ -325,15 +325,15 @@ export default function MediaLibrary() {
   const handleDelete = async (item: MediaItem) => {
     if (isDeleting) return;
     setIsDeleting(item.id);
-    setMediaItems(prev => prev.filter(i => i.id !== item.id));
     try {
       if (item.source === 'internal' && item.url.includes("firebasestorage")) {
-        await deleteObject(ref(storage, item.url)).catch(console.error);
+        await deleteObject(ref(storage, item.url));
       }
       await deleteDoc(doc(db, "media", item.id));
       toast({ title: language === "id-ID" ? "Aset Dihapus" : "Asset Removed", description: item.name });
-    } catch {
-      toast({ title: "Error", variant: "destructive" });
+    } catch (err) {
+      console.error("Delete failed", err);
+      toast({ title: "Error", variant: "destructive", description: "Could not remove asset" });
     } finally {
       setIsDeleting(null);
     }
@@ -361,68 +361,81 @@ export default function MediaLibrary() {
     let finalUrl  = newUrl;
     let finalSize = sourceOrigin === 'internal' ? "Pending" : "Stream";
 
-    if (sourceOrigin === 'internal' && selectedFile) {
-      finalSize = `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`;
-      const fileRef   = ref(storage, `media/${Date.now()}_${selectedFile.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, selectedFile);
-      try {
+    try {
+      if (sourceOrigin === 'internal' && selectedFile) {
+        finalSize = `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`;
+        const fileRef   = ref(storage, `media/${Date.now()}_${selectedFile.name}`);
+        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
+        
         await new Promise<void>((res, rej) => {
           uploadTask.on("state_changed",
             s => setUploadProgress((s.bytesTransferred / s.totalBytes) * 100),
             rej,
-            async () => { finalUrl = await getDownloadURL(uploadTask.snapshot.ref); res(); }
+            async () => { 
+              finalUrl = await getDownloadURL(uploadTask.snapshot.ref); 
+              res(); 
+            }
           );
         });
-      } catch {
-        toast({ title: "Upload Failed", variant: "destructive" });
-        setIsSaving(false); return;
       }
+
+      // Resolve final pipeline class
+      const finalClass: VideoClass =
+        (resW > 0 && resH > 0)
+          ? classifyByResolution(resW, resH)
+          : videoClass;
+
+      const baseItem: any = {
+        name: newName,
+        title: newTitle || null,
+        content: newContent || null,
+        description: newDescription || null,
+        type: newType,
+        source: sourceOrigin,
+        size: finalSize,
+        date: new Date().toISOString().split('T')[0],
+        validFrom: validFrom || null,
+        validUntil: validUntil || null,
+        priority: priority || 1,
+        url: finalUrl,
+        category: 'campus',
+      };
+
+      if (newType === 'video' || newType === 'external_video') {
+        baseItem.startTime        = startTime;
+        baseItem.endTime          = endTime;
+        baseItem.quality          = videoQuality || "auto";
+        baseItem.videoClass       = finalClass || "adaptive";
+        baseItem.resolutionWidth  = resW || null;
+        baseItem.resolutionHeight = resH || null;
+        baseItem.lazyLoad         = enableLazy ?? true;
+        baseItem.dynamicBuffer    = enableDynBuf ?? true;
+        
+        // Compute bitrate from pipeline config
+        const cfg = buildPipelineConfig({ ...baseItem, id: '__temp__' }, getDeviceCapacity());
+        baseItem.bitrateKbps      = cfg.targetBitrateKbps || null;
+        baseItem.codecHint        = cfg.codecHint || null;
+      }
+
+      if (dialogMode === "add") {
+        const newId = Math.random().toString(36).substr(2, 9);
+        const newItem = { ...baseItem, id: newId };
+        await setDoc(doc(db, "media", newId), newItem);
+        toast({ title: language === "id-ID" ? "Media Dibuat" : "Media Created", description: newName });
+      } else if (currentItem) {
+        const updated = { ...currentItem, ...baseItem };
+        await setDoc(doc(db, "media", currentItem.id), updated);
+        toast({ title: language === "id-ID" ? "Media Diperbarui" : "Media Updated" });
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error("Save failed", err);
+      toast({ title: "Error", variant: "destructive", description: "Failed to save media changes" });
+    } finally {
+      setIsSaving(false);
     }
-
-    // Resolve final pipeline class
-    const finalClass: VideoClass =
-      (resW > 0 && resH > 0)
-        ? classifyByResolution(resW, resH)
-        : videoClass;
-
-    const baseItem: any = {
-      name: newName, title: newTitle, content: newContent, description: newDescription,
-      type: newType, source: sourceOrigin, size: finalSize,
-      date: new Date().toISOString().split('T')[0],
-      validFrom, validUntil, priority, url: finalUrl, category: 'campus',
-    };
-
-    if (newType === 'video' || newType === 'external_video') {
-      baseItem.startTime      = startTime;
-      baseItem.endTime        = endTime;
-      baseItem.quality        = videoQuality;
-      baseItem.videoClass     = finalClass;
-      baseItem.resolutionWidth  = resW || undefined;
-      baseItem.resolutionHeight = resH || undefined;
-      baseItem.lazyLoad       = enableLazy;
-      baseItem.dynamicBuffer  = enableDynBuf;
-      // Compute bitrate from pipeline config
-      const cfg = buildPipelineConfig({ ...baseItem, id: '__temp__' }, getDeviceCapacity());
-      baseItem.bitrateKbps    = cfg.targetBitrateKbps;
-      baseItem.codecHint      = cfg.codecHint;
-    }
-
-    if (dialogMode === "add") {
-      const newId = Math.random().toString(36).substr(2, 9);
-      const newItem = { ...baseItem, id: newId };
-      setMediaItems(prev => [newItem, ...prev]);
-      setDoc(doc(db, "media", newId), newItem).catch(console.error);
-      toast({ title: language === "id-ID" ? "Media Dibuat" : "Media Created", description: newName });
-    } else if (currentItem) {
-      const updated = { ...currentItem, ...baseItem };
-      setMediaItems(prev => prev.map(i => i.id === updated.id ? updated : i));
-      setDoc(doc(db, "media", currentItem.id), updated).catch(console.error);
-      toast({ title: language === "id-ID" ? "Media Diperbarui" : "Media Updated" });
-    }
-
-    setIsDialogOpen(false);
-    resetForm();
-    setIsSaving(false);
   };
 
   const resetForm = () => {

@@ -37,31 +37,31 @@ export interface PlaylistSchedule {
 export interface MediaItem {
   id: string;
   name: string;
-  title?: string;
-  content?: string;
+  title?: string | null;
+  content?: string | null;
   type: MediaType;
   source: MediaSourceOrigin;
   size: string;
   date: string;
-  validFrom?: string;
-  validUntil?: string;
-  priority?: number;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  priority?: number | null;
   url: string;
   category: 'campus' | 'science' | 'math' | 'events';
-  description?: string;
+  description?: string | null;
   // Metadata for video clipping/transform
-  startTime?: number; 
-  endTime?: number;
-  quality?: string;
-  isActive?: boolean;
+  startTime?: number | null; 
+  endTime?: number | null;
+  quality?: string | null;
+  isActive?: boolean | null;
   // Adaptive Streaming Pipeline
-  videoClass?: VideoClass;       // 'motion_video' | 'hd_stream' | 'adaptive'
-  resolutionWidth?: number;      // detected or declared pixel width
-  resolutionHeight?: number;     // detected or declared pixel height
-  bitrateKbps?: number;          // detected or target bitrate (kbps)
-  lazyLoad?: boolean;            // enable lazy/deferred loading for this asset
-  dynamicBuffer?: boolean;       // enable dynamic buffer sizing based on device
-  codecHint?: string;            // e.g. 'h264' | 'h265' | 'vp9' | 'av1'
+  videoClass?: VideoClass | null;       // 'motion_video' | 'hd_stream' | 'adaptive'
+  resolutionWidth?: number | null;      // detected or declared pixel width
+  resolutionHeight?: number | null;     // detected or declared pixel height
+  bitrateKbps?: number | null;          // detected or target bitrate (kbps)
+  lazyLoad?: boolean | null;            // enable lazy/deferred loading for this asset
+  dynamicBuffer?: boolean | null;       // enable dynamic buffer sizing based on device
+  codecHint?: string | null;            // e.g. 'h264' | 'h265' | 'vp9' | 'av1'
 }
 
 export interface ScreenStatus {
@@ -70,7 +70,8 @@ export interface ScreenStatus {
   status: 'Online' | 'Offline' | 'DEACTIVATED';
   playlistId: string;
   uptime: string;
-  lastSeen: string;
+  lastSeen: string | null;
+  location?: string | null;
 }
 
 export interface Playlist {
@@ -78,15 +79,15 @@ export interface Playlist {
   name: string;
   description: string;
   items: string[];
-  isSystem?: boolean;
-  schedule?: string;
-  structuredSchedule?: PlaylistSchedule;
+  isSystem?: boolean | null;
+  schedule?: string | null;
+  structuredSchedule?: PlaylistSchedule | null;
   // Visibility overrides per playlist (Scene settings)
-  showTicker?: boolean;
-  showInfoCard?: boolean;
-  showWorship?: boolean;
-  showQR?: boolean;
-  layout?: DisplayLayout;
+  showTicker?: boolean | null;
+  showInfoCard?: boolean | null;
+  showWorship?: boolean | null;
+  showQR?: boolean | null;
+  layout?: DisplayLayout | null;
 }
 
 export interface WorshipSchedule {
@@ -96,9 +97,9 @@ export interface WorshipSchedule {
   location: string;     // room / building name
   frequency: string;    // "Daily", "Weekly (Fri)", etc.
   active: boolean;
-  category?: 'islamic' | 'christian' | 'general' | 'custom';
-  source?: 'auto' | 'manual';  // auto = imported from Aladhan API
-  importedAt?: string;         // ISO timestamp of last auto-import
+  category?: 'islamic' | 'christian' | 'general' | 'custom' | null;
+  source?: 'auto' | 'manual' | null;  // auto = imported from Aladhan API
+  importedAt?: string | null;         // ISO timestamp of last auto-import
 }
 
 /** Priority-based ticker queue entry */
@@ -108,7 +109,7 @@ export interface TickerMessage {
   priority: 'urgent' | 'normal' | 'info';
   active: boolean;
   createdAt: string;        // ISO string
-  expiresAt?: string;       // ISO – message auto-expires after this
+  expiresAt?: string | null;       // ISO – message auto-expires after this
   durationMs?: number;      // how long this message shows per cycle (ms)
   order?: number;            // manual sort order within same priority
 }
@@ -246,9 +247,9 @@ export const SCREEN_SETTINGS = {
 };
 
 export const INITIAL_AUDIT_LOGS: SecurityAuditLog[] = [
-  { id: '1', event: "PIN Rotation", timestamp: "2026-04-08T10:00:00Z", user: "Admin", status: "Success" },
-  { id: '2', event: "MFA Challenge", timestamp: "2026-04-08T08:00:00Z", user: "Staff-12", status: "Success" },
-  { id: '3', event: "Login Failure", timestamp: "2026-04-08T05:00:00Z", user: "Unknown", status: "Blocked" },
+  { id: '1', event: "PIN Rotation", timestamp: "2026-04-08T10:00:00Z", user: "Admin", status: "Success", category: "config" },
+  { id: '2', event: "MFA Challenge", timestamp: "2026-04-08T08:00:00Z", user: "Staff-12", status: "Success", category: "auth" },
+  { id: '3', event: "Login Failure", timestamp: "2026-04-08T05:00:00Z", user: "Unknown", status: "Blocked", category: "auth" },
 ];
 
 export const PLAYLISTS: Playlist[] = [

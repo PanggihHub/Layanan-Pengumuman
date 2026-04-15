@@ -144,7 +144,7 @@ export default function WorshipSchedules() {
     try {
       const results = await fetchIslamicPrayerTimes({
         city: importCity, country: importCountry,
-        method: importMethod, locationLabel: importLocation || undefined,
+        method: importMethod, locationLabel: importLocation || null,
       });
       setImportPreview(results);
       toast({ title: "Preview Ready", description: `${results.length} prayer times fetched for ${importCity}.` });
@@ -222,7 +222,15 @@ export default function WorshipSchedules() {
   };
 
   const handleToggleActive = async (s: WorshipSchedule) => {
-    try { await setDoc(doc(db, "worship", s.id), { ...s, active: !s.active }); }
+    try {
+      const sanitized = {
+        ...s,
+        category: s.category || "general",
+        active: !s.active,
+        source: s.source || "manual"
+      };
+      await setDoc(doc(db, "worship", s.id), sanitized);
+    }
     catch { toast({ title: "Error", variant: "destructive" }); }
   };
 
@@ -449,7 +457,7 @@ export default function WorshipSchedules() {
                     priority: newTickerPri,
                     active: true,
                     createdAt: new Date().toISOString(),
-                    expiresAt: newTickerExpiry ? new Date(newTickerExpiry).toISOString() : undefined,
+                    expiresAt: newTickerExpiry ? new Date(newTickerExpiry).toISOString() : null,
                     order: tickerMessages.length,
                   };
                   await setDoc(doc(db, "tickerMessages", id), payload);
@@ -650,7 +658,7 @@ export default function WorshipSchedules() {
               </div>
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={category} onValueChange={v => setCategory(v as any)} disabled={isSaving}>
+                <Select value={category || "general"} onValueChange={v => setCategory(v as any)} disabled={isSaving}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl">
                     <SelectItem value="islamic">Islamic</SelectItem>

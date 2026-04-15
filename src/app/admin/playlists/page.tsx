@@ -23,6 +23,8 @@ import {
   Columns2,
   Rows2,
   ArrowRightCircle,
+  ArrowLeft,
+  ArrowRight,
   Sparkles,
   ChevronLeft,
   ChevronRight,
@@ -215,6 +217,8 @@ export default function PlaylistsPage() {
         name: newName,
         description: newDesc,
         items: selectedMediaIds,
+        schedule: newSchedule || null,
+        isSystem: currentPlaylist?.isSystem || false,
         showTicker,
         showInfoCard,
         showWorship,
@@ -453,7 +457,7 @@ export default function PlaylistsPage() {
                   {playlist.showWorship && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">{t("pl.worship")}</Badge>}
                   {playlist.showQR && <Badge variant="secondary" className="text-[9px] rounded-md py-0 px-1.5 h-5">{t("pl.qrSync")}</Badge>}
                   <Badge className="bg-primary/10 text-primary border-none text-[9px] uppercase gap-1 rounded-md py-0 px-1.5 h-5">
-                    {getLayoutIcon(playlist.layout)}
+                    {getLayoutIcon(playlist.layout ?? undefined)}
                     {playlist.layout || 'single'}
                   </Badge>
                 </div>
@@ -893,7 +897,7 @@ export default function PlaylistsPage() {
                                   <div className="px-2 py-0.5 sm:px-3 sm:py-1 bg-accent/90 backdrop-blur-sm text-primary rounded-full text-[8px] sm:text-[10px] font-black uppercase tracking-widest animate-pulse border border-white/20 shadow-[0_0_15px_rgba(var(--accent),0.3)]">
                                     LIVE PREVIEW
                                   </div>
-                                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Asset {index + 1} of {currentPlaylist.items.length}</p>
+                                  <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Asset {index + 1} of {currentPlaylist?.items?.length || 0}</p>
                               </div>
                               <h4 className="text-xl sm:text-3xl lg:text-4xl font-black tracking-tighter leading-none uppercase text-white drop-shadow-2xl line-clamp-1">{media?.name}</h4>
                               <div className="flex items-center gap-4 mt-4">

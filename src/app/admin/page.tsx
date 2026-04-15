@@ -59,6 +59,19 @@ const engagementData = [
   { name: 'Sun', engagement: 190 },
 ];
 
+const heatmapData = Array.from({ length: 30 }, (_, i) => ({
+  day: i + 1,
+  value: Math.floor(Math.random() * 100),
+  date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString()
+}));
+
+const detailMetrics = [
+  { label: 'Views', value: '12.4K', trend: '+14%', color: 'text-primary' },
+  { label: 'Watch Time', value: '842h', trend: '+8%', color: 'text-emerald-500' },
+  { label: 'Interaction', value: '3.2%', trend: '-2%', color: 'text-amber-500' },
+  { label: 'Retention', value: '78%', trend: '+5%', color: 'text-accent' },
+];
+
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function AdminOverview() {
@@ -314,26 +327,44 @@ export default function AdminOverview() {
                 </div>
                 
                 <div className="h-full mt-4 space-y-4">
-                  <h3 className="font-bold text-sm tracking-tight border-b pb-2">{language === "id-ID" ? "Media Paling Sering Ditampilkan" : "Most Displayed Media"}</h3>
-                  <div className="space-y-3">
-                    {stats.topMedia.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">No media assigned to playlists.</p>
-                    )}
-                    {stats.topMedia.map(media => (
-                      <div key={media.id} className="flex items-center justify-between bg-muted/20 p-2 rounded-lg border border-primary/5">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <div className="w-8 h-8 rounded shrink-0 bg-primary/10 flex items-center justify-center">
-                            {media.type === 'video' ? <FileVideo className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-accent" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold truncate">{media.name}</p>
-                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground">{media.type}</p>
-                          </div>
+                <div className="h-full mt-4 space-y-6">
+                  <div>
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground mb-4">
+                      {language === "id-ID" ? "Aktivitas 30 Hari Terakhir" : "Last 30 Days Activity"}
+                    </h3>
+                    <div className="grid grid-cols-10 gap-1.5">
+                      {heatmapData.map((d) => {
+                        let colorCls = "bg-primary/5";
+                        if (d.value > 80) colorCls = "bg-primary";
+                        else if (d.value > 60) colorCls = "bg-primary/60";
+                        else if (d.value > 40) colorCls = "bg-primary/40";
+                        else if (d.value > 20) colorCls = "bg-primary/20";
+                        
+                        return (
+                          <div 
+                            key={d.day}
+                            className={cn("aspect-square rounded-[3px] transition-all cursor-crosshair hover:scale-125 hover:z-10 shadow-sm", colorCls)}
+                            title={`${d.date}: ${d.value} points`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    {detailMetrics.map((m) => (
+                      <div key={m.label} className="bg-muted/30 p-3 rounded-xl border border-primary/5">
+                        <p className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground">{m.label}</p>
+                        <div className="flex items-end justify-between mt-1">
+                          <p className={cn("text-lg font-bold leading-none", m.color)}>{m.value}</p>
+                          <span className={cn("text-[8px] font-bold", m.trend.startsWith('+') ? 'text-emerald-600' : 'text-rose-600')}>
+                            {m.trend}
+                          </span>
                         </div>
-                        <Badge variant="secondary" className="text-[10px] tabular-nums">{media.count} loops</Badge>
                       </div>
                     ))}
                   </div>
+                </div>
                 </div>
               </div>
             </CardContent>

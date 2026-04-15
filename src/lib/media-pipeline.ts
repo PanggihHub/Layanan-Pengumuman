@@ -492,7 +492,7 @@ export interface VideoClassBadgeInfo {
 /**
  * Returns display metadata for the VideoClass badge shown in the Media Library UI.
  */
-export function getVideoClassBadge(videoClass?: VideoClass): VideoClassBadgeInfo {
+export function getVideoClassBadge(videoClass?: VideoClass | null): VideoClassBadgeInfo {
   switch (videoClass) {
     case 'motion_video':
       return {

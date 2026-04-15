@@ -3,10 +3,10 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CloudSun, 
-  Clock, 
-  MapPin, 
+import {
+  CloudSun,
+  Clock,
+  MapPin,
   Megaphone,
   QrCode,
   CalendarDays,
@@ -47,6 +47,8 @@ const extractYouTubeId = (url: string) => {
   return match ? match[1] : null;
 };
 
+// Unified Temperature formatter moved into component to access state
+
 export default function DisplayClient() {
   const [deviceId] = useState(() => getDeviceId());
   const [isPaired, setIsPaired] = useState<boolean | null>(null);
@@ -69,10 +71,11 @@ export default function DisplayClient() {
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementLocation, setAnnouncementLocation] = useState("");
   const [qrUrl, setQrUrl] = useState("");
-  
+  const [locationName, setLocationName] = useState("Signage Point");
+
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  
+
   const [weatherStatus, setWeatherStatusData] = useState<string | null>(null);
   const [weatherCity, setWeatherCity] = useState("Jakarta");
   const [weatherLat, setWeatherLat] = useState<number | null>(-6.2088);
@@ -89,14 +92,14 @@ export default function DisplayClient() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     // Offline status detection
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    
+
     setIsOffline(!navigator.onLine);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -125,12 +128,12 @@ export default function DisplayClient() {
         setAnnouncementTitle(data.announcementTitle || "Briefing Mingguan Staf & Pengajar");
         setAnnouncementLocation(data.announcementLocation || "Ruang Rapat Utama");
         setQrUrl(data.qrUrl || "https://screensense.cloud/docs/today");
-        
+
         if (data.weatherCity) setWeatherCity(data.weatherCity);
         if (data.weatherLat) setWeatherLat(Number(data.weatherLat));
         if (data.weatherLng) setWeatherLng(Number(data.weatherLng));
         if (data.weatherStatus) setWeatherStatusData(data.weatherStatus);
-        
+
         if (data.weatherCitySec) setWeatherCitySec(data.weatherCitySec);
         if (data.weatherLatSec) setWeatherLatSec(Number(data.weatherLatSec));
         if (data.weatherLngSec) setWeatherLngSec(Number(data.weatherLngSec));
@@ -169,6 +172,8 @@ export default function DisplayClient() {
       if (snap.exists()) {
         setIsPaired(true);
         setPairingCode(null);
+        const data = snap.data();
+        if (data?.location) setLocationName(data.location);
       } else {
         setIsPaired(false);
         setPairingCode((prev) => {
@@ -216,25 +221,25 @@ export default function DisplayClient() {
   const handleVerifyCode = async () => {
     if (inputCode.length !== 6) return;
     setIsVerifying(true);
-    
+
     try {
       const pairId = `PAUSE-${inputCode}`;
       const pairDoc = await getDoc(doc(db, "adminInitiatedPairing", pairId));
-      
+
       if (pairDoc.exists()) {
         const data = pairDoc.data();
         if (data) {
           // Create full screen record
           await setDoc(doc(db, "screens", deviceId), {
             id: deviceId,
-            name: data.name,
-            playlistId: data.playlistId,
+            name: data.name ?? "Display",
+            playlistId: data.playlistId ?? "",
             status: "Waiting",
             location: "Manual Link",
             uptime: "0h",
             lastSeen: new Date().toISOString()
           });
-          
+
           // Cleanup the pairing code
           await deleteDoc(doc(db, "adminInitiatedPairing", pairId));
         }
@@ -312,7 +317,7 @@ export default function DisplayClient() {
         console.error("Failed to fetch weather", err);
       }
     };
-    
+
     fetchWeather();
     // Refresh weather every 15 minutes
     const interval = setInterval(fetchWeather, 15 * 60 * 1000);
@@ -329,14 +334,14 @@ export default function DisplayClient() {
 
   useEffect(() => {
     if (loopItems.length <= 1) return;
-    
+
     // Default loop time is 8 seconds, but video config allows overriding via DB (future feature)
     // Here we check if the current media enforces a duration. For now, 8s baseline.
     const currentMedia = loopItems[currentIndex];
-    
+
     // If it's a video with timeline trims, play for that long length.
     let duration = 8000;
-    if (currentMedia?.type === 'video' && currentMedia?.startTime !== undefined && currentMedia?.endTime !== undefined) {
+    if (currentMedia?.type === 'video' && currentMedia?.startTime != null && currentMedia?.endTime != null) {
       duration = (currentMedia.endTime - currentMedia.startTime) * 1000;
     }
 
@@ -346,6 +351,13 @@ export default function DisplayClient() {
     return () => clearInterval(interval);
   }, [loopItems, currentIndex]);
 
+  // Temperature formatter — reads unit from Localization settings
+  const fmtTemp = (tempC: number | null): string => {
+    if (tempC === null) return "—";
+    if (temperatureUnit === "fahrenheit") return `${Math.round(tempC * 9 / 5 + 32)}°F`;
+    return `${Math.round(tempC)}°C`;
+  };
+
   // YouTube quality param derived from global policy
   const ytQualityParam = useMemo(() => {
     const resolved = resolveQuality('1080p'); // ask policy what quality to use for HD content
@@ -354,6 +366,28 @@ export default function DisplayClient() {
     if (resolved === '4K' || resolved === '8K') return 'hd2160';
     return 'hd1080'; // 1080p default
   }, [resolveQuality]);
+
+  const getWeatherStatus = (code: number | null, manualStatus?: string | null) => {
+    // Priority 1: Manual status from settings
+    if (manualStatus) {
+      if (manualStatus === 'sunny') return "Cerah (Sunny)";
+      if (manualStatus === 'cloudy') return "Berawan (Cloudy)";
+      if (manualStatus === 'rainy') return "Hujan (Rainy)";
+      if (manualStatus === 'stormy') return "Badai (Stormy)";
+      return manualStatus.toUpperCase();
+    }
+
+    // Priority 2: Real-time code calculation
+    if (code === null) return "Loading...";
+    if (code === 0) return "Cerah (Sunny)";
+    if (code >= 1 && code <= 3) return "Berawan (Cloudy)";
+    if (code >= 45 && code <= 48) return "Berkabut (Foggy)";
+    if (code >= 51 && code <= 67) return "Hujan (Rainy)";
+    if (code >= 71 && code <= 77) return "Salju (Snow)";
+    if (code >= 80 && code <= 82) return "Hujan Deras (Heavy Rain)";
+    if (code >= 95) return "Badai Petir (Thunderstorm)";
+    return "Unknown";
+  };
 
   if (isPaired === null) {
     return (
@@ -367,7 +401,7 @@ export default function DisplayClient() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 font-sans text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-transparent to-zinc-950 z-0 pointer-events-none" />
-        <button 
+        <button
           onClick={() => window.history.back()}
           className={cn(
             "absolute top-8 left-8 z-50 text-white/50 hover:text-white transition flex items-center space-x-2 duration-500",
@@ -386,26 +420,26 @@ export default function DisplayClient() {
           <p className="text-xl text-zinc-400 mb-12">
             Either input the code from your Admin Dashboard below, or use the code broadcasted by this screen:
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div className="bg-black/40 border border-white/5 rounded-2xl p-8 shadow-inner flex flex-col items-center">
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-4 font-black">Broadcast Code</p>
               <p className="text-5xl font-mono tracking-tighter text-blue-400 font-black">{pairingCode || "......"}</p>
               <p className="text-[9px] text-zinc-600 mt-4 uppercase font-bold">Waiting for remote pair...</p>
             </div>
-            
+
             <div className="bg-zinc-800/40 border border-white/10 rounded-2xl p-8 shadow-inner flex flex-col items-center">
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-4 font-black">Enter Admin Code</p>
               <div className="flex gap-2">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   maxLength={6}
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value.toUpperCase())}
                   className="bg-black/50 border border-white/20 rounded-xl px-4 py-2 w-32 text-center text-2xl font-black font-mono focus:outline-none focus:border-blue-500 transition-colors"
                   placeholder="000000"
                 />
-                <button 
+                <button
                   onClick={handleVerifyCode}
                   disabled={isVerifying || inputCode.length !== 6}
                   className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 rounded-xl transition-all active:scale-95 flex items-center justify-center"
@@ -416,7 +450,7 @@ export default function DisplayClient() {
               <p className="text-[9px] text-zinc-600 mt-4 uppercase font-bold">Manual connection override</p>
             </div>
           </div>
-          
+
           <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic opacity-30 mt-4">
             Device System ID: {deviceId}
           </p>
@@ -441,7 +475,7 @@ export default function DisplayClient() {
         </div>
 
         {/* Persistent Back Button for Navigation */}
-        <button 
+        <button
           onClick={() => window.location.href = "/"}
           className={cn(
             "fixed top-8 left-8 z-[100] h-14 w-14 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/20 hover:text-white hover:bg-white/10 transition-all duration-500 active:scale-95",
@@ -460,14 +494,14 @@ export default function DisplayClient() {
     return (
       <div className="w-screen h-screen bg-zinc-950 flex flex-col items-center justify-center text-white relative overflow-hidden font-sans">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-zinc-950 z-0" />
-        
+
         {/* Floating background elements */}
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/5 blur-[120px] rounded-full" />
 
         <div className="relative z-10 flex flex-col items-center text-center max-w-4xl">
           <Sparkles className="w-16 h-16 text-indigo-400 mb-12 animate-pulse" />
-          
+
           <div className="space-y-4">
             <h2 className="text-[12rem] font-black tracking-tighter leading-none tabular-nums text-white drop-shadow-[0_20px_50px_rgba(255,255,255,0.1)]">
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: timeFormat === '24h' ? '2-digit' : undefined, hour12: timeFormat === '12h' }).replace(/\./g, ':')}
@@ -499,11 +533,11 @@ export default function DisplayClient() {
               </div>
             )}
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl flex-1 max-w-[300px]">
-               <Waves className="w-16 h-16 text-emerald-400" />
-               <div className="flex flex-col items-center">
-                 <span className="text-5xl font-black leading-none flex items-center gap-2">98<span className="text-xl font-bold opacity-50">%</span></span>
-                 <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2 text-center">Network<br />Health</span>
-               </div>
+              <Waves className="w-16 h-16 text-emerald-400" />
+              <div className="flex flex-col items-center">
+                <span className="text-5xl font-black leading-none flex items-center gap-2">98<span className="text-xl font-bold opacity-50">%</span></span>
+                <span className="text-lg font-bold text-white/50 uppercase tracking-widest mt-2 text-center">Network<br />Health</span>
+              </div>
             </div>
           </div>
 
@@ -514,7 +548,7 @@ export default function DisplayClient() {
         </div>
 
         {/* Persistent Back Button */}
-        <button 
+        <button
           onClick={() => window.location.href = "/"}
           className={cn(
             "fixed top-8 left-8 z-[100] h-16 w-16 rounded-full bg-white/5 backdrop-blur-3xl border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all duration-500 active:scale-95 shadow-2xl group",
@@ -529,58 +563,27 @@ export default function DisplayClient() {
   }
 
   const currentMedia = loopItems[currentIndex];
-
-  // Temperature formatter — reads unit from Localization settings
-  const fmtTemp = (tempC: number | null): string => {
-    if (tempC === null) return "—";
-    if (temperatureUnit === "fahrenheit") return `${Math.round(tempC * 9/5 + 32)}°F`;
-    return `${tempC}°C`;
-  };
   const layout = activePlaylist.layout || 'single';
-
-  // Extract location name gracefully (e.g. Asia/Makassar => Makassar)
-  const locationName = timezone.split('/')[1]?.replace('_', ' ') || 'Jakarta';
-
-  const getWeatherStatus = (code: number | null, manualStatus?: string | null) => {
-    // Priority 1: Manual status from settings
-    if (manualStatus) {
-      if (manualStatus === 'sunny') return "Cerah (Sunny)";
-      if (manualStatus === 'cloudy') return "Berawan (Cloudy)";
-      if (manualStatus === 'rainy') return "Hujan (Rainy)";
-      if (manualStatus === 'stormy') return "Badai (Stormy)";
-      return manualStatus.toUpperCase();
-    }
-    
-    // Priority 2: Real-time code calculation
-    if (code === null) return "Loading...";
-    if (code === 0) return "Cerah (Sunny)";
-    if (code >= 1 && code <= 3) return "Berawan (Cloudy)";
-    if (code >= 45 && code <= 48) return "Berkabut (Foggy)";
-    if (code >= 51 && code <= 67) return "Hujan (Rainy)";
-    if (code >= 71 && code <= 77) return "Salju (Snow)";
-    if (code >= 80 && code <= 82) return "Hujan Deras (Heavy Rain)";
-    if (code >= 95) return "Badai Petir (Thunderstorm)";
-    return "Unknown";
-  };
-
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   const renderMediaContent = (mediaCls: string, mediaItem?: MediaItem | null) => {
     const itemToRender = mediaItem || currentMedia;
     if (!itemToRender) {
       return (
         <div className={cn("w-full h-full flex flex-col items-center justify-center bg-zinc-900 border-[3px] border-dashed border-white/20", mediaCls)}>
-           <Info className="w-16 h-16 text-white/20 mb-4" />
-           <span className="text-white/40 font-black uppercase tracking-widest text-lg">NO SOURCE</span>
+          <Info className="w-16 h-16 text-white/20 mb-4" />
+          <span className="text-white/40 font-black uppercase tracking-widest text-lg">NO SOURCE</span>
         </div>
       );
     }
     const youtubeId = (itemToRender.type === 'external_video' || itemToRender.source === "external") ? extractYouTubeId(itemToRender.url) : null;
-    
+
     if (itemToRender.type === "website") {
       return (
-        <iframe 
-          src={itemToRender.url} 
-          className={cn("w-full h-full border-none pointer-events-none bg-white", mediaCls)} 
+        <iframe
+          src={itemToRender.url}
+          className={cn("w-full h-full border-none pointer-events-none bg-white", mediaCls)}
           title="Website Content"
         />
       );
@@ -589,11 +592,11 @@ export default function DisplayClient() {
     if (itemToRender.type === "video" || youtubeId) {
       if (youtubeId) {
         return (
-          <iframe 
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&start=${itemToRender.startTime || 0}&end=${itemToRender.endTime || 0}&vq=${ytQualityParam}&rel=0`} 
-            className={cn("w-full h-full object-cover pointer-events-none", mediaCls)} 
-            frameBorder="0" 
-            allow="autoplay; fullscreen" 
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&start=${itemToRender.startTime || 0}&end=${itemToRender.endTime || 0}&vq=${ytQualityParam}&rel=0`}
+            className={cn("w-full h-full object-cover pointer-events-none", mediaCls)}
+            frameBorder="0"
+            allow="autoplay; fullscreen"
           />
         );
       } else {
@@ -610,12 +613,12 @@ export default function DisplayClient() {
       }
     } else {
       return (
-        <Image 
-          src={itemToRender.url} 
-          alt={itemToRender.name || "Media"} 
-          fill 
+        <Image
+          src={itemToRender.url}
+          alt={itemToRender.name || "Media"}
+          fill
           className={cn("object-cover", mediaCls)}
-          unoptimized 
+          unoptimized
         />
       );
     }
@@ -623,7 +626,7 @@ export default function DisplayClient() {
 
   return (
     <div className="w-screen h-screen bg-black overflow-hidden relative font-sans text-white">
-      
+
       {/* Offline Banner Indicator */}
       {isOffline && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[100] bg-orange-500/90 backdrop-blur text-white px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-top-4 duration-500">
@@ -637,29 +640,29 @@ export default function DisplayClient() {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl z-10" />
         {currentMedia?.type !== 'video' && currentMedia?.source !== 'external' && currentMedia && (
-             <Image 
-             src={currentMedia.url || '/placeholder.png'} 
-             alt="" 
-             fill 
-             className="object-cover opacity-30 blur-2xl scale-110"
-             unoptimized 
-           />
+          <Image
+            src={currentMedia.url || '/placeholder.png'}
+            alt=""
+            fill
+            className="object-cover opacity-30 blur-2xl scale-110"
+            unoptimized
+          />
         )}
       </div>
 
       <div className="relative z-10 w-full h-full flex flex-col p-6 gap-6">
-        
+
         {/* Main Content Area */}
         <div className="flex-1 flex gap-6 min-h-0">
-          
+
           {/* Main Display Grid */}
-          <div className={cn(
-            "flex-1 relative rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-black/50 backdrop-blur-sm",
-            layout === 'grid-2x2' ? 'grid grid-cols-2 grid-rows-2 gap-1 p-1' :
-            layout === 'split-v' ? 'grid grid-cols-2 gap-1 p-1' :
-            layout === 'split-h' ? 'grid grid-rows-2 gap-1 p-1' : 'block'
-          )}>
-            
+            <div className={cn(
+              "flex-1 relative rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-black/50 backdrop-blur-sm",
+              layout === 'grid-2x2' ? 'grid grid-cols-2 grid-rows-2 gap-1 p-1' :
+              layout === 'split-v' ? 'grid grid-cols-2 gap-1 p-1' :
+                layout === 'split-h' ? 'grid grid-rows-2 gap-1 p-1' : 'block'
+            )}>
+
             {/* SINGLE LAYOUT */}
             {layout === 'single' && (
               <div className="absolute inset-0 animate-in fade-in zoom-in-95 duration-1000">
@@ -730,95 +733,99 @@ export default function DisplayClient() {
 
           {/* Right Sidebar Widgets */}
           {(activePlaylist.showInfoCard || activePlaylist.showWorship || activePlaylist.showQR) && (
-            <div className="w-96 flex flex-col gap-6 shrink-0">
-              
+            <div className="w-96 flex flex-col gap-6 shrink-0 max-h-full overflow-y-auto no-scrollbar">
+
               {/* Time & Weather */}
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-2xl">
-                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                   <Clock className="w-48 h-48" />
-                 </div>
-                 <h2 className="text-7xl font-black tracking-tighter tabular-nums drop-shadow-lg">
-                  {currentTime.toLocaleTimeString('id-ID', { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: timeFormat === '24h' ? '2-digit' : undefined, hour12: timeFormat === '12h' }).replace(/\./g, ':')}
-                 </h2>
-                 <p className="text-accent text-lg font-bold tracking-widest uppercase mt-2">
-                  {currentTime.toLocaleDateString('id-ID', { timeZone: timezone, weekday: 'long', month: 'long', day: 'numeric' })}
-                 </p>
-                 <div className="flex flex-col items-center gap-6 mt-8 pt-8 border-t border-white/10 w-full justify-center">
-                    {weatherTemp !== null && (
-                      <div className="flex items-center gap-4 w-full bg-black/20 p-4 rounded-2xl">
-                        <CloudSun className="w-10 h-10 text-yellow-400 shrink-0" />
+              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-2xl transition-all duration-700 hover:bg-black/50">
+                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                  <Clock className="w-48 h-48" />
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <h2 className="text-7xl font-black tracking-tighter tabular-nums drop-shadow-[0_8px_30px_rgba(255,255,255,0.1)] mb-1">
+                    {currentTime.toLocaleTimeString('id-ID', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h' }).replace(/\./g, ':')}
+                  </h2>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-black text-amber-400 animate-pulse tracking-[0.3em] uppercase">Recording</span>
+                    <p className="text-white/40 text-[11px] font-bold tracking-[0.2em] uppercase">
+                      {currentTime.toLocaleDateString('id-ID', { timeZone: timezone, weekday: 'long', month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-white/5 w-full">
+                  {weatherTemp !== null && (() => {
+                    const status = getWeatherStatus(weatherCode, weatherStatus);
+                    return (
+                      <div className="flex items-center gap-4 w-full bg-white/[0.03] p-5 rounded-3xl border border-white/5 hover:border-white/10 transition-all">
+                        <div className="p-3 bg-amber-400/10 rounded-2xl">
+                          <CloudSun className={cn("w-8 h-8 text-amber-400", status.includes("Hujan") && "text-blue-400", status.includes("Badai") && "text-purple-400")} />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-3xl font-black leading-none text-white">
-                            {`${weatherTemp}°`}
+                          <span className="text-4xl font-black leading-none text-white tracking-tighter">
+                            {fmtTemp(weatherTemp)}
                           </span>
-                          <span className="text-xs font-bold text-white/50 uppercase tracking-widest mt-1 truncate">
+                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest mt-1.5 truncate">
                             {weatherCity || locationName}
                           </span>
-                          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
-                            {getWeatherStatus(weatherCode, weatherStatus)}
-                          </span>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+                            <span className="text-[9px] font-bold text-white/30 uppercase tracking-[0.15em]">
+                              {status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    )}
-                    
-                    {weatherTempSec !== null && (
-                      <div className="flex items-center gap-4 w-full bg-black/20 p-4 rounded-2xl">
-                        <CloudSun className="w-10 h-10 text-amber-400/80 shrink-0" />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-3xl font-black leading-none text-white/80">
-                            {`${weatherTempSec}°`}
-                          </span>
-                          <span className="text-xs font-bold text-white/50 uppercase tracking-widest mt-1 truncate">
-                            {weatherCitySec}
-                          </span>
-                          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
-                            {getWeatherStatus(weatherCodeSec)}
-                          </span>
-                        </div>
+                    );
+                  })()}
+
+                  {weatherTempSec !== null && (
+                    <div className="flex items-center gap-4 w-full bg-white/[0.01] p-4 rounded-3xl border border-white/5 border-dashed">
+                      <CloudSun className="w-8 h-8 text-amber-400/40 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-2xl font-black leading-none text-white/60">
+                          {fmtTemp(weatherTempSec)}
+                        </span>
+                        <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1 truncate">
+                          {weatherCitySec}
+                        </span>
                       </div>
-                    )}
-                 </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Islamic/Worship Widget */}
+              {/* Worship Highlight Widget — Compact Only */}
               {activePlaylist.showWorship && (() => {
                 const sorted = sortSchedulesByNextPrayer(worshipSchedules, nowMinutes);
                 if (!sorted.length) return null;
+                const next = sorted[0];
+                const until = getTimeUntil(next.time);
+                
                 return (
-                  <div className="bg-primary/90 text-white rounded-3xl p-6 border border-primary/20 shadow-2xl flex-1 flex flex-col relative overflow-hidden">
-                    <div className="absolute -right-4 -top-4 opacity-10">
-                      <Waves className="w-40 h-40" />
+                  <div className="bg-emerald-600 text-white rounded-[2rem] p-5 shadow-2xl relative overflow-hidden border border-emerald-500/50">
+                    <div className="flex items-center justify-between mb-3 relative z-10">
+                      <div className="flex items-center gap-2">
+                        <Waves className="w-5 h-5 text-emerald-300" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100/70">Next Event</span>
+                      </div>
+                      <span className="text-[9px] font-black bg-white/20 px-2.5 py-1 rounded-full border border-white/20 backdrop-blur-md uppercase tracking-widest text-white">
+                        {until === "Now" ? "LIVE NOW" : until}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 text-accent/80 mb-6">
-                      <Calendar className="w-5 h-5" />
-                      <span className="text-xs font-black uppercase tracking-widest">Jadwal Ibadah</span>
+                    
+                    <div className="flex items-end justify-between relative z-10">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-0.5 truncate drop-shadow-md">{next.name}</h3>
+                        <p className="text-[10px] font-bold text-emerald-100/50 uppercase tracking-widest truncate">{next.location || "Main Hall"}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-4xl font-black tabular-nums tracking-tighter drop-shadow-lg">{next.time}</span>
+                      </div>
                     </div>
-                    <div className="space-y-3 flex-1">
-                      {sorted.slice(0, 6).map((s, idx) => {
-                        const isNext = idx === 0;
-                        const until = getTimeUntil(s.time);
-                        return (
-                          <div
-                            key={s.id}
-                            className={cn(
-                              "flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-300",
-                              isNext
-                                ? "bg-white text-primary shadow-xl ring-2 ring-accent/40"
-                                : "font-medium text-white/75 border border-white/10 hover:bg-white/5"
-                            )}
-                          >
-                            <span className="uppercase tracking-widest text-sm font-black">{s.name}</span>
-                            <div className="flex items-center gap-3">
-                              {isNext && (
-                                <span className="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/30">
-                                  {until === "Now" ? "🟢 NOW" : `${until}`}
-                                </span>
-                              )}
-                              <span className="text-lg font-mono font-black">{s.time}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
+
+                    <div className="absolute right-[-20px] top-[-20px] opacity-10 pointer-events-none">
+                      <Waves className="w-48 h-48" />
                     </div>
                   </div>
                 );
@@ -827,16 +834,16 @@ export default function DisplayClient() {
               {/* Upcoming Event Info */}
               {activePlaylist.showInfoCard && announcementTitle && (
                 <div className="bg-white text-primary rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                   <div className="flex items-center gap-2 text-muted-foreground/50 mb-4 text-xs font-black uppercase tracking-widest">
-                      <Info className="w-5 h-5 text-accent" />
-                      Pengumuman
-                   </div>
-                   <h3 className="font-black text-xl leading-tight text-primary">{announcementTitle}</h3>
-                   {announcementLocation && (
-                     <div className="flex items-center gap-2 text-sm font-bold text-primary/60 mt-3 bg-primary/5 p-2 rounded-lg">
-                        <MapPin className="w-4 h-4" /> {announcementLocation}
-                     </div>
-                   )}
+                  <div className="flex items-center gap-2 text-muted-foreground/50 mb-4 text-xs font-black uppercase tracking-widest">
+                    <Info className="w-5 h-5 text-accent" />
+                    Pengumuman
+                  </div>
+                  <h3 className="font-black text-xl leading-tight text-primary">{announcementTitle}</h3>
+                  {announcementLocation && (
+                    <div className="flex items-center gap-2 text-sm font-bold text-primary/60 mt-3 bg-primary/5 p-2 rounded-lg">
+                      <MapPin className="w-4 h-4" /> {announcementLocation}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -873,7 +880,7 @@ export default function DisplayClient() {
       </div>
 
       {/* Persistent Back Button for Navigation */}
-      <button 
+      <button
         onClick={() => window.location.href = "/"}
         className={cn(
           "fixed top-8 left-8 z-[100] h-16 w-16 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all duration-500 active:scale-95 shadow-2xl group",

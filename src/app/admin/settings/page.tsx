@@ -91,8 +91,8 @@ export default function SystemConfig() {
       setDoc(doc(db, "settings", "global"), {
         displayLayout,
         syncUrl,
-        heartbeat: parseInt(heartbeat),
-        sessionTimeout: parseInt(sessionTimeout),
+        heartbeat: parseInt(heartbeat) || 60,
+        sessionTimeout: parseInt(sessionTimeout) || 30,
         autoUpdate,
         // timezone & tempUnit intentionally omitted — owned by Localization
       }, { merge: true }),

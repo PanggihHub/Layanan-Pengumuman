@@ -20,7 +20,7 @@ export interface PrayerImportOptions {
   /** Calculation method (Aladhan ID). Default 11 = Egyptian GA */
   method?: number;
   /** Room/Hall shown on display as the location field */
-  locationLabel?: string;
+  locationLabel?: string | null;
 }
 
 export const ALADHAN_METHODS: { id: number; label: string }[] = [
