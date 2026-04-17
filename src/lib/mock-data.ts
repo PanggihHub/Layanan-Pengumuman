@@ -12,7 +12,7 @@ export type MediaType = 'image' | 'video' | 'document' | 'website' | 'clock' | '
  */
 export type VideoClass = 'motion_video' | 'hd_stream' | 'adaptive';
 export type MediaSourceOrigin = 'internal' | 'external';
-export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h' | 'widget-hub';
+export type DisplayLayout = 'single' | 'grid-2x2' | 'split-v' | 'split-h' | 'widget-hub' | 'dashboard-split';
 
 export interface TimeWindow {
   start: string;
@@ -62,6 +62,7 @@ export interface MediaItem {
   lazyLoad?: boolean | null;            // enable lazy/deferred loading for this asset
   dynamicBuffer?: boolean | null;       // enable dynamic buffer sizing based on device
   codecHint?: string | null;            // e.g. 'h264' | 'h265' | 'vp9' | 'av1'
+  duration?: number | null;
 }
 
 export interface ScreenStatus {
@@ -135,7 +136,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-12', 
     url: 'https://picsum.photos/seed/screensense1/1920/1080', 
     category: 'campus',
-    description: 'Main hero image for campus orientation week.'
+    description: 'Main hero image for campus orientation week.',
+    duration: 8
   },
   { 
     id: '2', 
@@ -148,7 +150,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     category: 'science',
     description: 'Animated video explaining the photosynthesis process.',
     startTime: 0,
-    endTime: 30
+    endTime: 30,
+    duration: 30
   },
   { 
     id: '3', 
@@ -159,7 +162,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-15', 
     url: 'https://picsum.photos/seed/campus/1920/1080', 
     category: 'campus',
-    description: 'Detailed vertical map of the north quadrant.'
+    description: 'Detailed vertical map of the north quadrant.',
+    duration: 10
   },
   { 
     id: '4', 
@@ -170,7 +174,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-16', 
     url: 'https://picsum.photos/seed/display/1920/1080', 
     category: 'events',
-    description: 'Generic welcome slide for guest lectures.'
+    description: 'Generic welcome slide for guest lectures.',
+    duration: 8
   },
   { 
     id: '5', 
@@ -181,7 +186,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-18', 
     url: 'https://picsum.photos/seed/math/1920/1080', 
     category: 'math',
-    description: 'Visual representation of prime numbers 1-100.'
+    description: 'Visual representation of prime numbers 1-100.',
+    duration: 12
   },
   { 
     id: '6', 
@@ -192,7 +198,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2023-10-20', 
     url: 'https://picsum.photos/seed/food/1920/1080', 
     category: 'events',
-    description: 'Daily lunch menu for the central cafeteria.'
+    description: 'Daily lunch menu for the central cafeteria.',
+    duration: 15
   },
   {
     id: 'w-clock',
@@ -203,7 +210,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2026-04-08',
     url: 'widget://clock',
     category: 'campus',
-    description: 'System-wide digital clock with date overlay.'
+    description: 'System-wide digital clock with date overlay.',
+    duration: 0
   },
   {
     id: 'w-weather',
@@ -214,7 +222,8 @@ export const INITIAL_MEDIA: MediaItem[] = [
     date: '2026-04-08',
     url: 'widget://weather',
     category: 'science',
-    description: 'Real-time weather forecast and temperature display.'
+    description: 'Real-time weather forecast and temperature display.',
+    duration: 0
   },
 ];
 

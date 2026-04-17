@@ -1,7 +1,6 @@
 export type Language = "en-US" | "id-ID" | "zn" | "en-AU" | "en-GB" | "en-SG" | "pt-BR" | "es-MX" | "fi-FI" | "tr-TR" | "th-TH" | "ms-MY" | "ja-JP" | "de-DE" | "ar-SA" | "vi-VN" | "km-KH" | "tl-PH";
 
-export const translations = {
-  "en-US": {
+const enUS = {
     // Navigation
     "nav.overview": "Overview",
     "nav.media": "Media Library",
@@ -49,6 +48,7 @@ export const translations = {
     "common.24h": "24-Hour",
     "common.12h": "12-Hour",
     "common.refresh": "Refresh",
+    "common.noData": "No Signal / Source Unavailable",
 
     // Localization Page
     "loc.title": "Localization & Regional",
@@ -385,6 +385,7 @@ export const translations = {
     "sec.title": "Security & Access",
     "sec.desc": "PIN management, emergency lockout, security hardening, and real-time audit log.",
     "sec.statusActive": "GLOBAL LOCKOUT ACTIVE",
+    "sec.globalLockoutActive": "GLOBAL LOCKOUT ACTIVE",
     "sec.pinTitle": "Master Access PIN",
     "sec.pinDesc": "Rotate the 6-digit PIN used for admin access, emergency lockout authentication, and paired device operations.",
     "sec.newPin": "New PIN",
@@ -476,8 +477,12 @@ export const translations = {
     "sec.statusWarning": "WARNING",
     "sec.statusFailed": "FAILED",
     "sec.statusBlocked": "BLOCKED",
-  },
+};
+
+export const translations = {
+  "en-US": enUS,
   "id-ID": {
+
     // Navigation
     "nav.overview": "Ringkasan",
     "nav.media": "Pustaka Media",
@@ -521,6 +526,7 @@ export const translations = {
     "common.24h": "Format 24 Jam",
     "common.12h": "Format 12 Jam",
     "common.refresh": "Segarkan",
+    "common.noData": "Tidak Ada Sinyal / Sumber Tidak Tersedia",
 
     // Localization Page
     "loc.title": "Lokalisasi & Regional",
@@ -616,6 +622,7 @@ export const translations = {
     "sec.title": "Keamanan & Kontrol Akses",
     "sec.desc": "Manajemen PIN, pemblokiran darurat, penguatan keamanan, dan log audit real-time.",
     "sec.statusActive": "PEMBLOKIRAN GLOBAL AKTIF",
+    "sec.globalLockoutActive": "PEMBLOKIRAN GLOBAL AKTIF",
     "sec.pinTitle": "PIN Akses Utama",
     "sec.pinDesc": "Putar PIN 6 digit yang digunakan untuk akses admin, autentikasi pemblokiran darurat, dan operasi perangkat yang dipasangkan.",
     "sec.newPin": "PIN Baru",
@@ -4283,6 +4290,12 @@ export const translations = {
     "sec.initLockout": "Initiate Global Lockout",
     "sec.endLockout": "End Global Lockout",
   },
+  "ja-JP": { ...enUS },
+  "de-DE": { ...enUS },
+  "ar-SA": { ...enUS },
+  "vi-VN": { ...enUS },
+  "km-KH": { ...enUS },
+  "tl-PH": { ...enUS },
 };
 
-export type TranslationKey = keyof typeof translations["en-US"];
+export type TranslationKey = keyof typeof enUS;

@@ -67,7 +67,7 @@ export function AdminSidebar() {
           <div className="bg-white p-1 rounded-lg shadow-sm">
             <Monitor className="text-primary w-6 h-6" />
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">ScreenSense</span>
+          <span className="text-xl font-bold text-white tracking-tight">FMIPA e-Board</span>
         </div>
       </SidebarHeader>
       

@@ -7,8 +7,8 @@ import { QualityProvider } from "@/context/QualityContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
-  title: 'ScreenSense | Intelligent Digital Signage',
-  description: 'An expert-grade digital signage management platform with AI-driven content generation.',
+  title: 'FMIPA e-Board | Intelligent Digital Signage',
+  description: 'An expert-grade digital signage management platform for FMIPA with AI-driven content generation.',
 };
 
 export default function RootLayout({

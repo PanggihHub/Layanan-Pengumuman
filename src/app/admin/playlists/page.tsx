@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, ChangeEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -60,7 +60,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Playlist, DisplayLayout, MediaItem, PlaylistSchedule, DaySchedule } from "@/lib/mock-data";
+import { Playlist, DisplayLayout, MediaItem, PlaylistSchedule, DaySchedule, TimeWindow } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn, extractYouTubeId, getMediaThumbnail } from "@/lib/utils";
 import Image from "next/image";
@@ -526,7 +526,7 @@ export default function PlaylistsPage() {
                     <Label className="text-xs font-black uppercase tracking-widest text-primary">{t("pl.weeklyMatrix")}</Label>
                     <ScrollArea className="h-[280px] pr-4">
                         <div className="space-y-3">
-                          {Object.entries(weeklySchedule).map(([day, dayData]) => (
+                          {Object.entries(weeklySchedule).map(([day, dayData]: [string, DaySchedule]) => (
                             <div key={day} className="flex flex-col gap-2 p-3 bg-white border border-primary/10 rounded-xl shadow-sm">
                               <div className="flex items-center justify-between">
                                 <Label className="capitalize text-[11px] font-bold text-primary/80">{day}</Label>
@@ -539,14 +539,14 @@ export default function PlaylistsPage() {
                                   disabled={isSaving} 
                                 />
                               </div>
-                              {dayData.active && dayData.windows.map((w, wIdx) => (
+                              {dayData.active && dayData.windows.map((w: TimeWindow, wIdx: number) => (
                                 <div key={wIdx} className="flex items-center gap-2">
                                   <Input 
                                     type="time" 
                                     value={w.start}
                                     className="h-8 text-xs rounded-lg"
                                     disabled={isSaving}
-                                    onChange={(e) => {
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                       const newWindows = [...dayData.windows];
                                       newWindows[wIdx].start = e.target.value;
                                       setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof typeof prev], windows: newWindows }}));
@@ -558,7 +558,7 @@ export default function PlaylistsPage() {
                                     value={w.end}
                                     className="h-8 text-xs rounded-lg"
                                     disabled={isSaving}
-                                    onChange={(e) => {
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
                                       const newWindows = [...dayData.windows];
                                       newWindows[wIdx].end = e.target.value;
                                       setWeeklySchedule(prev => ({ ...prev, [day]: { ...prev[day as keyof typeof prev], windows: newWindows }}));
@@ -699,7 +699,7 @@ export default function PlaylistsPage() {
                              <p className="text-white text-[10px] font-bold truncate tracking-wide">{media.name}</p>
                              <div className="flex items-center gap-2 mt-1">
                                <Badge className="bg-white/20 text-white border-none text-[8px] px-1 py-0! h-3 font-mono">{media.type}</Badge>
-                               <span className="text-white/60 text-[8px] font-mono">{media.duration}s</span>
+                               <span className="text-white/60 text-[8px] font-mono">{media.duration || 0}s</span>
                              </div>
                            </div>
                          </div>

@@ -18,6 +18,7 @@ import {
   Trash2,
   CheckCircle2,
   ShieldCheck,
+  ShieldAlert,
   ZapOff,
   Search,
   Zap,
@@ -103,6 +104,7 @@ export default function ScreensManagement() {
   const [isLinking, setIsLinking] = useState(false);
   const [generatedPairCode, setGeneratedPairCode] = useState("");
 
+
   const [screenToDelete, setScreenToDelete] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -150,11 +152,16 @@ export default function ScreensManagement() {
       }
     });
 
-    // Cleanup stale pairing codes (simulated or real)
+    // Cleanup stale pairing codes (codes expire after 15 minutes)
     const cleanupPairing = async () => {
-      const q = query(collection(db, "pairingCodes"), where("createdAt", "<", new Date(Date.now() - 10 * 60 * 1000).toISOString()));
-      const snap = await getDocs(q);
-      snap.forEach(async (d) => await deleteDoc(doc(db, "pairingCodes", d.id)));
+      try {
+        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const q = query(collection(db, "pairingCodes"), where("createdAt", "<", fifteenMinsAgo));
+        const snap = await getDocs(q);
+        snap.forEach(async (d) => await deleteDoc(doc(db, "pairingCodes", d.id)));
+      } catch (err) {
+        console.error("Cleanup error:", err);
+      }
     };
     cleanupPairing();
 
@@ -294,10 +301,19 @@ export default function ScreensManagement() {
   };
 
   const handleLinkNewDevice = async () => {
-    if (!pairingCode || !linkUnitName) {
+    if (!linkUnitName) {
       toast({ 
         title: language === "id-ID" ? "Kesalahan" : "Error", 
-        description: language === "id-ID" ? "Semua bidang wajib diisi." : "All fields are required.", 
+        description: language === "id-ID" ? "Nama unit wajib diisi." : "Unit name is required.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (!pairingCode && !generatedPairCode) {
+      toast({ 
+        title: language === "id-ID" ? "Kesalahan" : "Error", 
+        description: language === "id-ID" ? "Keamanan atau kode klien diperlukan." : "Pairing code or client code is required.", 
         variant: "destructive" 
       });
       return;
@@ -306,36 +322,41 @@ export default function ScreensManagement() {
     setIsLinking(true);
     
     try {
-      if (pairingCode === generatedPairCode) {
-        // Paired using the dashboard-generated code (Admin-Initiated)
-        // Store this in a temporary handshake collection for the screen to fetch
-        const pairId = `PAUSE-${pairingCode}`;
+      // CASE 1: Admin wants to activate the dashboard-generated code for a display to enter
+      // They either typed it, or it was just generated and they left the field empty
+      if (pairingCode === generatedPairCode || (!pairingCode && generatedPairCode)) {
+        const codeToUse = pairingCode || generatedPairCode;
+        const pairId = `PAUSE-${codeToUse}`;
         await setDoc(doc(db, "adminInitiatedPairing", pairId), {
-          code: pairingCode,
+          code: codeToUse,
           name: linkUnitName,
           playlistId: activePlaylistId || "system-default",
+          location: linkUnitName, // Default location to name
           createdAt: new Date().toISOString()
         });
 
         toast({ 
           title: language === "id-ID" ? "Kode Pemasangan Aktif" : "Pairing Code Active", 
           description: language === "id-ID" 
-            ? `Kode ${pairingCode} siap dimasukkan pada layar baru.` 
-            : `Code ${pairingCode} is ready to be entered on the new screen.`,
+            ? `Masukkan kode ${codeToUse} pada layar display Anda.` 
+            : `Enter the code ${codeToUse} on your display screen.`,
         });
         
-        // Don't close yet, show the code
+        setIsLinking(false);
+        // We don't close the dialog yet, so they can see the code boxes
         return;
       }
 
-      // Look for a device that has this pairing code from the client
+      // CASE 2: Client-initiated pairing (the display showed a code, admin typed it here)
       const q = query(collection(db, "pairingCodes"), where("code", "==", pairingCode));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
         toast({ 
           title: language === "id-ID" ? "Kode Tidak Valid" : "Invalid Code", 
-          description: language === "id-ID" ? "Tidak ada perangkat yang ditemukan dengan kode pemasangan ini." : "No device found with this pairing code.", 
+          description: language === "id-ID" 
+            ? "Mungkin kode salah ketik atau sudah kadaluarsa (15 menit)." 
+            : "The code might be mistyped or expired (valid for 15 mins).", 
           variant: "destructive" 
         });
         setIsLinking(false);
@@ -350,7 +371,8 @@ export default function ScreensManagement() {
         name: linkUnitName,
         status: "Online",
         playlistId: activePlaylistId || "system-default",
-        uptime: language === "id-ID" ? "Terhubung" : "Connected",
+        location: linkUnitName,
+        uptime: "Just Linked",
         lastSeen: new Date().toISOString()
       };
 
@@ -362,16 +384,18 @@ export default function ScreensManagement() {
         setIsLinking(false);
         setIsLinkDialogOpen(false);
         setPairingCode("");
+        setGeneratedPairCode("");
         setLinkUnitName("");
         toast({ 
           title: language === "id-ID" ? "Perangkat Terhubung" : "Hardware Linked", 
           description: language === "id-ID" ? `Perangkat ${deviceId} sekarang online.` : `Device ${deviceId} is now online.` 
         });
-      }, 1000);
+      }, 800);
     } catch (error) {
+      console.error(error);
       toast({ 
         title: language === "id-ID" ? "Penautan Gagal" : "Linking Failed", 
-        description: language === "id-ID" ? "Handshake hardware gagal. Periksa koneksi Anda." : "Hardware handshake failed. Check your connection.", 
+        description: language === "id-ID" ? "Gagal menghubungi database. Periksa koneksi." : "Failed to contact database. Check your connection.", 
         variant: "destructive" 
       });
       setIsLinking(false);
@@ -822,8 +846,8 @@ export default function ScreensManagement() {
                 <DialogTitle className="text-3xl font-black tracking-tighter mb-1">{language === "id-ID" ? "PENAUTAN PERANGKAT" : "DEVICE PROVISIONING"}</DialogTitle>
                 <DialogDescription className="text-white/70 font-medium">
                   {language === "id-ID" 
-                    ? "Sinkronkan hardware baru ke dalam ekosistem ScreenSense." 
-                    : "Synchronize new hardware into the ScreenSense ecosystem."}
+                    ? "Sinkronkan hardware baru ke dalam ekosistem FMIPA e-Board." 
+                    : "Synchronize new hardware into the FMIPA e-Board ecosystem."}
                 </DialogDescription>
              </DialogHeader>
           </div>

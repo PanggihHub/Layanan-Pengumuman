@@ -405,7 +405,7 @@ export default function WorshipSchedules() {
               <Input
                 value={newTickerMsg}
                 onChange={e => setNewTickerMsg(e.target.value)}
-                placeholder="e.g. Selamat datang di ScreenSense! Ibadah Jumat pukul 12:00."
+                placeholder="e.g. Selamat datang di FMIPA e-Board! Ibadah Jumat pukul 12:00."
                 className="h-11 rounded-xl"
                 disabled={isSavingTicker}
               />

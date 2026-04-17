@@ -27,6 +27,10 @@ import {
   ShieldCheck,
   Wifi,
   Info,
+  Presentation,
+  Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -56,6 +60,9 @@ export default function SystemConfig() {
   const [heartbeat, setHeartbeat]       = useState("60");
   const [sessionTimeout, setSessionTimeout] = useState("30");
   const [autoUpdate, setAutoUpdate]     = useState(true);
+  const [demoCode, setDemoCode]         = useState("SCREENSENSE-DEMO");
+  const [showDemoCode, setShowDemoCode] = useState(false);
+  const [demoCopied, setDemoCopied]     = useState(false);
 
   // Display Controls (Master Defaults) — layout preview only, no timezone/temp here
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(SCREEN_SETTINGS.displayLayout);
@@ -76,6 +83,7 @@ export default function SystemConfig() {
         setHeartbeat(d.heartbeat?.toString() || "60");
         setSessionTimeout(d.sessionTimeout?.toString() || "30");
         setAutoUpdate(d.autoUpdate ?? true);
+        setDemoCode(d.demoCode || "SCREENSENSE-DEMO");
         // NOTE: timezone & tempUnit are now managed exclusively in Localization
       }
     });
@@ -94,6 +102,7 @@ export default function SystemConfig() {
         heartbeat: parseInt(heartbeat) || 60,
         sessionTimeout: parseInt(sessionTimeout) || 30,
         autoUpdate,
+        demoCode: demoCode.trim().toUpperCase() || "SCREENSENSE-DEMO",
         // timezone & tempUnit intentionally omitted — owned by Localization
       }, { merge: true }),
       updatePolicy(localPolicy),
@@ -384,6 +393,85 @@ export default function SystemConfig() {
               </div>
             </div>
 
+          </CardContent>
+        </Card>
+
+        {/* ── Demo Mode ───────────────────────────────────────────────────── */}
+        <Card className="border-amber-200 dark:border-amber-800/40 shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className="bg-amber-50 dark:bg-amber-950/30">
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <Presentation className="w-5 h-5 text-amber-600" />
+              Demo Mode
+              <Badge className="ml-2 text-[8px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border-amber-300 px-2 py-0.5">
+                BYPASS PAIRING
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Share the Demo Code with presenters so they can show the display client without going
+              through the full pairing flow. Navigate to{" "}
+              <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]">/display?demo=YOUR_CODE</code>{" "}
+              to activate.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-6">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Presentation className="w-4 h-4 text-amber-600" /> Demo Access Code
+              </Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showDemoCode ? "text" : "password"}
+                    value={demoCode}
+                    onChange={e => setDemoCode(e.target.value.toUpperCase())}
+                    className="font-mono text-sm rounded-xl pr-10 uppercase"
+                    placeholder="SCREENSENSE-DEMO"
+                    maxLength={32}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDemoCode(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {showDemoCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-xl shrink-0"
+                  onClick={() => {
+                    const demoUrl = `${window.location.origin}/display?demo=${demoCode}`;
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(demoUrl);
+                      setDemoCopied(true);
+                      setTimeout(() => setDemoCopied(false), 2000);
+                    } else {
+                      toast({
+                        title: "Copy Failed",
+                        description: "Your browser does not support automatic copying in this environment (likely due to insecure connection).",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  title="Copy demo URL to clipboard"
+                >
+                  {demoCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Code is case-insensitive. Changes take effect after <strong>Save &amp; Apply</strong>.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 rounded-xl text-[11px] text-amber-700 dark:text-amber-400">
+              <Info className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+              <span>
+                Demo Mode shows the full display screen using the <strong>current active playlist</strong>.
+                The screen is <strong>not registered</strong> as a paired device and does not appear in Fleet Management.
+                Ideal for demos, stakeholder reviews, and exhibition kiosks.
+              </span>
+            </div>
           </CardContent>
         </Card>
 

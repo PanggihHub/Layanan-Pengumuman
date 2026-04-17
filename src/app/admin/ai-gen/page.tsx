@@ -44,8 +44,16 @@ export default function AIGenerator() {
 
   const copyToClipboard = () => {
     if (result) {
-      navigator.clipboard.writeText(result.content);
-      toast({ title: "Copied!", description: "Content copied to clipboard." });
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        navigator.clipboard.writeText(result.content);
+        toast({ title: "Copied!", description: "Content copied to clipboard." });
+      } else {
+        toast({ 
+          title: "Copy Failed", 
+          description: "Browser prevented automatic copying. Please select and copy text manually.", 
+          variant: "destructive" 
+        });
+      }
     }
   };
 

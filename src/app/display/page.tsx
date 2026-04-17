@@ -49,9 +49,13 @@ const extractYouTubeId = (url: string) => {
 
 // Unified Temperature formatter moved into component to access state
 
+// Hardcoded fallback demo code (overridden by Firestore settings/global.demoCode)
+const FALLBACK_DEMO_CODE = "SCREENSENSE-DEMO";
+
 export default function DisplayClient() {
   const [deviceId] = useState(() => getDeviceId());
   const [isPaired, setIsPaired] = useState<boolean | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>([]);
   const [tickerFallback, setTickerFallback] = useState("");
@@ -61,6 +65,7 @@ export default function DisplayClient() {
   const [isLocked, setIsLocked] = useState(false);
   const [inputCode, setInputCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
   const [showBackButton, setShowBackButton] = useState(true);
 
   const { policy, resolveQuality } = useQuality();
@@ -94,6 +99,37 @@ export default function DisplayClient() {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const [isOffline, setIsOffline] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayContent, setOverlayContent] = useState({ title: "", description: "", icon: "info" });
+
+  // ── Demo Mode Check ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const demoParam = params.get("demo");
+    if (!demoParam) return;
+
+    // Check against Firestore-configured code, fall back to hardcoded constant
+    getDoc(doc(db, "settings", "global")).then((snap) => {
+      const configuredCode: string = snap.exists()
+        ? (snap.data()?.demoCode || FALLBACK_DEMO_CODE)
+        : FALLBACK_DEMO_CODE;
+
+      if (demoParam.trim().toUpperCase() === configuredCode.trim().toUpperCase()) {
+        setIsDemoMode(true);
+        setIsPaired(true);      // bypass pairing gate
+        setLocationName("Demo Mode");
+      }
+    }).catch(() => {
+      // If Firestore is unreachable, still allow hardcoded fallback
+      if (demoParam.trim().toUpperCase() === FALLBACK_DEMO_CODE) {
+        setIsDemoMode(true);
+        setIsPaired(true);
+        setLocationName("Demo Mode");
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Offline status detection
@@ -167,28 +203,38 @@ export default function DisplayClient() {
     updateNow();
     const minuteTick = setInterval(updateNow, 60_000);
 
-    // Pairing & Authorization System
+    // Pairing & Authorization System (skipped if demo mode already activated)
     const unsubScreen = onSnapshot(doc(db, "screens", deviceId), async (snap) => {
-      if (snap.exists()) {
-        setIsPaired(true);
-        setPairingCode(null);
-        const data = snap.data();
-        if (data?.location) setLocationName(data.location);
-      } else {
-        setIsPaired(false);
-        setPairingCode((prev) => {
-          if (!prev) {
-            const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-            setDoc(doc(db, "pairingCodes", deviceId), {
-              deviceId,
-              code: newCode,
-              timestamp: serverTimestamp()
-            }).catch(console.error);
-            return newCode;
-          }
-          return prev;
-        });
-      }
+      // If demo mode was already activated via URL param, don't override isPaired
+      setIsDemoMode((dm) => {
+        if (dm) return dm; // already in demo, ignore screen doc changes
+        if (snap.exists()) {
+          setIsPaired(true);
+          setPairingCode(null);
+          const data = snap.data();
+          if (data?.location) setLocationName(data.location);
+        } else {
+          setIsPaired(false);
+          setPairingCode((prev) => {
+            if (!prev) {
+              const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+              const now = new Date();
+              setDoc(doc(db, "pairingCodes", deviceId), {
+                deviceId,
+                code: newCode,
+                // Store timestamp TWO ways: Firestore Timestamp (for ordering)
+                // and ISO string (for admin cleanup queries)
+                timestamp: serverTimestamp(),
+                createdAt: now.toISOString(),
+                expiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString(), // 15 min TTL
+              }).catch(console.error);
+              return newCode;
+            }
+            return prev;
+          });
+        }
+        return dm;
+      });
     });
 
     // Heartbeat System
@@ -219,8 +265,9 @@ export default function DisplayClient() {
   }, []);
 
   const handleVerifyCode = async () => {
-    if (inputCode.length !== 6) return;
+    if (inputCode.length < 4) return;
     setIsVerifying(true);
+    setPairError(null);
 
     try {
       const pairId = `PAUSE-${inputCode}`;
@@ -229,25 +276,23 @@ export default function DisplayClient() {
       if (pairDoc.exists()) {
         const data = pairDoc.data();
         if (data) {
-          // Create full screen record
           await setDoc(doc(db, "screens", deviceId), {
             id: deviceId,
             name: data.name ?? "Display",
             playlistId: data.playlistId ?? "",
             status: "Waiting",
-            location: "Manual Link",
+            location: data.location ?? "Manual Link",
             uptime: "0h",
             lastSeen: new Date().toISOString()
           });
-
-          // Cleanup the pairing code
           await deleteDoc(doc(db, "adminInitiatedPairing", pairId));
         }
       } else {
-        alert("Invalid or expired pairing code.");
+        setPairError("Invalid or expired pairing code. Please check the code and try again.");
       }
     } catch (err) {
       console.error(err);
+      setPairError("Connection error. Please check your network and try again.");
     } finally {
       setIsVerifying(false);
       setInputCode("");
@@ -282,6 +327,21 @@ export default function DisplayClient() {
       window.removeEventListener('click', handleActivity);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
+  }, []);
+
+  // Demo effect for overlay notification
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOverlayContent({
+        title: "PENGUMUMAN PENTING",
+        description: "Pendaftaran Workshop AI-Powered Education di FMIPA akan segera ditutup. Segera daftarkan diri Anda di website fakultas.",
+        icon: "megaphone"
+      });
+      setShowOverlay(true);
+      // Auto hide after 15 seconds
+      setTimeout(() => setShowOverlay(false), 15000);
+    }, 10000); // show after 10s
+    return () => clearTimeout(timer);
   }, []);
 
   const activePlaylist = playlists.find(p => p.id === activePlaylistId);
@@ -412,47 +472,85 @@ export default function DisplayClient() {
           <span className="text-lg">Exit</span>
         </button>
 
-        <div className="relative z-10 bg-zinc-900/50 backdrop-blur-3xl border border-white/10 p-16 rounded-[2rem] text-center max-w-2xl w-full shadow-2xl">
-          <div className="w-24 h-24 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-8 ring-4 ring-blue-500/20">
-            <QrCode className="w-12 h-12" />
+        <div className="relative z-10 bg-zinc-900/50 backdrop-blur-3xl border border-white/10 p-10 rounded-[2rem] text-center max-w-2xl w-full shadow-2xl">
+          <div className="w-20 h-20 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-blue-500/20">
+            <Monitor className="w-10 h-10" />
           </div>
-          <h1 className="text-4xl font-bold mb-4 tracking-tight">Display Connection</h1>
-          <p className="text-xl text-zinc-400 mb-12">
-            Either input the code from your Admin Dashboard below, or use the code broadcasted by this screen:
+          <h1 className="text-4xl font-bold mb-2 tracking-tight">Device Pairing</h1>
+          <p className="text-sm text-zinc-500 mb-8">
+            Connect this screen to the FMIPA e-Board network using one of the two methods below.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div className="bg-black/40 border border-white/5 rounded-2xl p-8 shadow-inner flex flex-col items-center">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-4 font-black">Broadcast Code</p>
-              <p className="text-5xl font-mono tracking-tighter text-blue-400 font-black">{pairingCode || "......"}</p>
-              <p className="text-[9px] text-zinc-600 mt-4 uppercase font-bold">Waiting for remote pair...</p>
+          {/* ── Method 1: Broadcast code shown to admin ── */}
+          <div className="bg-blue-950/40 border border-blue-500/20 rounded-2xl p-6 mb-5 text-left">
+            <p className="text-[10px] text-blue-400 uppercase tracking-[0.25em] font-black mb-1 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse inline-block" />
+              Method 1 — Admin Pairs This Screen
+            </p>
+            <p className="text-[11px] text-zinc-500 mb-5">
+              Give the admin the code below. They enter it under{" "}
+              <span className="font-bold text-zinc-300">Screens → Link Unit / Pair Device</span>.
+            </p>
+            <div className="flex items-center justify-center gap-2 my-3">
+              {(pairingCode || "------").split("").map((char, i) => (
+                <div key={i} className="w-11 h-14 bg-black/60 border border-blue-500/30 rounded-xl flex items-center justify-center text-3xl font-black font-mono text-blue-400 shadow-inner">
+                  {char}
+                </div>
+              ))}
             </div>
-
-            <div className="bg-zinc-800/40 border border-white/10 rounded-2xl p-8 shadow-inner flex flex-col items-center">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-4 font-black">Enter Admin Code</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={inputCode}
-                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                  className="bg-black/50 border border-white/20 rounded-xl px-4 py-2 w-32 text-center text-2xl font-black font-mono focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="000000"
-                />
-                <button
-                  onClick={handleVerifyCode}
-                  disabled={isVerifying || inputCode.length !== 6}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 rounded-xl transition-all active:scale-95 flex items-center justify-center"
-                >
-                  {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
-                </button>
-              </div>
-              <p className="text-[9px] text-zinc-600 mt-4 uppercase font-bold">Manual connection override</p>
-            </div>
+            <p className="text-[9px] text-zinc-600 text-center uppercase tracking-widest font-bold mt-3">
+              Valid 15 min · Refreshes on page reload
+            </p>
           </div>
 
-          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic opacity-30 mt-4">
-            Device System ID: {deviceId}
+          {/* ── Method 2: Enter admin-generated code ── */}
+          <div className="bg-zinc-800/40 border border-white/10 rounded-2xl p-6 text-left">
+            <p className="text-[10px] text-zinc-400 uppercase tracking-[0.25em] font-black mb-1 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 inline-block" />
+              Method 2 — Enter Admin-Generated Code
+            </p>
+            <p className="text-[11px] text-zinc-500 mb-5">
+              Ask your admin to generate a code from{" "}
+              <span className="font-bold text-zinc-300">Screens → Link Unit</span>, then type it here.
+            </p>
+            <div className="flex gap-3 items-center">
+              <input
+                type="text"
+                maxLength={8}
+                value={inputCode}
+                onChange={(e) => {
+                  setInputCode(e.target.value.replace(/[^0-9A-Za-z]/g, "").toUpperCase());
+                  setPairError(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && inputCode.length >= 4 && !isVerifying && handleVerifyCode()}
+                className={cn(
+                  "flex-1 bg-black/50 border rounded-xl px-5 py-3 text-center text-2xl font-black font-mono focus:outline-none transition-colors tracking-[0.2em]",
+                  pairError
+                    ? "border-red-500/60 text-red-400 focus:border-red-400"
+                    : "border-white/20 text-white focus:border-blue-500"
+                )}
+                placeholder="000000"
+                autoComplete="off"
+              />
+              <button
+                onClick={handleVerifyCode}
+                disabled={isVerifying || inputCode.length < 4}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed px-5 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              >
+                {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
+              </button>
+            </div>
+
+            {pairError && (
+              <div className="mt-4 flex items-start gap-2.5 bg-red-950/50 border border-red-500/30 rounded-xl p-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <Info className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-300 font-medium leading-snug text-left">{pairError}</p>
+              </div>
+            )}
+          </div>
+
+          <p className="text-zinc-700 text-[9px] font-mono uppercase tracking-widest mt-6">
+            Device ID: {deviceId}
           </p>
         </div>
       </div>
@@ -627,6 +725,58 @@ export default function DisplayClient() {
   return (
     <div className="w-screen h-screen bg-black overflow-hidden relative font-sans text-white">
 
+      {/* Demo Mode Badge */}
+      {isDemoMode && (
+        <div className="absolute top-4 right-4 z-[200] flex items-center gap-2 bg-amber-500/90 backdrop-blur-md text-black px-4 py-2 rounded-full shadow-2xl border border-amber-400/60 animate-in slide-in-from-top-4 duration-700">
+          <Monitor className="w-4 h-4" />
+          <span className="text-[11px] font-black uppercase tracking-[0.15em]">Demo Mode</span>
+        </div>
+      )}
+
+      {/* Overlay Notification System */}
+      {showOverlay && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
+          <div className="w-[60vw] h-[40vh] bg-zinc-950 border-2 border-blue-500/30 rounded-[3rem] shadow-[0_0_100px_rgba(38,110,184,0.3)] flex flex-col relative overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-700">
+            {/* Glossy accent */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 blur-[80px] rounded-full" />
+            
+            <div className="flex-1 p-[4vw] flex items-center gap-[4vw]">
+              <div className="w-[12vw] h-[12vw] bg-blue-600/10 rounded-full flex items-center justify-center shrink-0 border-2 border-blue-500/20 shadow-inner">
+                {overlayContent.icon === 'megaphone' ? (
+                  <Megaphone className="w-[6vw] h-[6vw] text-blue-400" />
+                ) : (
+                  <Info className="w-[6vw] h-[6vw] text-blue-400" />
+                )}
+              </div>
+              <div className="space-y-[2vh]">
+                <h3 className="text-[3.5vw] font-black text-white tracking-tighter uppercase leading-none">
+                  {overlayContent.title}
+                </h3>
+                <div className="h-2 w-24 bg-blue-500 rounded-full" />
+                <p className="text-[1.8vw] font-medium text-white/70 leading-relaxed max-w-[35vw]">
+                  {overlayContent.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="h-4 bg-zinc-900/50 flex items-center justify-start overflow-hidden">
+               <div className="h-full bg-blue-500 animate-progress-shrink" style={{ width: '100%' }} />
+            </div>
+            
+            <style jsx>{`
+              @keyframes progress-shrink {
+                from { width: 100%; }
+                to { width: 0%; }
+              }
+              .animate-progress-shrink {
+                animation: progress-shrink 15s linear forwards;
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
+
       {/* Offline Banner Indicator */}
       {isOffline && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[100] bg-orange-500/90 backdrop-blur text-white px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-top-4 duration-500">
@@ -660,8 +810,71 @@ export default function DisplayClient() {
               "flex-1 relative rounded-3xl overflow-hidden border-2 border-white/10 shadow-2xl bg-black/50 backdrop-blur-sm",
               layout === 'grid-2x2' ? 'grid grid-cols-2 grid-rows-2 gap-1 p-1' :
               layout === 'split-v' ? 'grid grid-cols-2 gap-1 p-1' :
-                layout === 'split-h' ? 'grid grid-rows-2 gap-1 p-1' : 'block'
+              layout === 'split-h' ? 'grid grid-rows-2 gap-1 p-1' : 
+              layout === 'dashboard-split' ? 'flex flex-row p-0 gap-0 border-none' : 'block'
             )}>
+
+            {/* DASHBOARD SPLIT LAYOUT (60/40) */}
+            {layout === 'dashboard-split' && (
+              <>
+                {/* Left Side (60%) - Main Announcements */}
+                <div className="w-[60%] h-full relative overflow-hidden bg-zinc-950 border-r-2 border-white/5">
+                  <div className="absolute inset-0 animate-in fade-in zoom-in-95 duration-1000">
+                    {renderMediaContent("w-full h-full")}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                    
+                    {/* Adaptive Typography Content */}
+                    <div className="absolute bottom-[4vh] left-[3vw] right-[3vw] space-y-[2vh]">
+                      <div className="inline-flex items-center gap-[0.8vw] bg-blue-600 px-[1.2vw] py-[0.5vw] rounded-full">
+                        <Megaphone className="w-[1.5vw] h-[1.5vw] text-white" />
+                        <span className="text-[1.2vw] font-black uppercase tracking-[0.2em]">{currentMedia?.category || "PENGUMUMAN"}</span>
+                      </div>
+                      <h2 className="text-[5vw] font-black tracking-tight leading-[1.1] text-white grow drop-shadow-2xl">
+                        {currentMedia?.name}
+                      </h2>
+                      {currentMedia?.description && (
+                        <p className="text-[2vw] font-medium text-white/70 leading-relaxed line-clamp-2">
+                          {currentMedia.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side (40%) - Static Info Panel */}
+                <div className="w-[40%] h-full flex flex-col bg-zinc-900 overflow-hidden">
+                  {/* Digital Clock Section */}
+                  <div className="flex-1 flex flex-col items-center justify-center p-[4vw] bg-gradient-to-b from-blue-900/20 to-transparent">
+                    <div className="text-center space-y-[0.5vh]">
+                      <h3 className="text-[8vw] font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                        {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\./g, ':')}
+                      </h3>
+                      <p className="text-[2.2vw] font-black text-blue-400 uppercase tracking-[0.3em]">
+                        {currentTime.toLocaleDateString('id-ID', { weekday: 'long' })}
+                      </p>
+                      <p className="text-[1.8vw] font-bold text-white/40 uppercase tracking-widest">
+                        {currentTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Notifications List Section */}
+                  <div className="h-[45vh] bg-black/40 backdrop-blur-3xl p-[3vw] border-t-2 border-white/5 space-y-[3vh]">
+                    <h4 className="text-[1.2vw] font-black text-white/30 uppercase tracking-[0.4em] mb-[2vh]">NOTIFIKASI TERKINI</h4>
+                    <div className="space-y-[2vh]">
+                      <div className="bg-white/5 border-l-4 border-blue-500 p-[2vw] rounded-r-2xl transform hover:scale-[1.02] transition-transform duration-300">
+                        <p className="text-[1.4vw] font-black text-white leading-tight">Ujian Tengah Semester Ganjil</p>
+                        <p className="text-[1.1vw] text-white/50 mt-[0.5vh]">Sesuai jadwal di kalender akademik.</p>
+                      </div>
+                      <div className="bg-white/5 border-l-4 border-emerald-500 p-[2vw] rounded-r-2xl transform hover:scale-[1.02] transition-transform duration-300">
+                        <p className="text-[1.4vw] font-black text-white leading-tight">Pendaftaran Beasiswa Unggulan</p>
+                        <p className="text-[1.1vw] text-white/50 mt-[0.5vh]">Batas akhir pengumpulan berkas 20 April.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* SINGLE LAYOUT */}
             {layout === 'single' && (

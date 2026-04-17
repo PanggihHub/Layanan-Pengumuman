@@ -82,7 +82,7 @@ export default function Home() {
       <header className="px-6 py-4 flex items-center justify-between border-b bg-white">
         <div className="flex items-center gap-2">
           <Monitor className="text-primary h-8 w-8" />
-          <h1 className="text-2xl font-bold text-primary">ScreenSense</h1>
+          <h1 className="text-2xl font-bold text-primary">FMIPA e-Board</h1>
         </div>
         <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest hidden sm:block">
           Digital Signage Orchestration
@@ -105,7 +105,7 @@ export default function Home() {
             Next-Gen Intelligence for Your <span className="text-accent">Digital Displays</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            ScreenSense transforms static screens into interactive learning hubs. Manage content, automate playlists, and ensure seamless communication across your entire campus network.
+            FMIPA e-Board transforms static screens into interactive learning hubs. Manage content, automate playlists, and ensure seamless communication across your entire campus network.
           </p>
           <div className="flex flex-row items-center justify-center md:justify-start gap-4 flex-wrap">
             <Link href="/admin">
@@ -166,7 +166,7 @@ export default function Home() {
           <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
             <Image
               src={heroImg?.imageUrl || 'https://picsum.photos/seed/screensense1/1920/1080'}
-              alt="ScreenSense Dashboard Preview"
+              alt="FMIPA e-Board Dashboard Preview"
               fill
               className="object-cover"
               data-ai-hint="digital signage"
@@ -185,7 +185,7 @@ export default function Home() {
           Created by : RP support by Firebase Studio
         </p>
         <p className="text-[10px] text-muted-foreground/40 mt-2">
-          &copy; {new Date().getFullYear()} ScreenSense Systems. Built for clarity and intelligence.
+          &copy; {new Date().getFullYear()} FMIPA e-Board. Built for clarity and intelligence.
         </p>
       </footer>
     </div>
