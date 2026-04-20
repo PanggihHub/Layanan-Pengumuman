@@ -125,7 +125,7 @@ export default function AdminOverview() {
       .map(([id, count]) => ({
         id,
         count,
-        name: mediaItems.find(m => m.id === id)?.name || "Unknown Asset",
+        name: mediaItems.find(m => m.id === id)?.name || t("dash.unknownAsset"),
         type: mediaItems.find(m => m.id === id)?.type || "image",
       }))
       .sort((a, b) => b.count - a.count)
@@ -154,8 +154,8 @@ export default function AdminOverview() {
     setTimeout(() => {
       setIsSyncing(false);
       toast({ 
-        title: language === "id-ID" ? "Sinkronisasi Selesai" : "Fleet Sync Complete", 
-        description: language === "id-ID" ? `Mensinkronkan ${stats.onlineScreens} layar.` : `Synchronized ${stats.onlineScreens} screens.` 
+        title: t("dash.syncComplete"), 
+        description: t("dash.syncCompleteDesc", { count: stats.onlineScreens })
       });
     }, 2000);
   };
@@ -165,8 +165,8 @@ export default function AdminOverview() {
     setTimeout(() => {
       setIsRefreshingLogs(false);
       toast({ 
-        title: language === "id-ID" ? "Log Diperbarui" : "Logs Updated", 
-        description: language === "id-ID" ? "Umpan aktivitas diperbarui." : "Activity feed refreshed." 
+        title: t("dash.logsUpdated"), 
+        description: t("dash.logsUpdatedDesc") 
       });
     }, 1000);
   };
@@ -174,8 +174,8 @@ export default function AdminOverview() {
   const handleExport = () => {
     setIsExporting(true);
     toast({ 
-      title: language === "id-ID" ? "Menghasilkan Laporan" : "Generating System Report", 
-      description: language === "id-ID" ? "Menyusun telemetri dan riwayat audit..." : "Compiling telemetry and audit history..." 
+      title: t("dash.generatingReport"), 
+      description: t("dash.generatingReportDesc") 
     });
     
     setTimeout(() => {
@@ -201,8 +201,8 @@ export default function AdminOverview() {
       }
       setIsExporting(false);
       toast({ 
-        title: language === "id-ID" ? "Ekspor Siap" : "Export Ready", 
-        description: language === "id-ID" ? "Laporan telemetri (CSV & JSON) telah diunduh." : "Telemetry reports (CSV & JSON) downloaded." 
+        title: t("dash.exportReady"), 
+        description: t("dash.exportReadyDesc") 
       });
     }, 1000);
   };
@@ -330,7 +330,7 @@ export default function AdminOverview() {
                 <div className="h-full mt-4 space-y-6">
                   <div>
                     <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground mb-4">
-                      {language === "id-ID" ? "Aktivitas 30 Hari Terakhir" : "Last 30 Days Activity"}
+                      {t("dash.last30Days")}
                     </h3>
                     <div className="grid grid-cols-10 gap-1.5">
                       {heatmapData.map((d) => {
@@ -448,7 +448,7 @@ export default function AdminOverview() {
               <tbody>
                 {screens.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground italic text-xs">No devices provisioned in the cloud yet.</td>
+                    <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground italic text-xs">{t("dash.noDevices")}</td>
                   </tr>
                 )}
                 {screens.map((screen) => {
@@ -505,9 +505,9 @@ export default function AdminOverview() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HistoryIcon className="w-5 h-5 text-accent" />
-              Full System Audit Log
+              {t("dash.auditTitle")}
             </DialogTitle>
-            <DialogDescription>A detailed chronological record of all administrative and system events.</DialogDescription>
+            <DialogDescription>{t("dash.auditDesc")}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[450px] mt-4 pr-4 border rounded-xl bg-muted/20 p-4">
             <div className="space-y-3">
@@ -558,8 +558,8 @@ export default function AdminOverview() {
       <Dialog open={!!monitorScreen} onOpenChange={() => setMonitorScreen(null)}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-black border-none shadow-2xl">
           <DialogHeader className="sr-only">
-            <DialogTitle>Monitor Screen: {monitorScreen?.name}</DialogTitle>
-            <DialogDescription>Surveillance view for active signage node.</DialogDescription>
+            <DialogTitle>{t("dash.surveillanceDesc")}: {monitorScreen?.name}</DialogTitle>
+            <DialogDescription>{t("dash.surveillanceDesc")}</DialogDescription>
           </DialogHeader>
           <div className="relative aspect-video flex flex-col items-center justify-center">
             {(() => {

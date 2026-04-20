@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ChevronUp,
   Shield,
-  History
+  History,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
@@ -46,6 +47,7 @@ const menuItems: { icon: any, labelKey: TranslationKey, href: string }[] = [
   { icon: Film, labelKey: "nav.media", href: "/admin/media" },
   { icon: ListMusic, labelKey: "nav.playlists", href: "/admin/playlists" },
   { icon: Monitor, labelKey: "nav.screens", href: "/admin/screens" },
+  { icon: Megaphone, labelKey: "nav.popup", href: "/admin/popup" },
   { icon: Heart, labelKey: "nav.worship", href: "/admin/worship" },
 ];
 

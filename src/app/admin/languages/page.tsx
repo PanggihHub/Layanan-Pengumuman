@@ -292,17 +292,24 @@ export default function LocalizationSettings() {
                       <SelectValue placeholder={t("loc.sysLang")} />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl">
-                      <SelectItem value="en-US">English (United States)</SelectItem>
-                      <SelectItem value="en-AU">English (Australia)</SelectItem>
-                      <SelectItem value="en-GB">English (United Kingdom)</SelectItem>
-                      <SelectItem value="en-SG">English (Singapore)</SelectItem>
-                      <SelectItem value="id-ID">Bahasa Indonesia</SelectItem>
-                      <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                      <SelectItem value="es-MX">Español (México)</SelectItem>
-                      <SelectItem value="fi-FI">Suomi (Finland)</SelectItem>
-                      <SelectItem value="tr-TR">Türkçe (Turkey)</SelectItem>
-                      <SelectItem value="th-TH">ไทย (Thai)</SelectItem>
-                      <SelectItem value="ms-MY">Bahasa Melayu (Malaysia)</SelectItem>
+                      <SelectItem value="en-US">🇺🇸 English (United States)</SelectItem>
+                      <SelectItem value="en-AU">🇦🇺 English (Australia)</SelectItem>
+                      <SelectItem value="en-GB">🇬🇧 English (United Kingdom)</SelectItem>
+                      <SelectItem value="en-SG">🇸🇬 English (Singapore)</SelectItem>
+                      <SelectItem value="id-ID">🇮🇩 Bahasa Indonesia</SelectItem>
+                      <SelectItem value="zh-CN">🇨🇳 中文 (简体中文)</SelectItem>
+                      <SelectItem value="ja-JP">🇯🇵 日本語 (Japanese)</SelectItem>
+                      <SelectItem value="de-DE">🇩🇪 Deutsch (German)</SelectItem>
+                      <SelectItem value="ar-SA">🇸🇦 العربية (Arabic)</SelectItem>
+                      <SelectItem value="vi-VN">🇻🇳 Tiếng Việt (Vietnamese)</SelectItem>
+                      <SelectItem value="km-KH">🇰🇭 ភាសាខ្មែរ (Khmer)</SelectItem>
+                      <SelectItem value="tl-PH">🇵🇭 Tagalog (Philippines)</SelectItem>
+                      <SelectItem value="pt-BR">🇧🇷 Português (Brasil)</SelectItem>
+                      <SelectItem value="es-MX">🇲🇽 Español (México)</SelectItem>
+                      <SelectItem value="fi-FI">🇫🇮 Suomi (Finland)</SelectItem>
+                      <SelectItem value="tr-TR">🇹🇷 Türkçe (Turkey)</SelectItem>
+                      <SelectItem value="th-TH">🇹🇭 ไทย (Thai)</SelectItem>
+                      <SelectItem value="ms-MY">🇲🇾 Bahasa Melayu (Malaysia)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

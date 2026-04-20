@@ -69,7 +69,7 @@ import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 
 const extractYouTubeId = (url: string) => {
   if (!url) return null;
@@ -201,7 +201,12 @@ export default function ScreensManagement() {
   const handleSaveGlobalSettings = async () => {
     setIsSyncing(true);
     try {
-      await setDoc(doc(db, "settings", "global"), { tickerMessage: ticker, activePlaylistId, timezone }, { merge: true });
+      await setDoc(doc(db, "settings", "global"), { 
+        tickerMessage: ticker, 
+        activePlaylistId, 
+        timezone,
+        lastFleetSync: serverTimestamp()
+      }, { merge: true });
       setScanTime(new Date().toLocaleTimeString());
       toast({
         title: language === "id-ID" ? "Publikasi Global Berhasil" : "Global Publish Successful",

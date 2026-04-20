@@ -18,7 +18,8 @@ import {
   ArrowLeft,
   Monitor,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,8 @@ import { useQuality } from "@/context/QualityContext";
 import { AdaptiveVideoPlayer } from "@/components/ui/adaptive-video-player";
 import { SmartTicker } from "@/components/ui/smart-ticker";
 import { sortSchedulesByNextPrayer, getTimeUntil } from "@/lib/worship-importer";
+import { useLanguage } from "@/context/LanguageContext";
+import { Language, translations } from "@/lib/translations";
 
 // Helper to get or create device ID
 const getDeviceId = () => {
@@ -100,7 +103,19 @@ export default function DisplayClient() {
 
   const [isOffline, setIsOffline] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [overlayContent, setOverlayContent] = useState({ title: "", description: "", icon: "info" });
+  const [popupConfig, setPopupConfig] = useState({
+    enabled: false,
+    title: "",
+    message: "",
+    icon: "megaphone",
+    duration: 15,
+    style: "blue",
+    updatedAt: null as any
+  });
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
+  const [emergencyAlert, setEmergencyAlert] = useState<any>(null);
+
+  const { t, setLanguage, language: currentLang } = useLanguage();
 
   // ── Demo Mode Check ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -111,14 +126,20 @@ export default function DisplayClient() {
 
     // Check against Firestore-configured code, fall back to hardcoded constant
     getDoc(doc(db, "settings", "global")).then((snap) => {
+      const data = snap.data();
       const configuredCode: string = snap.exists()
-        ? (snap.data()?.demoCode || FALLBACK_DEMO_CODE)
+        ? (data?.demoCode || FALLBACK_DEMO_CODE)
         : FALLBACK_DEMO_CODE;
 
       if (demoParam.trim().toUpperCase() === configuredCode.trim().toUpperCase()) {
         setIsDemoMode(true);
         setIsPaired(true);      // bypass pairing gate
         setLocationName("Demo Mode");
+        
+        // Also sync language for demo mode
+        if (data?.language) {
+          setLanguage(data.language as Language);
+        }
       }
     }).catch(() => {
       // If Firestore is unreachable, still allow hardcoded fallback
@@ -176,6 +197,33 @@ export default function DisplayClient() {
 
         if (data.temperatureUnit) setTemperatureUnit(data.temperatureUnit);
         if (data.timeFormat) setTimeFormat(data.timeFormat);
+        if (data.language) {
+           setLanguage(data.language as Language);
+        }
+
+        // Fleet Sync - Reload trigger
+        if (data.lastFleetSync) {
+          const syncTime = data.lastFleetSync?.toMillis?.() || (data.lastFleetSync?.seconds * 1000);
+          if (lastSyncTime !== null && syncTime > lastSyncTime) {
+            console.log("Fleet sync triggered. Reloading...");
+            window.location.reload();
+          }
+          setLastSyncTime(syncTime);
+        }
+      }
+    });
+
+    const unsubPopup = onSnapshot(doc(db, "settings", "popup"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setPopupConfig(data);
+        setShowOverlay(data.enabled);
+        
+        // If there's a duration (non-zero), handle auto-hide
+        // Note: In a real-world multi-display setup, we'd might want to 
+        // handle 'lastBroadcastAt' to ensure the timer starts fresh.
+      } else {
+        setShowOverlay(false);
       }
     });
 
@@ -186,6 +234,14 @@ export default function DisplayClient() {
         setTickerMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as TickerMessage)));
       }
     );
+
+    const unsubEmergency = onSnapshot(doc(db, "settings", "emergency"), (snap) => {
+      if (snap.exists()) {
+        setEmergencyAlert(snap.data());
+      } else {
+        setEmergencyAlert(null);
+      }
+    });
 
     const unsubWorship = onSnapshot(collection(db, "worship"), (snap) => {
       const items: WorshipSchedule[] = snap.docs
@@ -258,6 +314,8 @@ export default function DisplayClient() {
       unsubSettings();
       unsubWorship();
       unsubTicker();
+      unsubPopup();
+      unsubEmergency();
       unsubScreen();
       clearInterval(heartbeat);
       clearInterval(minuteTick);
@@ -329,21 +387,6 @@ export default function DisplayClient() {
     };
   }, []);
 
-  // Demo effect for overlay notification
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setOverlayContent({
-        title: "PENGUMUMAN PENTING",
-        description: "Pendaftaran Workshop AI-Powered Education di FMIPA akan segera ditutup. Segera daftarkan diri Anda di website fakultas.",
-        icon: "megaphone"
-      });
-      setShowOverlay(true);
-      // Auto hide after 15 seconds
-      setTimeout(() => setShowOverlay(false), 15000);
-    }, 10000); // show after 10s
-    return () => clearTimeout(timer);
-  }, []);
-
   const activePlaylist = playlists.find(p => p.id === activePlaylistId);
   const loopItems = useMemo(() => {
     if (!activePlaylist) return [];
@@ -392,6 +435,16 @@ export default function DisplayClient() {
     return () => clearInterval(timeInterval);
   }, []);
 
+  // Popup Auto-hide logic
+  useEffect(() => {
+    if (showOverlay && popupConfig.duration > 0) {
+      const timer = setTimeout(() => {
+        setShowOverlay(false);
+      }, popupConfig.duration * 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [showOverlay, popupConfig.duration, popupConfig.updatedAt]);
+
   useEffect(() => {
     if (loopItems.length <= 1) return;
 
@@ -438,15 +491,15 @@ export default function DisplayClient() {
     }
 
     // Priority 2: Real-time code calculation
-    if (code === null) return "Loading...";
-    if (code === 0) return "Cerah (Sunny)";
-    if (code >= 1 && code <= 3) return "Berawan (Cloudy)";
-    if (code >= 45 && code <= 48) return "Berkabut (Foggy)";
-    if (code >= 51 && code <= 67) return "Hujan (Rainy)";
-    if (code >= 71 && code <= 77) return "Salju (Snow)";
-    if (code >= 80 && code <= 82) return "Hujan Deras (Heavy Rain)";
-    if (code >= 95) return "Badai Petir (Thunderstorm)";
-    return "Unknown";
+    if (code === null) return t("loc.weatherWait");
+    if (code === 0) return t("loc.weatherSunny");
+    if (code >= 1 && code <= 3) return t("loc.weatherCloudy");
+    if (code >= 45 && code <= 48) return t("loc.weatherFoggy");
+    if (code >= 51 && code <= 67) return t("loc.weatherRainy");
+    if (code >= 71 && code <= 77) return t("loc.weatherSnowy");
+    if (code >= 80 && code <= 82) return t("loc.weatherHeavyRain");
+    if (code >= 95) return t("loc.weatherStormy");
+    return t("loc.weatherUnknown");
   };
 
   if (isPaired === null) {
@@ -553,6 +606,37 @@ export default function DisplayClient() {
             Device ID: {deviceId}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (emergencyAlert?.activeAlertId) {
+    const { protocol } = emergencyAlert;
+    return (
+      <div className={cn(
+        "w-screen h-screen flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-700 relative overflow-hidden",
+        protocol?.color || 'bg-red-600'
+      )}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.4)_100%)]" />
+        <div className="relative z-10 flex flex-col items-center max-w-5xl">
+          <AlertTriangle className="w-40 h-40 text-white mb-10 animate-bounce drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]" />
+          <h1 className="text-8xl font-black text-white tracking-tighter uppercase drop-shadow-2xl leading-none mb-10">
+            {protocol?.label || "Emergency"}
+          </h1>
+          <div className="h-2 w-48 bg-white/40 rounded-full mb-10" />
+          <p className="text-4xl font-bold text-white uppercase tracking-tight leading-tight drop-shadow-xl">
+            {protocol?.text}
+          </p>
+
+          <div className="mt-20 flex items-center gap-6 text-sm font-black uppercase tracking-[0.3em] text-white/40">
+            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-white animate-ping" /> EMERGENCY_OVERRIDE</div>
+            <span className="opacity-50">|</span>
+            <div>UNIT_ID: {deviceId}</div>
+          </div>
+        </div>
+
+        {/* Glossy Scanlines */}
+        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%]" />
       </div>
     );
   }
@@ -736,41 +820,50 @@ export default function DisplayClient() {
       {/* Overlay Notification System */}
       {showOverlay && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-          <div className="w-[60vw] h-[40vh] bg-zinc-950 border-2 border-blue-500/30 rounded-[3rem] shadow-[0_0_100px_rgba(38,110,184,0.3)] flex flex-col relative overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-700">
+          <div className={cn(
+            "w-[65vw] h-auto min-h-[45vh] border-[4px] border-white/20 rounded-[4rem] shadow-2xl flex flex-col relative overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-20 duration-1000",
+            popupConfig.style === 'red' ? 'bg-red-700 shadow-[0_0_150px_rgba(220,38,38,0.5)]' :
+            popupConfig.style === 'emerald' ? 'bg-emerald-700 shadow-[0_0_150px_rgba(16,185,129,0.5)]' :
+            popupConfig.style === 'amber' ? 'bg-amber-600 shadow-[0_0_150px_rgba(245,158,11,0.5)]' :
+            popupConfig.style === 'zinc' ? 'bg-zinc-950 shadow-[0_0_150px_rgba(0,0,0,0.8)]' :
+            'bg-blue-700 shadow-[0_0_150px_rgba(29,78,216,0.5)]'
+          )}>
             {/* Glossy accent */}
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 blur-[80px] rounded-full" />
+            <div className="absolute top-0 inset-x-0 h-2 bg-white/20" />
             
-            <div className="flex-1 p-[4vw] flex items-center gap-[4vw]">
-              <div className="w-[12vw] h-[12vw] bg-blue-600/10 rounded-full flex items-center justify-center shrink-0 border-2 border-blue-500/20 shadow-inner">
-                {overlayContent.icon === 'megaphone' ? (
-                  <Megaphone className="w-[6vw] h-[6vw] text-blue-400" />
-                ) : (
-                  <Info className="w-[6vw] h-[6vw] text-blue-400" />
-                )}
+            <div className="flex-1 p-[5vw] flex items-center gap-[5vw]">
+              <div className="w-[15vw] h-[15vw] bg-white/10 rounded-full flex items-center justify-center shrink-0 border-4 border-white/20 shadow-inner">
+                {popupConfig.icon === 'megaphone' && <Megaphone className="w-[8vw] h-[8vw] text-white" />}
+                {popupConfig.icon === 'info' && <Info className="w-[8vw] h-[8vw] text-white" />}
+                {popupConfig.icon === 'alert' && <AlertTriangle className="w-[8vw] h-[8vw] text-white" />}
+                {popupConfig.icon === 'sparkles' && <Sparkles className="w-[8vw] h-[8vw] text-white" />}
               </div>
-              <div className="space-y-[2vh]">
-                <h3 className="text-[3.5vw] font-black text-white tracking-tighter uppercase leading-none">
-                  {overlayContent.title}
+              <div className="space-y-[3vh] flex-1">
+                <h3 className="text-[4vw] font-black text-white tracking-tighter uppercase leading-[0.9] drop-shadow-lg">
+                  {popupConfig.title || "ANNOUNCEMENT"}
                 </h3>
-                <div className="h-2 w-24 bg-blue-500 rounded-full" />
-                <p className="text-[1.8vw] font-medium text-white/70 leading-relaxed max-w-[35vw]">
-                  {overlayContent.description}
+                <div className="h-2 w-32 bg-white/40 rounded-full" />
+                <p className="text-[2.2vw] font-bold text-white/90 leading-[1.3] drop-shadow-lg">
+                  {popupConfig.message}
                 </p>
               </div>
             </div>
 
-            <div className="h-4 bg-zinc-900/50 flex items-center justify-start overflow-hidden">
-               <div className="h-full bg-blue-500 animate-progress-shrink" style={{ width: '100%' }} />
-            </div>
+            {popupConfig.duration > 0 && (
+              <div className="h-4 bg-black/20 flex items-center justify-start overflow-hidden">
+                 <div 
+                   className="h-full bg-white/40" 
+                   style={{ 
+                     animation: `progress-shrink ${popupConfig.duration}s linear forwards` 
+                   }} 
+                 />
+              </div>
+            )}
             
             <style jsx>{`
               @keyframes progress-shrink {
                 from { width: 100%; }
                 to { width: 0%; }
-              }
-              .animate-progress-shrink {
-                animation: progress-shrink 15s linear forwards;
               }
             `}</style>
           </div>
@@ -946,10 +1039,10 @@ export default function DisplayClient() {
 
           {/* Right Sidebar Widgets */}
           {(activePlaylist.showInfoCard || activePlaylist.showWorship || activePlaylist.showQR) && (
-            <div className="w-96 flex flex-col gap-6 shrink-0 max-h-full overflow-y-auto no-scrollbar">
+            <div className="w-[22vw] min-w-[280px] flex flex-col gap-5 max-h-full overflow-y-auto no-scrollbar transition-all duration-500">
 
               {/* Time & Weather */}
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-2xl transition-all duration-700 hover:bg-black/50">
+              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-6 flex flex-col justify-center items-center relative overflow-hidden shadow-2xl transition-all duration-700 hover:bg-black/50">
                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                   <Clock className="w-48 h-48" />
                 </div>
@@ -959,7 +1052,6 @@ export default function DisplayClient() {
                     {currentTime.toLocaleTimeString('id-ID', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h' }).replace(/\./g, ':')}
                   </h2>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-black text-amber-400 animate-pulse tracking-[0.3em] uppercase">Recording</span>
                     <p className="text-white/40 text-[11px] font-bold tracking-[0.2em] uppercase">
                       {currentTime.toLocaleDateString('id-ID', { timeZone: timezone, weekday: 'long', month: 'short', day: 'numeric' })}
                     </p>
@@ -1016,24 +1108,24 @@ export default function DisplayClient() {
                 const until = getTimeUntil(next.time);
                 
                 return (
-                  <div className="bg-emerald-600 text-white rounded-[2rem] p-5 shadow-2xl relative overflow-hidden border border-emerald-500/50">
-                    <div className="flex items-center justify-between mb-3 relative z-10">
-                      <div className="flex items-center gap-2">
-                        <Waves className="w-5 h-5 text-emerald-300" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100/70">Next Event</span>
+                  <div className="bg-emerald-600 text-white rounded-[2rem] p-4 shadow-2xl relative overflow-hidden border border-emerald-500/50">
+                    <div className="flex items-center justify-between mb-2 relative z-10">
+                      <div className="flex items-center gap-1.5">
+                        <Waves className="w-4 h-4 text-emerald-300" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-100/70">{t("scr.activeLoop")}</span>
                       </div>
-                      <span className="text-[9px] font-black bg-white/20 px-2.5 py-1 rounded-full border border-white/20 backdrop-blur-md uppercase tracking-widest text-white">
-                        {until === "Now" ? "LIVE NOW" : until}
+                      <span className="text-[8px] font-black bg-white/20 px-2 py-0.5 rounded-full border border-white/20 backdrop-blur-md uppercase tracking-widest text-white">
+                        {until === "Now" ? t("common.live") : until}
                       </span>
                     </div>
                     
                     <div className="flex items-end justify-between relative z-10">
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-0.5 truncate drop-shadow-md">{next.name}</h3>
-                        <p className="text-[10px] font-bold text-emerald-100/50 uppercase tracking-widest truncate">{next.location || "Main Hall"}</p>
+                        <h3 className="text-xl font-black uppercase tracking-tight text-white mb-0.5 truncate drop-shadow-md">{next.name}</h3>
+                        <p className="text-[9px] font-bold text-emerald-100/50 uppercase tracking-widest truncate">{next.location || "Main Hall"}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-4xl font-black tabular-nums tracking-tighter drop-shadow-lg">{next.time}</span>
+                        <span className="text-3xl font-black tabular-nums tracking-tighter drop-shadow-lg">{next.time}</span>
                       </div>
                     </div>
 
@@ -1046,15 +1138,15 @@ export default function DisplayClient() {
 
               {/* Upcoming Event Info */}
               {activePlaylist.showInfoCard && announcementTitle && (
-                <div className="bg-white text-primary rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                  <div className="flex items-center gap-2 text-muted-foreground/50 mb-4 text-xs font-black uppercase tracking-widest">
-                    <Info className="w-5 h-5 text-accent" />
-                    Pengumuman
+                <div className="bg-white text-primary rounded-[2rem] p-5 shadow-2xl relative overflow-hidden">
+                  <div className="flex items-center gap-2 text-muted-foreground/50 mb-3 text-[10px] font-black uppercase tracking-widest">
+                    <Info className="w-4 h-4 text-accent" />
+                    {t("common.papan_informasi")}
                   </div>
-                  <h3 className="font-black text-xl leading-tight text-primary">{announcementTitle}</h3>
+                  <h3 className="font-black text-lg leading-tight text-primary">{announcementTitle}</h3>
                   {announcementLocation && (
-                    <div className="flex items-center gap-2 text-sm font-bold text-primary/60 mt-3 bg-primary/5 p-2 rounded-lg">
-                      <MapPin className="w-4 h-4" /> {announcementLocation}
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-primary/60 mt-3 bg-primary/5 p-2 rounded-xl">
+                      <MapPin className="w-3.5 h-3.5" /> {announcementLocation}
                     </div>
                   )}
                 </div>
@@ -1062,13 +1154,13 @@ export default function DisplayClient() {
 
               {/* QR Code Sync */}
               {activePlaylist.showQR && qrUrl && (
-                <div className="bg-accent/10 backdrop-blur-md rounded-3xl p-6 border border-accent/20 flex items-center gap-4">
+                <div className="bg-accent/10 backdrop-blur-md rounded-3xl p-4 border border-accent/20 flex items-center gap-4">
                   <div className="bg-white p-2 rounded-xl shrink-0">
-                    <QrCode className="w-16 h-16 text-black" />
+                    <QrCode className="w-12 h-12 text-black" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-black uppercase text-accent tracking-tighter">Scan for Details</h4>
-                    <p className="text-[10px] text-white/70 leading-tight mt-1 font-medium truncate">{qrUrl.replace(/^https?:\/\//, '')}</p>
+                    <h4 className="text-[11px] font-black uppercase text-accent tracking-tighter">{t("pl.details")}</h4>
+                    <p className="text-[9px] text-white/70 leading-tight mt-1 font-medium truncate">{qrUrl.replace(/^https?:\/\//, '')}</p>
                   </div>
                 </div>
               )}

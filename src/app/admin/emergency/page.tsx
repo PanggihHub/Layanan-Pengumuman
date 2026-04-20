@@ -52,6 +52,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/context/LanguageContext";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { useEffect } from "react";
 
 interface Protocol {
   id: string;
@@ -69,6 +72,15 @@ export default function EmergencyPlatform() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isProtocolDialogOpen, setIsProtocolDialogOpen] = useState(false);
   const [editingProtocol, setEditingProtocol] = useState<Protocol | null>(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "emergency"), (snap) => {
+      if (snap.exists()) {
+        setActiveAlert(snap.data().activeAlertId || null);
+      }
+    });
+    return () => unsub();
+  }, []);
   
   const { toast } = useToast();
 
@@ -90,11 +102,21 @@ export default function EmergencyPlatform() {
   const [protoText, setProtoText] = useState("");
   const [protoColor, setProtoColor] = useState("bg-red-600");
 
-  const handleTriggerAlert = (id: string) => {
+  const handleTriggerAlert = async (id: string) => {
     const protocol = protocols.find(p => p.id === id);
     setIsProcessing(true);
-    setTimeout(() => {
-      setActiveAlert(id);
+    try {
+      await setDoc(doc(db, "settings", "emergency"), {
+        activeAlertId: id,
+        triggeredAt: serverTimestamp(),
+        protocol: protocol || { label: 'PANIC', text: 'EMERGENCY OVERRIDE - SYSTEM SECURED', color: 'bg-red-600' }
+      }, { merge: true });
+
+      // Also update the global isPanicLocked if it's the 'panic' override
+      if (id === 'panic') {
+        await setDoc(doc(db, "settings", "global"), { isPanicLocked: true }, { merge: true });
+      }
+
       setIsProcessing(false);
       
       const logEntry = {
@@ -112,13 +134,23 @@ export default function EmergencyPlatform() {
           ? `Protokol ${protocol?.label.toUpperCase() || 'PANIK'} dikirim ke semua node jaringan.` 
           : `Protocol ${protocol?.label.toUpperCase() || 'PANIC'} deployed to all network nodes.`,
       });
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      setIsProcessing(false);
+    }
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setActiveAlert(null);
+    try {
+      await setDoc(doc(db, "settings", "emergency"), {
+        activeAlertId: null,
+        clearedAt: serverTimestamp()
+      }, { merge: true });
+
+      // Reset global panic lock as well
+      await setDoc(doc(db, "settings", "global"), { isPanicLocked: false }, { merge: true });
+
       setIsProcessing(false);
       
       setLogs(prev => [
@@ -137,7 +169,10 @@ export default function EmergencyPlatform() {
           ? "Siaran darurat dihentikan. Melanjutkan daftar putar standar." 
           : "Emergency broadcast terminated. Resuming standard playlists.",
       });
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setIsProcessing(false);
+    }
   };
 
   const handleOpenAddProtocol = () => {

@@ -52,10 +52,12 @@ import {
   QualityTier,
   DEFAULT_QUALITY_POLICY,
 } from "@/lib/media-pipeline";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SystemConfig() {
+  const { t } = useLanguage();
   const [syncUrl, setSyncUrl]           = useState("https://api.screensense.cloud/v1");
   const [heartbeat, setHeartbeat]       = useState("60");
   const [sessionTimeout, setSessionTimeout] = useState("30");
@@ -111,8 +113,8 @@ export default function SystemConfig() {
     setTimeout(() => {
       setIsSaving(false);
       toast({
-        title: "System Configuration Saved",
-        description: "Infrastructure parameters + Quality Policy pushed to all endpoints.",
+        title: t("set.configSaved"),
+        description: t("set.configSavedDesc"),
       });
     }, 600);
   };
@@ -156,13 +158,13 @@ export default function SystemConfig() {
       <div>
         <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
           <Settings className="w-8 h-8 text-accent" />
-          System Configuration
+          {t("set.title")}
         </h1>
         <p className="text-muted-foreground mt-2">
-          Core infrastructure, display layout templates, and adaptive media pipeline policy.
-          Regional settings (timezone, temperature, language) are managed in{" "}
+          {t("set.desc")}
+          {" "}{t("set.localizationNotice")}{" "}
           <a href="/admin/languages" className="text-primary font-bold underline-offset-2 hover:underline">
-            Localization
+            {t("nav.localization")}
           </a>.
         </p>
       </div>
@@ -174,22 +176,20 @@ export default function SystemConfig() {
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Layout className="w-5 h-5 text-accent" />
-              Display Layout Templates
+              {t("set.layoutTitle")}
             </CardTitle>
             <CardDescription>
-              Visual reference for hardware layout presets. Select the fallback layout used when no
-              playlist defines one. This is a <strong>template preview</strong> — actual per-screen
-              layouts are managed in the Playlists and Screens menus.
+              {t("set.layoutDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-8">
               <div className="flex-1 space-y-4">
                 <div className="space-y-2">
-                  <Label>Master Fallback Layout</Label>
+                  <Label>{t("set.fallbackLayout")}</Label>
                   <Select value={displayLayout} onValueChange={(v: any) => setDisplayLayout(v)}>
                     <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Select Layout" />
+                      <SelectValue placeholder={t("set.selectLayout")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="single">Single (1×1 Rotation)</SelectItem>
@@ -205,15 +205,14 @@ export default function SystemConfig() {
                 <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-700">
                   <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                   <span>
-                    Ticker, QR Code, and weather widget visibility are configured per sequence inside
-                    the <strong>Playlists</strong> menu for granular, per-screen control.
+                    {t("set.tickerVisibility")}
                   </span>
                 </div>
               </div>
 
               <div className="w-full md:w-64 space-y-2">
                 <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">
-                  Layout Preview
+                  {t("set.layoutPreview")}
                 </Label>
                 <div className="aspect-video relative group border shadow-sm rounded-xl overflow-hidden bg-muted/20">
                   <LayoutPreview layout={displayLayout} />
@@ -222,7 +221,7 @@ export default function SystemConfig() {
                   </div>
                 </div>
                 <div className="text-[9px] text-center text-muted-foreground uppercase font-black tracking-tighter">
-                  Mock Visual · Template Reference
+                  {t("set.mockVisual")}
                 </div>
               </div>
             </div>
@@ -234,14 +233,13 @@ export default function SystemConfig() {
           <CardHeader className="bg-gradient-to-r from-violet-50 to-sky-50 dark:from-violet-950/30 dark:to-sky-950/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Zap className="w-5 h-5 text-violet-600" />
-              Global Quality Policy
+              {t("set.qualityTitle")}
               <Badge className="ml-2 text-[8px] font-black uppercase tracking-widest bg-violet-100 text-violet-700 border-violet-200 px-2 py-0.5 animate-pulse">
-                LIVE · ALL ENDPOINTS
+                {t("set.liveEndpoints")}
               </Badge>
             </CardTitle>
             <CardDescription>
-              Centralized adaptive video pipeline control. Changes broadcast in real-time to
-              Media Library, Playlists, Screens, and all Display Clients via Firestore.
+              {t("set.qualityDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -249,14 +247,14 @@ export default function SystemConfig() {
             {/* Mode selector */}
             <div className="space-y-3">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                Fleet Quality Mode
+                {t("set.fleetQualityMode")}
               </Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {([
-                  { mode: "auto",        label: "Auto ABR",  icon: Cpu,          desc: "Device + network decide",  color: "sky" },
-                  { mode: "locked",      label: "Locked",    icon: ShieldCheck,  desc: "Force exact quality tier", color: "violet" },
-                  { mode: "capped",      label: "Capped",    icon: TrendingDown, desc: "ABR with max ceiling",     color: "amber" },
-                  { mode: "performance", label: "Stability", icon: Wifi,         desc: "Prefer lowest stall risk", color: "emerald" },
+                  { mode: "auto",        label: t("set.autoABR"),  icon: Cpu,          desc: t("set.autoABRDesc"),  color: "sky" },
+                  { mode: "locked",      label: t("set.locked"),    icon: ShieldCheck,  desc: t("set.lockedDesc"), color: "violet" },
+                  { mode: "capped",      label: t("set.capped"),    icon: TrendingDown, desc: t("set.cappedDesc"), color: "amber" },
+                  { mode: "performance", label: t("set.stability"), icon: Wifi,         desc: t("set.stabilityDesc"), color: "emerald" },
                 ] as const).map(({ mode, label, icon: Icon, desc, color }) => (
                   <button
                     key={mode}
@@ -284,9 +282,9 @@ export default function SystemConfig() {
             {/* Quality tier selects */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { key: "lockedQuality"   as const, label: "🔒 Locked Quality", desc: "Every endpoint plays exactly this", disabled: localPolicy.mode !== "locked" },
-                { key: "maxQuality"      as const, label: "⬆️ Max Quality Cap", desc: "ABR ceiling for all devices",       disabled: localPolicy.mode === "locked" || localPolicy.mode === "performance" },
-                { key: "fallbackQuality" as const, label: "⬇️ Fallback Floor",  desc: "Minimum quality allowed",           disabled: false },
+                { key: "lockedQuality"   as const, label: t("set.lockedQuality"), desc: t("set.lockedQualityDesc"), disabled: localPolicy.mode !== "locked" },
+                { key: "maxQuality"      as const, label: t("set.maxQualityCap"), desc: t("set.maxQualityCapDesc"),       disabled: localPolicy.mode === "locked" || localPolicy.mode === "performance" },
+                { key: "fallbackQuality" as const, label: t("set.fallbackFloor"),  desc: t("set.fallbackFloorDesc"),           disabled: false },
               ].map(({ key, label, desc, disabled }) => (
                 <div key={key} className={cn("space-y-2", disabled && "opacity-40 pointer-events-none")}>
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -322,8 +320,8 @@ export default function SystemConfig() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-dashed">
                 <div>
-                  <p className="text-sm font-black">Adaptive Bitrate (ABR)</p>
-                  <p className="text-xs text-muted-foreground">Auto upgrade/downgrade during playback</p>
+                  <p className="text-sm font-black">{t("set.adaptiveBitrate")}</p>
+                  <p className="text-xs text-muted-foreground">{t("set.abrDesc")}</p>
                 </div>
                 <Switch
                   checked={localPolicy.abrEnabled}
@@ -333,8 +331,8 @@ export default function SystemConfig() {
               </div>
               <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-dashed">
                 <div>
-                  <p className="text-sm font-black">Disable Lazy Loading</p>
-                  <p className="text-xs text-muted-foreground">Preload all assets immediately fleet-wide</p>
+                  <p className="text-sm font-black">{t("set.disableLazyLoading")}</p>
+                  <p className="text-xs text-muted-foreground">{t("set.lazyLoadingDesc")}</p>
                 </div>
                 <Switch
                   checked={localPolicy.disableLazyLoad}
@@ -345,9 +343,9 @@ export default function SystemConfig() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
-                { field: "stallThreshold"     as const, label: "Stall Threshold (events)", min: 1,   max: 5,    step: 1,   unit: "",   desc: "Stalls before quality downgrades" },
-                { field: "upgradeBufferSeconds" as const, label: "Upgrade Buffer (s)",       min: 5,   max: 30,   step: 1,   unit: "s",  desc: "Smooth seconds before upgrading" },
-                { field: "transitionMs"       as const, label: "Crossfade (ms)",            min: 200, max: 1500, step: 100, unit: "ms", desc: "Quality-change transition duration" },
+                { field: "stallThreshold"     as const, label: t("set.stallThreshold"), min: 1,   max: 5,    step: 1,   unit: "",   desc: t("set.stallThresholdDesc") },
+                { field: "upgradeBufferSeconds" as const, label: t("set.upgradeBuffer"),       min: 5,   max: 30,   step: 1,   unit: "s",  desc: t("set.upgradeBufferDesc") },
+                { field: "transitionMs"       as const, label: t("set.crossfade"),            min: 200, max: 1500, step: 100, unit: "ms", desc: t("set.crossfadeDesc") },
               ].map(({ field, label, min, max, step, unit, desc }) => (
                 <div key={field} className="space-y-3">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -383,12 +381,12 @@ export default function SystemConfig() {
                 localPolicy.mode === "performance" ? "text-emerald-600" : "text-sky-600"
               )} />
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-primary">Active Policy Preview</p>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">{t("set.activePolicyPreview")}</p>
                 <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                  {localPolicy.mode === "auto"        && `Full ABR — each device selects quality up to ${localPolicy.maxQuality}, never below ${localPolicy.fallbackQuality}. Upgrades after ${localPolicy.upgradeBufferSeconds}s smooth playback.`}
-                  {localPolicy.mode === "locked"      && `All endpoints locked to ${localPolicy.lockedQuality}. No ABR. Every screen in the fleet plays at exactly this quality.`}
-                  {localPolicy.mode === "capped"      && `ABR enabled but capped at ${localPolicy.maxQuality}. Minimum floor: ${localPolicy.fallbackQuality}. Downgrades after ${localPolicy.stallThreshold} stall events.`}
-                  {localPolicy.mode === "performance" && `Stability mode — all endpoints default to ${localPolicy.fallbackQuality} for maximum reliability. ABR disabled.`}
+                  {localPolicy.mode === "auto"        && t("set.fullABRPriview", { max: localPolicy.maxQuality, floor: localPolicy.fallbackQuality, buffer: localPolicy.upgradeBufferSeconds })}
+                  {localPolicy.mode === "locked"      && t("set.lockedPreview", { quality: localPolicy.lockedQuality })}
+                  {localPolicy.mode === "capped"      && t("set.cappedPreview", { max: localPolicy.maxQuality, floor: localPolicy.fallbackQuality, stalls: localPolicy.stallThreshold })}
+                  {localPolicy.mode === "performance" && t("set.stabilityPreview", { floor: localPolicy.fallbackQuality })}
                 </p>
               </div>
             </div>
@@ -401,22 +399,19 @@ export default function SystemConfig() {
           <CardHeader className="bg-amber-50 dark:bg-amber-950/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Presentation className="w-5 h-5 text-amber-600" />
-              Demo Mode
+              {t("set.demoTitle")}
               <Badge className="ml-2 text-[8px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border-amber-300 px-2 py-0.5">
-                BYPASS PAIRING
+                {t("set.bypassPairing")}
               </Badge>
             </CardTitle>
             <CardDescription>
-              Share the Demo Code with presenters so they can show the display client without going
-              through the full pairing flow. Navigate to{" "}
-              <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]">/display?demo=YOUR_CODE</code>{" "}
-              to activate.
+              {t("set.demoDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <Presentation className="w-4 h-4 text-amber-600" /> Demo Access Code
+                <Presentation className="w-4 h-4 text-amber-600" /> {t("set.demoAccessCode")}
               </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -460,16 +455,14 @@ export default function SystemConfig() {
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Code is case-insensitive. Changes take effect after <strong>Save &amp; Apply</strong>.
+                {t("set.demoCodeDesc")}
               </p>
             </div>
 
             <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 rounded-xl text-[11px] text-amber-700 dark:text-amber-400">
               <Info className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
               <span>
-                Demo Mode shows the full display screen using the <strong>current active playlist</strong>.
-                The screen is <strong>not registered</strong> as a paired device and does not appear in Fleet Management.
-                Ideal for demos, stakeholder reviews, and exhibition kiosks.
+                {t("set.demoModeInfo")}
               </span>
             </div>
           </CardContent>
@@ -480,16 +473,16 @@ export default function SystemConfig() {
           <CardHeader className="bg-muted/30">
             <CardTitle className="flex items-center gap-2 text-primary">
               <Server className="w-5 h-5" />
-              Cloud Infrastructure & API
+              {t("set.cloudTitle")}
             </CardTitle>
             <CardDescription>
-              Platform sync endpoint, device telemetry interval, session expiry, and auto-publish policy.
+              {t("set.cloudDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
 
             <div className="space-y-2">
-              <Label>Cloud Sync Endpoint</Label>
+              <Label>{t("set.cloudSyncEndpoint")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={syncUrl}
@@ -506,7 +499,7 @@ export default function SystemConfig() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-accent" /> Device Heartbeat (sec)
+                  <Timer className="w-4 h-4 text-accent" /> {t("set.deviceHeartbeat")}
                 </Label>
                 <Input
                   type="number"
@@ -515,11 +508,11 @@ export default function SystemConfig() {
                   className="rounded-xl h-11"
                   min={10} max={300}
                 />
-                <p className="text-[10px] text-muted-foreground">How often displays ping home</p>
+                <p className="text-[10px] text-muted-foreground">{t("set.heartbeatDesc")}</p>
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
-                  <Cloud className="w-4 h-4 text-accent" /> Session Duration (min)
+                  <Cloud className="w-4 h-4 text-accent" /> {t("set.sessionDuration")}
                 </Label>
                 <Input
                   type="number"
@@ -528,15 +521,15 @@ export default function SystemConfig() {
                   className="rounded-xl h-11"
                   min={5} max={480}
                 />
-                <p className="text-[10px] text-muted-foreground">Admin session auto-logout timeout</p>
+                <p className="text-[10px] text-muted-foreground">{t("set.sessionDesc")}</p>
               </div>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-dashed">
               <div className="space-y-0.5">
-                <p className="text-sm font-bold">Auto-Publish Updates</p>
+                <p className="text-sm font-bold">{t("set.autoPublish")}</p>
                 <p className="text-xs text-muted-foreground">
-                  Push content changes to all screens automatically without manual sync.
+                  {t("set.autoPublishDesc")}
                 </p>
               </div>
               <Switch checked={autoUpdate} onCheckedChange={setAutoUpdate} />
@@ -548,7 +541,7 @@ export default function SystemConfig() {
         {/* Save */}
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={() => window.location.reload()} className="rounded-xl">
-            Discard Changes
+            {t("set.discardChanges")}
           </Button>
           <Button
             onClick={handleSave}
@@ -556,7 +549,7 @@ export default function SystemConfig() {
             className="gap-2 px-12 rounded-xl h-12 shadow-xl shadow-primary/20 bg-primary font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
           >
             {isSaving ? <RefreshCw className="animate-spin" /> : <Save className="w-5 h-5" />}
-            Save & Apply
+            {t("set.saveApply")}
           </Button>
         </div>
 
